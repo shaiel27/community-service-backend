@@ -19,7 +19,19 @@ INSERT INTO permission (name, description) VALUES
 INSERT INTO student_status (description) VALUES ('Active');
 
 -- Brigadas
-INSERT INTO brigade (name) VALUES ('Brigade Alpha'), ('Brigade Beta'), ('Brigade Gamma');
+INSERT INTO brigade (name, description) VALUES
+('Brigada de Patrulla Escolar','Responsables de mantener el orden y la seguridad de los estudiantes'),
+('Brigada de Primeros Auxilios','Ayuda a atender a quienes se sienten mal o se lastiman'),
+('Brigada de Gestión de Riesgos','Se encarga de prevenir y responder ante emergencias'),
+('Brigada de Convivencia y Paz','Promueve un ambiente de respeto, armonía y resolución pacífica de conflictos'),
+('Brigada Ecológica','Dedicada a la conservación del medio ambiente escolar y la promoción de prácticas sostenibles'),
+('Brigada de Bosque Bicentenario','Encargada del cuidado y mantenimiento de las áreas verdes y el bosque escolar'),
+('Brigada de Bioseguridad','Garantiza el cumplimiento de las normas sanitarias y de higiene en la institución'),
+('Brigada de Calentamiento Global','Concientiza sobre el cambio climático y promueve acciones para mitigar sus efectos'),
+('Brigada de Prevención Integral','Aborda la prevención de riesgos, adicciones y situaciones que afecten el bienestar estudiantil'),
+('Brigada de Guardián de la Semilla','Fomenta la agricultura sostenible y el cuidado de las plantas y huertos escolares'),
+('Brigada de Agua y Saneamiento','Promueve el uso consciente del agua y el mantenimiento de la higiene en las instalaciones'),
+('Brigada de Sociedad Bolivariana','Estudia y difunde el pensamiento y legado de Simón Bolívar y los valores patrios'),
 
 -- Staff: 9 docentes, 3 admins, 3 mantenimiento
 INSERT INTO staff (first_name, last_name, role_id, phone_number, national_id, email, birth_date) VALUES
