@@ -5,7 +5,7 @@ import crypto from "crypto"
 
 const register = async (req, res) => {
   try {
-    const { username, email, password, permiso_id, security_word, personal_id } = req.body
+    const { username, email, password, permiso_id, security_word, respuesta_de_seguridad, personal_id } = req.body
 
     if (!username || !password || !permiso_id) {
       return res.status(400).json({
@@ -58,6 +58,7 @@ const register = async (req, res) => {
       password,
       permiso_id,
       security_word,
+      respuesta_de_seguridad,
       personal_id,
     })
 
@@ -92,37 +93,58 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body // Cambiar username por email
+    const { email, password } = req.body
+
+    console.log("🔍 Intento de login:", { email, password: "***" })
 
     if (!email || !password) {
       return res.status(400).json({
         ok: false,
-        msg: "Email and password are required", // Cambiar mensaje
+        msg: "Email and password are required",
       })
     }
 
-    const user = await UserModel.findOneByEmail(email) // Usar findOneByEmail
+    console.log("🔍 Buscando usuario con email:", email)
+    const user = await UserModel.findOneByEmail(email)
+
     if (!user) {
+      console.log("❌ Usuario no encontrado")
       return res.status(400).json({
         ok: false,
-        msg: "Invalid email or password", // Cambiar mensaje
+        msg: "Invalid email or password",
       })
     }
 
+    console.log("✅ Usuario encontrado:", {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      is_active: user.is_active,
+      permiso_id: user.permiso_id,
+      permiso_nombre: user.permiso_nombre,
+    })
+
     if (!user.is_active) {
+      console.log("❌ Usuario inactivo")
       return res.status(403).json({
         ok: false,
         msg: "Account is inactive. Please contact an administrator",
       })
     }
 
+    console.log("🔑 Verificando password...")
     const validPassword = await bcryptjs.compare(password, user.password)
+    console.log("🔑 Password válido:", validPassword)
+
     if (!validPassword) {
+      console.log("❌ Password incorrecto")
       return res.status(400).json({
         ok: false,
         msg: "Invalid email or password",
       })
     }
+
+    console.log("🎉 Login exitoso, generando tokens...")
 
     // Generate access token
     const accessToken = jwt.sign(
@@ -169,10 +191,11 @@ const login = async (req, res) => {
       },
     })
   } catch (error) {
-    console.error("Login error:", error)
+    console.error("❌ Login error:", error)
     res.status(500).json({
       ok: false,
       msg: "Server error",
+      error: error.message,
     })
   }
 }
@@ -352,7 +375,7 @@ const listUsers = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.userId
-    const { email, security_word } = req.body
+    const { email, security_word, respuesta_de_seguridad } = req.body
 
     // Check if email is being updated and if it already exists
     if (email) {
@@ -368,6 +391,7 @@ const updateProfile = async (req, res) => {
     const updatedUser = await UserModel.updateProfile(userId, {
       email,
       security_word,
+      respuesta_de_seguridad,
     })
 
     if (!updatedUser) {
@@ -448,20 +472,21 @@ const changePassword = async (req, res) => {
 
 const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body // Cambiar username por email
+    const { username } = req.body
 
-    if (!email) {
+    if (!username) {
       return res.status(400).json({
         ok: false,
-        msg: "Email is required", // Cambiar mensaje
+        msg: "Username is required",
       })
     }
 
-    const user = await UserModel.findOneByEmail(email) // Usar findOneByEmail
+    const user = await UserModel.findOneByUsername(username)
     if (!user) {
+      // For security reasons, don't reveal that the user doesn't exist
       return res.json({
         ok: true,
-        msg: "If your email exists in our system, you will receive a password reset token", // Cambiar mensaje
+        msg: "If your username exists in our system, you will receive a password reset token",
       })
     }
 
@@ -469,13 +494,13 @@ const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(20).toString("hex")
     const expires = new Date(Date.now() + 3600000) // 1 hour from now
 
-    await UserModel.setPasswordResetToken(email, resetToken, expires)
+    await UserModel.setPasswordResetToken(username, resetToken, expires)
 
     // In a real application, you would send an email with the reset token
     // For this example, we'll just return it in the response
     return res.json({
       ok: true,
-      msg: "If your email exists in our system, you will receive a password reset token",
+      msg: "If your username exists in our system, you will receive a password reset token",
       // Only for development purposes:
       resetToken,
     })
@@ -680,6 +705,89 @@ const verifyEmail = async (req, res) => {
   }
 }
 
+const recoverPasswordWithSecurity = async (req, res) => {
+  try {
+    const { username, respuesta_de_seguridad, newPassword } = req.body
+
+    if (!username || !respuesta_de_seguridad || !newPassword) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Username, security answer, and new password are required",
+      })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        ok: false,
+        msg: "New password must be at least 6 characters long",
+      })
+    }
+
+    // Verify security answer
+    const user = await UserModel.verifySecurityAnswer(username, respuesta_de_seguridad)
+    if (!user) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Invalid username or security answer",
+      })
+    }
+
+    // Hash new password
+    const salt = await bcryptjs.genSalt(10)
+    const hashedPassword = await bcryptjs.hash(newPassword, salt)
+
+    // Update password
+    await UserModel.updatePassword(user.id, hashedPassword)
+
+    return res.json({
+      ok: true,
+      msg: "Password has been reset successfully using security question",
+    })
+  } catch (error) {
+    console.error("Error in recoverPasswordWithSecurity:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+      error: error.message,
+    })
+  }
+}
+
+const getSecurityQuestion = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Username is required",
+      })
+    }
+
+    const user = await UserModel.findOneByUsername(username)
+    if (!user) {
+      // For security reasons, don't reveal that the user doesn't exist
+      return res.status(404).json({
+        ok: false,
+        msg: "User not found",
+      })
+    }
+
+    return res.json({
+      ok: true,
+      security_question: user.security_word,
+      username: user.username,
+    })
+  } catch (error) {
+    console.error("Error in getSecurityQuestion:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+      error: error.message,
+    })
+  }
+}
+
 export const UserController = {
   register,
   login,
@@ -696,4 +804,6 @@ export const UserController = {
   deleteUser,
   searchUsers,
   verifyEmail,
+  recoverPasswordWithSecurity,
+  getSecurityQuestion,
 }

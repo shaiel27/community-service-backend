@@ -10,6 +10,8 @@ router.post("/login", UserController.login)
 router.post("/refresh-token", UserController.refreshToken)
 router.post("/forgot-password", UserController.forgotPassword)
 router.post("/reset-password", UserController.resetPassword)
+router.get("/security-question/:username", UserController.getSecurityQuestion)
+router.post("/recover-password-security", UserController.recoverPasswordWithSecurity)
 
 // Routes that require authentication
 router.post("/logout", verifyToken, UserController.logout)

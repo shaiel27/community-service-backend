@@ -78,6 +78,7 @@ CREATE TABLE usuario (
     password_reset_token VARCHAR(255),
     password_reset_expires TIMESTAMP,
     security_word TEXT,
+	respuesta_de_seguridad text,
     last_login TIMESTAMP,
     is_active BOOLEAN,
     created_at TIMESTAMP,

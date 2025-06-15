@@ -1,7 +1,15 @@
 import { db } from "../db/connection.database.js"
 import bcryptjs from "bcryptjs"
 
-const create = async ({ username, email, password, permiso_id, security_word, personal_id }) => {
+const create = async ({
+  username,
+  email,
+  password,
+  permiso_id,
+  security_word,
+  respuesta_de_seguridad,
+  personal_id,
+}) => {
   try {
     // Hash the password
     const salt = await bcryptjs.genSalt(10)
@@ -10,76 +18,28 @@ const create = async ({ username, email, password, permiso_id, security_word, pe
     const query = {
       text: `
         INSERT INTO "usuario" (
-          username, email, password, permiso_id, security_word, personal_id, 
+          username, email, password, permiso_id, security_word, respuesta_de_seguridad, personal_id, 
           is_active, email_verified, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING id, username, email, permiso_id, personal_id, is_active, created_at
       `,
-      values: [username, email, hashedPassword, permiso_id, security_word, personal_id, true, false],
+      values: [
+        username,
+        email,
+        hashedPassword,
+        permiso_id,
+        security_word,
+        respuesta_de_seguridad,
+        personal_id,
+        true,
+        false,
+      ],
     }
     const { rows } = await db.query(query)
     return rows[0]
   } catch (error) {
     console.error("Error in create user:", error)
-    throw error
-  }
-}
-
-const findOneByUsername = async (username) => {
-  try {
-    const query = {
-      text: `
-        SELECT u.*, 
-               p.nombre as permiso_nombre, 
-               p.descripcion as permiso_descripcion,
-               per.nombre as personal_nombre,
-               per.lastname as personal_apellido,
-               per.email as personal_email,
-               per.ci as personal_ci,
-               r.name as rol_nombre,
-               r.description as rol_descripcion
-        FROM "usuario" u
-        LEFT JOIN permisos p ON u.permiso_id = p.id
-        LEFT JOIN personal per ON u.personal_id = per.id
-        LEFT JOIN rol r ON per.idrole = r.id
-        WHERE u.username = $1
-      `,
-      values: [username],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findOneByUsername:", error)
-    throw error
-  }
-}
-
-const findOneById = async (id) => {
-  try {
-    const query = {
-      text: `
-        SELECT u.*, 
-               p.nombre as permiso_nombre, 
-               p.descripcion as permiso_descripcion,
-               per.nombre as personal_nombre,
-               per.lastname as personal_apellido,
-               per.email as personal_email,
-               per.ci as personal_ci,
-               r.name as rol_nombre,
-               r.description as rol_descripcion
-        FROM "usuario" u
-        LEFT JOIN permisos p ON u.permiso_id = p.id
-        LEFT JOIN personal per ON u.personal_id = per.id
-        LEFT JOIN rol r ON per.idrole = r.id
-        WHERE u.id = $1
-      `,
-      values: [id],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findOneById:", error)
     throw error
   }
 }
@@ -109,6 +69,37 @@ const findOneByEmail = async (email) => {
     return rows[0]
   } catch (error) {
     console.error("Error in findOneByEmail:", error)
+    throw error
+  }
+}
+
+const findOneByUsername = findOneByEmail // Alias para compatibilidad
+
+const findOneById = async (id) => {
+  try {
+    const query = {
+      text: `
+        SELECT u.*, 
+               p.nombre as permiso_nombre, 
+               p.descripcion as permiso_descripcion,
+               per.nombre as personal_nombre,
+               per.lastname as personal_apellido,
+               per.email as personal_email,
+               per.ci as personal_ci,
+               r.name as rol_nombre,
+               r.description as rol_descripcion
+        FROM "usuario" u
+        LEFT JOIN permisos p ON u.permiso_id = p.id
+        LEFT JOIN personal per ON u.personal_id = per.id
+        LEFT JOIN rol r ON per.idrole = r.id
+        WHERE u.id = $1
+      `,
+      values: [id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in findOneById:", error)
     throw error
   }
 }
@@ -163,18 +154,19 @@ const updatePassword = async (id, hashedPassword) => {
   }
 }
 
-const updateProfile = async (id, { email, security_word }) => {
+const updateProfile = async (id, { email, security_word, respuesta_de_seguridad }) => {
   try {
     const query = {
       text: `
         UPDATE "usuario"
         SET email = COALESCE($1, email),
             security_word = COALESCE($2, security_word),
+            respuesta_de_seguridad = COALESCE($3, respuesta_de_seguridad),
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3
-        RETURNING id, username, email, security_word
+        WHERE id = $4
+        RETURNING id, username, email, security_word, respuesta_de_seguridad
       `,
-      values: [email, security_word, id],
+      values: [email, security_word, respuesta_de_seguridad, id],
     }
     const { rows } = await db.query(query)
     return rows[0]
@@ -446,6 +438,24 @@ const setEmailVerificationToken = async (id, token) => {
   }
 }
 
+const verifySecurityAnswer = async (username, respuesta_de_seguridad) => {
+  try {
+    const query = {
+      text: `
+        SELECT id, username, email, security_word, respuesta_de_seguridad
+        FROM "usuario"
+        WHERE username = $1 AND respuesta_de_seguridad = $2
+      `,
+      values: [username, respuesta_de_seguridad],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in verifySecurityAnswer:", error)
+    throw error
+  }
+}
+
 export const UserModel = {
   create,
   findOneByUsername,
@@ -466,4 +476,5 @@ export const UserModel = {
   searchByUsername,
   verifyEmail,
   setEmailVerificationToken,
+  verifySecurityAnswer,
 }
