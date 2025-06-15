@@ -5,28 +5,12 @@ import crypto from "crypto"
 
 const register = async (req, res) => {
   try {
-    const { username, password, staff_id, guardian_id, role_id, permission_id, security_question } = req.body
+    const { username, email, password, permiso_id, security_word, personal_id } = req.body
 
-    if (!username || !password || !role_id || !permission_id) {
+    if (!username || !password || !permiso_id) {
       return res.status(400).json({
         ok: false,
-        msg: "Missing required fields: username, password, role_id, and permission_id are mandatory",
-      })
-    }
-
-    // Check if either staff_id or guardian_id is provided
-    if (!staff_id && !guardian_id) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Either staff_id or guardian_id must be provided",
-      })
-    }
-
-    // Check if both staff_id and guardian_id are provided (not allowed)
-    if (staff_id && guardian_id) {
-      return res.status(400).json({
-        ok: false,
-        msg: "A user cannot be both staff and guardian. Please provide only one of staff_id or guardian_id",
+        msg: "Missing required fields: username, password, and permiso_id are mandatory",
       })
     }
 
@@ -37,34 +21,44 @@ const register = async (req, res) => {
       })
     }
 
+    // Check if username already exists
     const existingUser = await UserModel.findOneByUsername(username)
     if (existingUser) {
-      return res.status(400).json({ ok: false, message: "Username already exists" })
+      return res.status(400).json({
+        ok: false,
+        msg: "Username already exists",
+      })
     }
 
-    // Check if staff or guardian already has a user account
-    if (staff_id) {
-      const existingStaffUser = await UserModel.findByStaffId(staff_id)
-      if (existingStaffUser) {
-        return res.status(400).json({ ok: false, message: "This staff member already has a user account" })
+    // Check if email already exists (if provided)
+    if (email) {
+      const existingUserByEmail = await UserModel.findOneByEmail(email)
+      if (existingUserByEmail) {
+        return res.status(400).json({
+          ok: false,
+          msg: "Email already exists",
+        })
       }
     }
 
-    if (guardian_id) {
-      const existingGuardianUser = await UserModel.findByGuardianId(guardian_id)
-      if (existingGuardianUser) {
-        return res.status(400).json({ ok: false, message: "This guardian already has a user account" })
+    // Check if personal already has a user account (if personal_id is provided)
+    if (personal_id) {
+      const existingPersonalUser = await UserModel.findByPersonalId(personal_id)
+      if (existingPersonalUser) {
+        return res.status(400).json({
+          ok: false,
+          msg: "This personal member already has a user account",
+        })
       }
     }
 
     const newUser = await UserModel.create({
       username,
+      email,
       password,
-      staff_id,
-      guardian_id,
-      role_id,
-      permission_id,
-      security_question,
+      permiso_id,
+      security_word,
+      personal_id,
     })
 
     if (!newUser) {
@@ -76,7 +70,15 @@ const register = async (req, res) => {
 
     return res.status(201).json({
       ok: true,
-      user: newUser,
+      msg: "User created successfully",
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        permiso_id: newUser.permiso_id,
+        personal_id: newUser.personal_id,
+        is_active: newUser.is_active,
+      },
     })
   } catch (error) {
     console.error("Error in register:", error)
@@ -90,27 +92,36 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { username, password } = req.body
+    const { email, password } = req.body // Cambiar username por email
 
-    if (!username || !password) {
+    if (!email || !password) {
       return res.status(400).json({
         ok: false,
-        msg: "Username and password are required",
+        msg: "Email and password are required", // Cambiar mensaje
       })
     }
 
-    const user = await UserModel.findOneByUsername(username)
+    const user = await UserModel.findOneByEmail(email) // Usar findOneByEmail
     if (!user) {
-      return res.status(400).json({ ok: false, message: "Invalid username or password" })
+      return res.status(400).json({
+        ok: false,
+        msg: "Invalid email or password", // Cambiar mensaje
+      })
     }
 
     if (!user.is_active) {
-      return res.status(403).json({ ok: false, message: "Account is inactive. Please contact an administrator" })
+      return res.status(403).json({
+        ok: false,
+        msg: "Account is inactive. Please contact an administrator",
+      })
     }
 
     const validPassword = await bcryptjs.compare(password, user.password)
     if (!validPassword) {
-      return res.status(400).json({ ok: false, message: "Invalid username or password" })
+      return res.status(400).json({
+        ok: false,
+        msg: "Invalid email or password",
+      })
     }
 
     // Generate access token
@@ -118,8 +129,8 @@ const login = async (req, res) => {
       {
         userId: user.id,
         username: user.username,
-        role_id: user.role_id,
-        permission_id: user.permission_id,
+        permiso_id: user.permiso_id,
+        personal_id: user.personal_id,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" },
@@ -142,20 +153,27 @@ const login = async (req, res) => {
 
     res.json({
       ok: true,
+      msg: "Login successful",
       accessToken,
       refreshToken,
       user: {
         id: user.id,
         username: user.username,
-        role_id: user.role_id,
-        permission_id: user.permission_id,
-        role_name: user.role_name,
-        permission_name: user.permission_name,
+        email: user.email,
+        permiso_id: user.permiso_id,
+        permiso_nombre: user.permiso_nombre,
+        personal_id: user.personal_id,
+        personal_nombre: user.personal_nombre,
+        personal_apellido: user.personal_apellido,
+        rol_nombre: user.rol_nombre,
       },
     })
   } catch (error) {
     console.error("Login error:", error)
-    res.status(500).json({ ok: false, message: "Server error" })
+    res.status(500).json({
+      ok: false,
+      msg: "Server error",
+    })
   }
 }
 
@@ -164,7 +182,10 @@ const refreshToken = async (req, res) => {
     const { refreshToken } = req.body
 
     if (!refreshToken) {
-      return res.status(400).json({ ok: false, message: "Refresh token is required" })
+      return res.status(400).json({
+        ok: false,
+        msg: "Refresh token is required",
+      })
     }
 
     try {
@@ -175,11 +196,17 @@ const refreshToken = async (req, res) => {
       // Get the user
       const user = await UserModel.findOneById(userId)
       if (!user) {
-        return res.status(404).json({ ok: false, message: "User not found" })
+        return res.status(404).json({
+          ok: false,
+          msg: "User not found",
+        })
       }
 
       if (!user.is_active) {
-        return res.status(403).json({ ok: false, message: "Account is inactive" })
+        return res.status(403).json({
+          ok: false,
+          msg: "Account is inactive",
+        })
       }
 
       // Generate new access token
@@ -187,8 +214,8 @@ const refreshToken = async (req, res) => {
         {
           userId: user.id,
           username: user.username,
-          role_id: user.role_id,
-          permission_id: user.permission_id,
+          permiso_id: user.permiso_id,
+          personal_id: user.personal_id,
         },
         process.env.JWT_SECRET,
         { expiresIn: "1h" },
@@ -213,16 +240,25 @@ const refreshToken = async (req, res) => {
       })
     } catch (error) {
       if (error.name === "TokenExpiredError") {
-        return res.status(401).json({ ok: false, message: "Refresh token expired" })
+        return res.status(401).json({
+          ok: false,
+          msg: "Refresh token expired",
+        })
       }
       if (error.name === "JsonWebTokenError") {
-        return res.status(401).json({ ok: false, message: "Invalid refresh token" })
+        return res.status(401).json({
+          ok: false,
+          msg: "Invalid refresh token",
+        })
       }
       throw error
     }
   } catch (error) {
     console.error("Error in refreshToken:", error)
-    return res.status(500).json({ ok: false, message: "Server error" })
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+    })
   }
 }
 
@@ -230,39 +266,55 @@ const logout = async (req, res) => {
   try {
     const authHeader = req.headers.authorization
     if (!authHeader) {
-      return res.status(401).json({ ok: false, message: "No token provided" })
+      return res.status(401).json({
+        ok: false,
+        msg: "No token provided",
+      })
     }
 
     const [bearer, token] = authHeader.split(" ")
     if (bearer !== "Bearer" || !token) {
-      return res.status(401).json({ ok: false, message: "Invalid token format" })
+      return res.status(401).json({
+        ok: false,
+        msg: "Invalid token format",
+      })
     }
 
     const user = await UserModel.findUserByAccessToken(token)
 
     if (!user) {
-      return res.status(403).json({ ok: false, message: "Invalid token" })
+      return res.status(403).json({
+        ok: false,
+        msg: "Invalid token",
+      })
     }
 
     await UserModel.clearLoginTokens(user.id)
 
-    return res.json({ ok: true, message: "Logged out successfully" })
+    return res.json({
+      ok: true,
+      msg: "Logged out successfully",
+    })
   } catch (error) {
     console.error("Error in logout:", error)
-    return res.status(500).json({ ok: false, message: "Server error" })
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+    })
   }
 }
 
 const profile = async (req, res) => {
   try {
     const userId = req.user.userId
-    console.log("Fetching profile for user ID:", userId)
 
     const user = await UserModel.findOneById(userId)
-    console.log("User found:", user ? "Yes" : "No")
 
     if (!user) {
-      return res.status(404).json({ ok: false, message: "User not found" })
+      return res.status(404).json({
+        ok: false,
+        msg: "User not found",
+      })
     }
 
     const { password: _, access_token: __, refresh_token: ___, ...userWithoutSensitiveInfo } = user
@@ -272,16 +324,21 @@ const profile = async (req, res) => {
     })
   } catch (error) {
     console.error("Error in profile:", error)
-    return res.status(500).json({ ok: false, msg: "Server error" })
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+    })
   }
 }
 
 const listUsers = async (req, res) => {
   try {
-    console.log("Fetching list of users")
     const users = await UserModel.findAll()
-    console.log("Number of users found:", users.length)
-    return res.json({ ok: true, users })
+    return res.json({
+      ok: true,
+      users,
+      total: users.length,
+    })
   } catch (error) {
     console.error("Error in listUsers:", error)
     return res.status(500).json({
@@ -295,10 +352,22 @@ const listUsers = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.userId
-    const { security_question } = req.body
+    const { email, security_word } = req.body
+
+    // Check if email is being updated and if it already exists
+    if (email) {
+      const existingUserByEmail = await UserModel.findOneByEmail(email)
+      if (existingUserByEmail && existingUserByEmail.id !== userId) {
+        return res.status(400).json({
+          ok: false,
+          msg: "Email already exists",
+        })
+      }
+    }
 
     const updatedUser = await UserModel.updateProfile(userId, {
-      security_question,
+      email,
+      security_word,
     })
 
     if (!updatedUser) {
@@ -379,21 +448,20 @@ const changePassword = async (req, res) => {
 
 const forgotPassword = async (req, res) => {
   try {
-    const { username } = req.body
+    const { email } = req.body // Cambiar username por email
 
-    if (!username) {
+    if (!email) {
       return res.status(400).json({
         ok: false,
-        msg: "Username is required",
+        msg: "Email is required", // Cambiar mensaje
       })
     }
 
-    const user = await UserModel.findOneByUsername(username)
+    const user = await UserModel.findOneByEmail(email) // Usar findOneByEmail
     if (!user) {
-      // For security reasons, don't reveal that the user doesn't exist
       return res.json({
         ok: true,
-        msg: "If your username exists in our system, you will receive a password reset token",
+        msg: "If your email exists in our system, you will receive a password reset token", // Cambiar mensaje
       })
     }
 
@@ -401,13 +469,13 @@ const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(20).toString("hex")
     const expires = new Date(Date.now() + 3600000) // 1 hour from now
 
-    await UserModel.setPasswordResetToken(username, resetToken, expires)
+    await UserModel.setPasswordResetToken(email, resetToken, expires)
 
     // In a real application, you would send an email with the reset token
     // For this example, we'll just return it in the response
     return res.json({
       ok: true,
-      msg: "If your username exists in our system, you will receive a password reset token",
+      msg: "If your email exists in our system, you will receive a password reset token",
       // Only for development purposes:
       resetToken,
     })
@@ -568,9 +636,42 @@ const searchUsers = async (req, res) => {
     return res.json({
       ok: true,
       users,
+      total: users.length,
     })
   } catch (error) {
     console.error("Error in searchUsers:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+      error: error.message,
+    })
+  }
+}
+
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params
+
+    const user = await UserModel.verifyEmail(token)
+    if (!user) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Invalid or expired verification token",
+      })
+    }
+
+    return res.json({
+      ok: true,
+      msg: "Email verified successfully",
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        email_verified: user.email_verified,
+      },
+    })
+  } catch (error) {
+    console.error("Error in verifyEmail:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
@@ -594,4 +695,5 @@ export const UserController = {
   deactivateUser,
   deleteUser,
   searchUsers,
+  verifyEmail,
 }

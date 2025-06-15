@@ -1,39 +1,22 @@
 import { db } from "../db/connection.database.js"
 import bcryptjs from "bcryptjs"
 
-const create = async ({ username, password, staff_id, guardian_id, role_id, permission_id, security_question }) => {
+const create = async ({ username, email, password, permiso_id, security_word, personal_id }) => {
   try {
     // Hash the password
     const salt = await bcryptjs.genSalt(10)
     const hashedPassword = await bcryptjs.hash(password, salt)
 
-    const getMaxIdQuery = {
-      text: 'SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM "user_account"',
-    }
-    const {
-      rows: [{ next_id }],
-    } = await db.query(getMaxIdQuery)
-
     const query = {
       text: `
-        INSERT INTO "user_account" (
-          id, username, password, staff_id, guardian_id, role_id, permission_id, 
-          security_question, is_active
+        INSERT INTO "usuario" (
+          username, email, password, permiso_id, security_word, personal_id, 
+          is_active, email_verified, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, username, staff_id, guardian_id, role_id, permission_id, is_active
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id, username, email, permiso_id, personal_id, is_active, created_at
       `,
-      values: [
-        next_id,
-        username,
-        hashedPassword,
-        staff_id,
-        guardian_id,
-        role_id,
-        permission_id,
-        security_question,
-        true,
-      ],
+      values: [username, email, hashedPassword, permiso_id, security_word, personal_id, true, false],
     }
     const { rows } = await db.query(query)
     return rows[0]
@@ -47,11 +30,20 @@ const findOneByUsername = async (username) => {
   try {
     const query = {
       text: `
-        SELECT ua.*, r.name as role_name, p.name as permission_name
-        FROM "user_account" ua
-        LEFT JOIN role r ON ua.role_id = r.id
-        LEFT JOIN permission p ON ua.permission_id = p.id
-        WHERE ua.username = $1
+        SELECT u.*, 
+               p.nombre as permiso_nombre, 
+               p.descripcion as permiso_descripcion,
+               per.nombre as personal_nombre,
+               per.lastname as personal_apellido,
+               per.email as personal_email,
+               per.ci as personal_ci,
+               r.name as rol_nombre,
+               r.description as rol_descripcion
+        FROM "usuario" u
+        LEFT JOIN permisos p ON u.permiso_id = p.id
+        LEFT JOIN personal per ON u.personal_id = per.id
+        LEFT JOIN rol r ON per.idrole = r.id
+        WHERE u.username = $1
       `,
       values: [username],
     }
@@ -67,11 +59,20 @@ const findOneById = async (id) => {
   try {
     const query = {
       text: `
-        SELECT ua.*, r.name as role_name, p.name as permission_name
-        FROM "user_account" ua
-        LEFT JOIN role r ON ua.role_id = r.id
-        LEFT JOIN permission p ON ua.permission_id = p.id
-        WHERE ua.id = $1
+        SELECT u.*, 
+               p.nombre as permiso_nombre, 
+               p.descripcion as permiso_descripcion,
+               per.nombre as personal_nombre,
+               per.lastname as personal_apellido,
+               per.email as personal_email,
+               per.ci as personal_ci,
+               r.name as rol_nombre,
+               r.description as rol_descripcion
+        FROM "usuario" u
+        LEFT JOIN permisos p ON u.permiso_id = p.id
+        LEFT JOIN personal per ON u.personal_id = per.id
+        LEFT JOIN rol r ON per.idrole = r.id
+        WHERE u.id = $1
       `,
       values: [id],
     }
@@ -83,24 +84,55 @@ const findOneById = async (id) => {
   }
 }
 
+const findOneByEmail = async (email) => {
+  try {
+    const query = {
+      text: `
+        SELECT u.*, 
+               p.nombre as permiso_nombre, 
+               p.descripcion as permiso_descripcion,
+               per.nombre as personal_nombre,
+               per.lastname as personal_apellido,
+               per.email as personal_email,
+               per.ci as personal_ci,
+               r.name as rol_nombre,
+               r.description as rol_descripcion
+        FROM "usuario" u
+        LEFT JOIN permisos p ON u.permiso_id = p.id
+        LEFT JOIN personal per ON u.personal_id = per.id
+        LEFT JOIN rol r ON per.idrole = r.id
+        WHERE u.email = $1
+      `,
+      values: [email],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in findOneByEmail:", error)
+    throw error
+  }
+}
+
 const findAll = async () => {
   try {
     const query = {
       text: `
-        SELECT ua.id, ua.username, ua.staff_id, ua.guardian_id, 
-               ua.role_id, ua.permission_id, ua.is_active, ua.created_at,
-               r.name as role_name, p.name as permission_name,
+        SELECT u.id, u.username, u.email, u.personal_id, u.permiso_id, 
+               u.is_active, u.email_verified, u.created_at, u.last_login,
+               p.nombre as permiso_nombre, 
+               p.descripcion as permiso_descripcion,
                CASE 
-                 WHEN ua.staff_id IS NOT NULL THEN CONCAT(s.first_name, ' ', s.last_name)
-                 WHEN ua.guardian_id IS NOT NULL THEN CONCAT(g.first_name, ' ', g.last_name)
-                 ELSE NULL
-               END as full_name
-        FROM "user_account" ua
-        LEFT JOIN role r ON ua.role_id = r.id
-        LEFT JOIN permission p ON ua.permission_id = p.id
-        LEFT JOIN staff s ON ua.staff_id = s.id
-        LEFT JOIN guardian g ON ua.guardian_id = g.id
-        ORDER BY ua.id
+                 WHEN u.personal_id IS NOT NULL THEN CONCAT(per.nombre, ' ', per.lastname)
+                 ELSE 'Usuario Externo'
+               END as nombre_completo,
+               per.ci as cedula,
+               per.email as email_personal,
+               r.name as rol_nombre
+        FROM "usuario" u
+        LEFT JOIN permisos p ON u.permiso_id = p.id
+        LEFT JOIN personal per ON u.personal_id = per.id
+        LEFT JOIN rol r ON per.idrole = r.id
+        ORDER BY u.id
       `,
     }
     const { rows } = await db.query(query)
@@ -115,11 +147,11 @@ const updatePassword = async (id, hashedPassword) => {
   try {
     const query = {
       text: `
-        UPDATE "user_account"
+        UPDATE "usuario"
         SET password = $1,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $2
-        RETURNING id, username
+        RETURNING id, username, email
       `,
       values: [hashedPassword, id],
     }
@@ -131,17 +163,18 @@ const updatePassword = async (id, hashedPassword) => {
   }
 }
 
-const updateProfile = async (id, { security_question }) => {
+const updateProfile = async (id, { email, security_word }) => {
   try {
     const query = {
       text: `
-        UPDATE "user_account"
-        SET security_question = COALESCE($1, security_question),
+        UPDATE "usuario"
+        SET email = COALESCE($1, email),
+            security_word = COALESCE($2, security_word),
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-        RETURNING id, username, security_question
+        WHERE id = $3
+        RETURNING id, username, email, security_word
       `,
-      values: [security_question, id],
+      values: [email, security_word, id],
     }
     const { rows } = await db.query(query)
     return rows[0]
@@ -155,7 +188,7 @@ const saveLoginToken = async (id, access_token, refresh_token, expiration) => {
   try {
     const query = {
       text: `
-        UPDATE "user_account"
+        UPDATE "usuario"
         SET access_token = $1,
             refresh_token = $2,
             token_expiry = $3,
@@ -176,11 +209,20 @@ const findUserByAccessToken = async (token) => {
   try {
     const query = {
       text: `
-        SELECT ua.*, r.name as role_name, p.name as permission_name
-        FROM "user_account" ua
-        LEFT JOIN role r ON ua.role_id = r.id
-        LEFT JOIN permission p ON ua.permission_id = p.id
-        WHERE ua.access_token = $1 AND ua.token_expiry > CURRENT_TIMESTAMP
+        SELECT u.*, 
+               p.nombre as permiso_nombre, 
+               p.descripcion as permiso_descripcion,
+               per.nombre as personal_nombre,
+               per.lastname as personal_apellido,
+               per.email as personal_email,
+               per.ci as personal_ci,
+               r.name as rol_nombre,
+               r.description as rol_descripcion
+        FROM "usuario" u
+        LEFT JOIN permisos p ON u.permiso_id = p.id
+        LEFT JOIN personal per ON u.personal_id = per.id
+        LEFT JOIN rol r ON per.idrole = r.id
+        WHERE u.access_token = $1 AND u.token_expiry > CURRENT_TIMESTAMP
       `,
       values: [token],
     }
@@ -196,7 +238,7 @@ const clearLoginTokens = async (id) => {
   try {
     const query = {
       text: `
-        UPDATE "user_account"
+        UPDATE "usuario"
         SET access_token = NULL,
             refresh_token = NULL,
             token_expiry = NULL,
@@ -216,12 +258,12 @@ const setPasswordResetToken = async (username, token, expires) => {
   try {
     const query = {
       text: `
-        UPDATE "user_account"
+        UPDATE "usuario"
         SET password_reset_token = $1,
             password_reset_expires = $2,
             updated_at = CURRENT_TIMESTAMP
         WHERE username = $3
-        RETURNING id, username
+        RETURNING id, username, email
       `,
       values: [token, expires, username],
     }
@@ -237,7 +279,7 @@ const findByPasswordResetToken = async (token) => {
   try {
     const query = {
       text: `
-        SELECT * FROM "user_account"
+        SELECT * FROM "usuario"
         WHERE password_reset_token = $1
         AND password_reset_expires > CURRENT_TIMESTAMP
       `,
@@ -255,7 +297,7 @@ const clearPasswordResetToken = async (id) => {
   try {
     const query = {
       text: `
-        UPDATE "user_account"
+        UPDATE "usuario"
         SET password_reset_token = NULL,
             password_reset_expires = NULL,
             updated_at = CURRENT_TIMESTAMP
@@ -274,11 +316,11 @@ const setActive = async (id, isActive) => {
   try {
     const query = {
       text: `
-        UPDATE "user_account"
+        UPDATE "usuario"
         SET is_active = $1,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $2
-        RETURNING id, username, is_active
+        RETURNING id, username, email, is_active
       `,
       values: [isActive, id],
     }
@@ -293,7 +335,7 @@ const setActive = async (id, isActive) => {
 const remove = async (id) => {
   try {
     const query = {
-      text: 'DELETE FROM "user_account" WHERE id = $1 RETURNING id',
+      text: 'DELETE FROM "usuario" WHERE id = $1 RETURNING id',
       values: [id],
     }
     const { rows } = await db.query(query)
@@ -304,42 +346,31 @@ const remove = async (id) => {
   }
 }
 
-const findByStaffId = async (staff_id) => {
+const findByPersonalId = async (personal_id) => {
   try {
     const query = {
       text: `
-        SELECT ua.*, r.name as role_name, p.name as permission_name
-        FROM "user_account" ua
-        LEFT JOIN role r ON ua.role_id = r.id
-        LEFT JOIN permission p ON ua.permission_id = p.id
-        WHERE ua.staff_id = $1
+        SELECT u.*, 
+               p.nombre as permiso_nombre, 
+               p.descripcion as permiso_descripcion,
+               per.nombre as personal_nombre,
+               per.lastname as personal_apellido,
+               per.email as personal_email,
+               per.ci as personal_ci,
+               r.name as rol_nombre,
+               r.description as rol_descripcion
+        FROM "usuario" u
+        LEFT JOIN permisos p ON u.permiso_id = p.id
+        LEFT JOIN personal per ON u.personal_id = per.id
+        LEFT JOIN rol r ON per.idrole = r.id
+        WHERE u.personal_id = $1
       `,
-      values: [staff_id],
+      values: [personal_id],
     }
     const { rows } = await db.query(query)
     return rows[0]
   } catch (error) {
-    console.error("Error in findByStaffId:", error)
-    throw error
-  }
-}
-
-const findByGuardianId = async (guardian_id) => {
-  try {
-    const query = {
-      text: `
-        SELECT ua.*, r.name as role_name, p.name as permission_name
-        FROM "user_account" ua
-        LEFT JOIN role r ON ua.role_id = r.id
-        LEFT JOIN permission p ON ua.permission_id = p.id
-        WHERE ua.guardian_id = $1
-      `,
-      values: [guardian_id],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findByGuardianId:", error)
+    console.error("Error in findByPersonalId:", error)
     throw error
   }
 }
@@ -348,21 +379,21 @@ const searchByUsername = async (username) => {
   try {
     const query = {
       text: `
-        SELECT ua.id, ua.username, ua.staff_id, ua.guardian_id, 
-               ua.role_id, ua.permission_id, ua.is_active, ua.created_at,
-               r.name as role_name, p.name as permission_name,
+        SELECT u.id, u.username, u.email, u.personal_id, u.permiso_id, 
+               u.is_active, u.email_verified, u.created_at, u.last_login,
+               p.nombre as permiso_nombre,
                CASE 
-                 WHEN ua.staff_id IS NOT NULL THEN CONCAT(s.first_name, ' ', s.last_name)
-                 WHEN ua.guardian_id IS NOT NULL THEN CONCAT(g.first_name, ' ', g.last_name)
-                 ELSE NULL
-               END as full_name
-        FROM "user_account" ua
-        LEFT JOIN role r ON ua.role_id = r.id
-        LEFT JOIN permission p ON ua.permission_id = p.id
-        LEFT JOIN staff s ON ua.staff_id = s.id
-        LEFT JOIN guardian g ON ua.guardian_id = g.id
-        WHERE ua.username ILIKE $1
-        ORDER BY ua.id
+                 WHEN u.personal_id IS NOT NULL THEN CONCAT(per.nombre, ' ', per.lastname)
+                 ELSE 'Usuario Externo'
+               END as nombre_completo,
+               per.ci as cedula,
+               r.name as rol_nombre
+        FROM "usuario" u
+        LEFT JOIN permisos p ON u.permiso_id = p.id
+        LEFT JOIN personal per ON u.personal_id = per.id
+        LEFT JOIN rol r ON per.idrole = r.id
+        WHERE u.username ILIKE $1
+        ORDER BY u.id
       `,
       values: [`%${username}%`],
     }
@@ -374,10 +405,52 @@ const searchByUsername = async (username) => {
   }
 }
 
+const verifyEmail = async (token) => {
+  try {
+    const query = {
+      text: `
+        UPDATE "usuario"
+        SET email_verified = true,
+            email_verification_token = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE email_verification_token = $1
+        RETURNING id, username, email, email_verified
+      `,
+      values: [token],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in verifyEmail:", error)
+    throw error
+  }
+}
+
+const setEmailVerificationToken = async (id, token) => {
+  try {
+    const query = {
+      text: `
+        UPDATE "usuario"
+        SET email_verification_token = $1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING id, username, email
+      `,
+      values: [token, id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in setEmailVerificationToken:", error)
+    throw error
+  }
+}
+
 export const UserModel = {
   create,
   findOneByUsername,
   findOneById,
+  findOneByEmail,
   findAll,
   updatePassword,
   updateProfile,
@@ -389,7 +462,8 @@ export const UserModel = {
   clearPasswordResetToken,
   setActive,
   remove,
-  findByStaffId,
-  findByGuardianId,
+  findByPersonalId,
   searchByUsername,
+  verifyEmail,
+  setEmailVerificationToken,
 }
