@@ -16,14 +16,12 @@ export const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    // Usamos findUserByAccessToken en lugar de findUserByLoginToken
     const user = await UserModel.findUserByAccessToken(token)
 
     if (!user) {
       return res.status(401).json({ error: "Token inválido o expirado" })
     }
 
-    // Actualizamos la estructura del objeto req.user para que coincida con la tabla user_account
     req.user = {
       userId: user.id,
       username: user.username,
@@ -34,6 +32,16 @@ export const verifyToken = async (req, res, next) => {
       staff_id: user.staff_id,
       guardian_id: user.guardian_id,
     }
+
+    // Debug: Log para verificar los datos del usuario
+    console.log("Usuario autenticado:", {
+      userId: req.user.userId,
+      username: req.user.username,
+      permission_id: req.user.permission_id,
+      permission_name: req.user.permission_name,
+      role_id: req.user.role_id,
+    })
+
     next()
   } catch (error) {
     console.error("Error in verifyToken:", error)
@@ -47,26 +55,91 @@ export const verifyToken = async (req, res, next) => {
   }
 }
 
+// Verificar si el usuario tiene permisos de administrador (permission_id = 1)
 export const verifyAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Usuario no autenticado" })
   }
 
-  // Asumiendo que role_id = 2 es para administradores según los datos SQL
-  if (req.user.role_id !== 2) {
-    return res.status(403).json({ error: "Acceso denegado. Solo para administradores." })
+  // Debug: Log para verificar la comparación
+  console.log("Verificando permisos de admin:", {
+    user_permission_id: req.user.permission_id,
+    user_permission_id_type: typeof req.user.permission_id,
+    is_admin: req.user.permission_id === 1,
+    comparison_result: req.user.permission_id !== 1,
+  })
+
+  // Asegurar que permission_id sea un número para la comparación
+  const userPermissionId = Number.parseInt(req.user.permission_id)
+
+  // Permission ID 1 = 'enroll_student' = Acceso completo (Admin)
+  if (userPermissionId !== 1) {
+    return res.status(403).json({
+      error: "Acceso denegado. Se requieren permisos de administrador.",
+      required_permission: "enroll_student (permission_id: 1)",
+      user_permission: `${req.user.permission_name} (permission_id: ${req.user.permission_id})`,
+      debug_info: {
+        user_permission_id: req.user.permission_id,
+        user_permission_id_type: typeof req.user.permission_id,
+        parsed_permission_id: userPermissionId,
+        comparison_result: userPermissionId !== 1,
+      },
+    })
   }
   next()
 }
 
+// Verificar si el usuario tiene permisos de solo lectura (permission_id = 2)
+export const verifyReadOnly = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Usuario no autenticado" })
+  }
+
+  const userPermissionId = Number.parseInt(req.user.permission_id)
+
+  if (userPermissionId !== 2) {
+    return res.status(403).json({
+      error: "Acceso denegado. Se requieren permisos de solo lectura.",
+      required_permission: "view_records (permission_id: 2)",
+      user_permission: `${req.user.permission_name} (permission_id: ${req.user.permission_id})`,
+    })
+  }
+  next()
+}
+
+// Verificar si el usuario tiene permisos de administrador O solo lectura
+export const verifyAdminOrReadOnly = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Usuario no autenticado" })
+  }
+
+  const userPermissionId = Number.parseInt(req.user.permission_id)
+
+  // Permitir tanto admin (1) como solo lectura (2)
+  if (userPermissionId !== 1 && userPermissionId !== 2) {
+    return res.status(403).json({
+      error: "Acceso denegado. Se requieren permisos de administrador o lectura.",
+      required_permissions: "enroll_student (1) o view_records (2)",
+      user_permission: `${req.user.permission_name} (permission_id: ${req.user.permission_id})`,
+    })
+  }
+  next()
+}
+
+// Verificar por rol específico
 export const verifyTeacher = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Usuario no autenticado" })
   }
 
-  // Asumiendo que role_id = 1 es para docentes según los datos SQL
-  if (req.user.role_id !== 1) {
-    return res.status(403).json({ error: "Acceso denegado. Solo para docentes." })
+  const userRoleId = Number.parseInt(req.user.role_id)
+
+  if (userRoleId !== 1) {
+    return res.status(403).json({
+      error: "Acceso denegado. Solo para docentes.",
+      user_role_id: req.user.role_id,
+      required_role_id: 1,
+    })
   }
   next()
 }
@@ -76,9 +149,14 @@ export const verifyMaintenance = (req, res, next) => {
     return res.status(401).json({ error: "Usuario no autenticado" })
   }
 
-  // Asumiendo que role_id = 3 es para personal de mantenimiento según los datos SQL
-  if (req.user.role_id !== 3) {
-    return res.status(403).json({ error: "Acceso denegado. Solo para personal de mantenimiento." })
+  const userRoleId = Number.parseInt(req.user.role_id)
+
+  if (userRoleId !== 3) {
+    return res.status(403).json({
+      error: "Acceso denegado. Solo para personal de mantenimiento.",
+      user_role_id: req.user.role_id,
+      required_role_id: 3,
+    })
   }
   next()
 }
@@ -88,7 +166,6 @@ export const verifyStaff = (req, res, next) => {
     return res.status(401).json({ error: "Usuario no autenticado" })
   }
 
-  // Verificar si el usuario es cualquier tipo de personal (tiene staff_id)
   if (!req.user.staff_id) {
     return res.status(403).json({ error: "Acceso denegado. Solo para personal de la institución." })
   }
@@ -100,13 +177,13 @@ export const verifyGuardian = (req, res, next) => {
     return res.status(401).json({ error: "Usuario no autenticado" })
   }
 
-  // Verificar si el usuario es un representante (tiene guardian_id)
   if (!req.user.guardian_id) {
     return res.status(403).json({ error: "Acceso denegado. Solo para representantes." })
   }
   next()
 }
 
+// Middleware personalizado para verificar permisos específicos
 export const verifyPermission = (permissionName) => {
   return async (req, res, next) => {
     if (!req.user) {
@@ -114,10 +191,10 @@ export const verifyPermission = (permissionName) => {
     }
 
     try {
-      // Verificar si el usuario tiene el permiso específico
       if (req.user.permission_name !== permissionName) {
         return res.status(403).json({
           error: `Acceso denegado. Se requiere el permiso: ${permissionName}`,
+          user_permission: req.user.permission_name,
         })
       }
       next()

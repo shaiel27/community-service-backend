@@ -1,7 +1,6 @@
 import express from "express"
 import { UserController } from "../controllers/user.controller.js"
-import { verifyToken, verifyAdmin } from "../middleware/jwt.middleware.js"
-import cors from "cors"
+import { verifyToken, verifyAdmin, verifyAdminOrReadOnly } from "../middleware/jwt.middleware.js"
 
 const router = express.Router()
 
@@ -18,9 +17,9 @@ router.get("/profile", verifyToken, UserController.profile)
 router.put("/profile", verifyToken, UserController.updateProfile)
 router.put("/change-password", verifyToken, UserController.changePassword)
 
-// Admin-only routes
+// Admin-only routes (permission_id = 1)
 router.get("/list", verifyToken, verifyAdmin, UserController.listUsers)
-router.get("/search", verifyToken, verifyAdmin, UserController.searchUsers)
+router.get("/search", verifyToken, verifyAdminOrReadOnly, UserController.searchUsers) // Admin o solo lectura
 router.put("/activate/:id", verifyToken, verifyAdmin, UserController.activateUser)
 router.put("/deactivate/:id", verifyToken, verifyAdmin, UserController.deactivateUser)
 router.delete("/:id", verifyToken, verifyAdmin, UserController.deleteUser)
