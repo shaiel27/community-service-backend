@@ -65,3 +65,26 @@ VALUES (1, 1, '2025-06-14', '2025-2026', NOW(), NOW(), FALSE);
 
 INSERT INTO notas (matricula_id, nota, periodo, asignatura, fecha_registro, created_at, updated_at)
 VALUES (1, 19.5, '1er Trimestre', 'Lengua y Literatura', '2025-10-01', NOW(), NOW());
+
+show port;}
+
+-- Actualizar passwords con hash bcrypt válido para "123456"
+UPDATE usuario SET password = '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' WHERE email = 'andrea@escuela.ve';
+UPDATE usuario SET password = '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' WHERE email = 'luis@escuela.ve';
+UPDATE usuario SET password = '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' WHERE email = 'externo@admin.com';
+
+select * from usuario;
+
+SELECT 
+  u.id,
+  u.username,
+  u.email,
+  u.password,
+  u.permiso_id,
+  u.personal_id,
+  p.nombre as permiso_nombre,
+  per.nombre as personal_nombre,
+  per.lastname as personal_apellido
+FROM usuario u
+LEFT JOIN permisos p ON u.permiso_id = p.id
+LEFT JOIN personal per ON u.personal_id = per.id;
