@@ -11,6 +11,42 @@ const createPersonal = async (req, res) => {
       })
     }
 
+    // Validaciones de longitud específicas
+    if (nombre.length > 30) {
+      return res.status(400).json({
+        ok: false,
+        msg: `El nombre es demasiado largo. Máximo 30 caracteres, actual: ${nombre.length}`,
+      })
+    }
+
+    if (lastname.length > 30) {
+      return res.status(400).json({
+        ok: false,
+        msg: `El apellido es demasiado largo. Máximo 30 caracteres, actual: ${lastname.length}`,
+      })
+    }
+
+    if (email && email.length > 50) {
+      return res.status(400).json({
+        ok: false,
+        msg: `El email es demasiado largo. Máximo 50 caracteres, actual: ${email.length}`,
+      })
+    }
+
+    if (direccion && direccion.length > 100) {
+      return res.status(400).json({
+        ok: false,
+        msg: `La dirección es demasiado larga. Máximo 100 caracteres, actual: ${direccion.length}`,
+      })
+    }
+
+    if (telephonenomber && telephonenomber.length > 30) {
+      return res.status(400).json({
+        ok: false,
+        msg: `El teléfono es demasiado largo. Máximo 30 caracteres, actual: ${telephonenomber.length}`,
+      })
+    }
+
     // Validate CI format (Venezuelan format)
     const ciRegex = /^[VE]\d{7,8}$/
     if (!ciRegex.test(ci)) {
@@ -81,6 +117,15 @@ const createPersonal = async (req, res) => {
     })
   } catch (error) {
     console.error("Error in createPersonal:", error)
+
+    // Manejar errores específicos de longitud
+    if (error.message.includes("demasiado largo")) {
+      return res.status(400).json({
+        ok: false,
+        msg: error.message,
+      })
+    }
+
     return res.status(500).json({
       ok: false,
       msg: "Server error",
@@ -258,6 +303,42 @@ const updatePersonal = async (req, res) => {
       })
     }
 
+    // Validaciones de longitud específicas
+    if (nombre && nombre.length > 30) {
+      return res.status(400).json({
+        ok: false,
+        msg: `El nombre es demasiado largo. Máximo 30 caracteres, actual: ${nombre.length}`,
+      })
+    }
+
+    if (lastname && lastname.length > 30) {
+      return res.status(400).json({
+        ok: false,
+        msg: `El apellido es demasiado largo. Máximo 30 caracteres, actual: ${lastname.length}`,
+      })
+    }
+
+    if (email && email.length > 50) {
+      return res.status(400).json({
+        ok: false,
+        msg: `El email es demasiado largo. Máximo 50 caracteres, actual: ${email.length}`,
+      })
+    }
+
+    if (direccion && direccion.length > 100) {
+      return res.status(400).json({
+        ok: false,
+        msg: `La dirección es demasiado larga. Máximo 100 caracteres, actual: ${direccion.length}`,
+      })
+    }
+
+    if (telephonenomber && telephonenomber.length > 30) {
+      return res.status(400).json({
+        ok: false,
+        msg: `El teléfono es demasiado largo. Máximo 30 caracteres, actual: ${telephonenomber.length}`,
+      })
+    }
+
     // Check if email is being updated and if it already exists
     if (email && email !== existingPersonal.email) {
       const existingPersonalByEmail = await PersonalModel.findOneByEmail(email)
@@ -309,6 +390,15 @@ const updatePersonal = async (req, res) => {
     })
   } catch (error) {
     console.error("Error in updatePersonal:", error)
+
+    // Manejar errores específicos de longitud
+    if (error.message.includes("demasiado largo")) {
+      return res.status(400).json({
+        ok: false,
+        msg: error.message,
+      })
+    }
+
     return res.status(500).json({
       ok: false,
       msg: "Server error",

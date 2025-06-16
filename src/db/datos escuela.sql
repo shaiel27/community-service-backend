@@ -88,3 +88,5 @@ SELECT
 FROM usuario u
 LEFT JOIN permisos p ON u.permiso_id = p.id
 LEFT JOIN personal per ON u.personal_id = per.id;
+
+select * from personal;

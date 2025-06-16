@@ -1,6 +1,6 @@
 import express from "express"
 import { PersonalController } from "../controllers/personal.controller.js"
-import { verifyToken, verifyAdmin, verifyAdminOrReadOnly } from "../middleware/jwt.middleware.js"
+import { verifyToken, verifyAdmin, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
 
 const router = express.Router()
 

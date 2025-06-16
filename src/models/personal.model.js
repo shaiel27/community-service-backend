@@ -1,7 +1,27 @@
-import { db } from "../db/connection.database.js"
+import { db } from "../database/connection.database.js"
 
 const create = async ({ nombre, lastname, idrole, telephonenomber, ci, email, birthday, direccion, parroquia_id }) => {
   try {
+    // Validaciones de longitud antes de insertar
+    if (nombre && nombre.length > 30) {
+      throw new Error(`El nombre es demasiado largo (máximo 30 caracteres, actual: ${nombre.length})`)
+    }
+    if (lastname && lastname.length > 30) {
+      throw new Error(`El apellido es demasiado largo (máximo 30 caracteres, actual: ${lastname.length})`)
+    }
+    if (telephonenomber && telephonenomber.length > 30) {
+      throw new Error(`El teléfono es demasiado largo (máximo 30 caracteres, actual: ${telephonenomber.length})`)
+    }
+    if (ci && ci.length > 30) {
+      throw new Error(`La CI es demasiado larga (máximo 30 caracteres, actual: ${ci.length})`)
+    }
+    if (email && email.length > 50) {
+      throw new Error(`El email es demasiado largo (máximo 50 caracteres, actual: ${email.length})`)
+    }
+    if (direccion && direccion.length > 100) {
+      throw new Error(`La dirección es demasiado larga (máximo 100 caracteres, actual: ${direccion.length})`)
+    }
+
     const query = {
       text: `
         INSERT INTO "personal" (
@@ -263,6 +283,23 @@ const findWithSystemAccess = async () => {
 
 const update = async (id, { nombre, lastname, idrole, telephonenomber, email, birthday, direccion, parroquia_id }) => {
   try {
+    // Validaciones de longitud antes de actualizar
+    if (nombre && nombre.length > 30) {
+      throw new Error(`El nombre es demasiado largo (máximo 30 caracteres, actual: ${nombre.length})`)
+    }
+    if (lastname && lastname.length > 30) {
+      throw new Error(`El apellido es demasiado largo (máximo 30 caracteres, actual: ${lastname.length})`)
+    }
+    if (telephonenomber && telephonenomber.length > 30) {
+      throw new Error(`El teléfono es demasiado largo (máximo 30 caracteres, actual: ${telephonenomber.length})`)
+    }
+    if (email && email.length > 50) {
+      throw new Error(`El email es demasiado largo (máximo 50 caracteres, actual: ${email.length})`)
+    }
+    if (direccion && direccion.length > 100) {
+      throw new Error(`La dirección es demasiado larga (máximo 100 caracteres, actual: ${direccion.length})`)
+    }
+
     const query = {
       text: `
         UPDATE "personal"
