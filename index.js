@@ -1,10 +1,13 @@
 import express from "express"
 import cors from "cors"
 import "dotenv/config"
-import userRoutes from "./src/routes/user.route.js"  
+import userRoutes from "./src/routes/user.route.js"
+// Agregar la nueva ruta de personal
+import personalRoutes from "./src/routes/personal.route.js"
 
 const app = express()
 
+// Configuración CORS
 const corsOptions = {
   origin: "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -19,6 +22,8 @@ app.use(express.urlencoded({ extended: true }))
 
 // Rutas
 app.use("/api/users", userRoutes)
+// En la sección de rutas, agregar:
+app.use("/api/personal", personalRoutes)
 
 // Configuración del puerto
 const PORT = process.env.PORT || 3001
