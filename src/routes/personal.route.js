@@ -10,7 +10,7 @@ router.get("/utils/parroquias", verifyToken, verifyAdminOrReadOnly, PersonalCont
 
 // Search endpoints (deben ir ANTES de las rutas con parámetros)
 router.get("/search/name", verifyToken, verifyAdminOrReadOnly, PersonalController.searchPersonalByName)
-router.get("/search/ci", verifyToken, verifyAdminOrReadOnly, PersonalController.searchPersonalByCi)
+router.get("/search/ci", verifyToken, verifyAdminOrReadOnly, PersonalController.searchPersonalByCedula)
 
 // Role-specific endpoints (deben ir ANTES de las rutas con parámetros)
 router.get("/teachers/all", verifyToken, verifyAdminOrReadOnly, PersonalController.getTeachers)
