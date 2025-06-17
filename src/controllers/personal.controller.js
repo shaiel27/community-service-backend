@@ -2,12 +2,12 @@ import { PersonalModel } from "../models/personal.model.js"
 
 const createPersonal = async (req, res) => {
   try {
-    const { nombre, lastname, idrole, telephonenomber, ci, email, birthday, direccion, parroquia_id } = req.body
+    const { nombre, apellido, idrole, telefono, cedula, email, birthday, direccion, parroquia_id } = req.body
 
-    if (!nombre || !lastname || !idrole || !ci) {
+    if (!nombre || !apellido || !idrole || !cedula) {
       return res.status(400).json({
         ok: false,
-        msg: "Missing required fields: nombre, lastname, idrole, and ci are mandatory",
+        msg: "Missing required fields: nombre, apellido, idrole, and cedula are mandatory",
       })
     }
 
@@ -19,10 +19,10 @@ const createPersonal = async (req, res) => {
       })
     }
 
-    if (lastname.length > 30) {
+    if (apellido.length > 30) {
       return res.status(400).json({
         ok: false,
-        msg: `El apellido es demasiado largo. Máximo 30 caracteres, actual: ${lastname.length}`,
+        msg: `El apellido es demasiado largo. Máximo 30 caracteres, actual: ${apellido.length}`,
       })
     }
 
@@ -40,28 +40,28 @@ const createPersonal = async (req, res) => {
       })
     }
 
-    if (telephonenomber && telephonenomber.length > 30) {
+    if (telefono && telefono.length > 30) {
       return res.status(400).json({
         ok: false,
-        msg: `El teléfono es demasiado largo. Máximo 30 caracteres, actual: ${telephonenomber.length}`,
+        msg: `El teléfono es demasiado largo. Máximo 30 caracteres, actual: ${telefono.length}`,
       })
     }
 
-    // Validate CI format (Venezuelan format)
-    const ciRegex = /^[VE]\d{7,8}$/
-    if (!ciRegex.test(ci)) {
+    // Validate cedula format (Venezuelan format)
+    const cedulaRegex = /^[VE]\d{7,8}$/
+    if (!cedulaRegex.test(cedula)) {
       return res.status(400).json({
         ok: false,
-        msg: "Invalid CI format. Use format: V12345678 or E12345678",
+        msg: "Invalid cedula format. Use format: V12345678 or E12345678",
       })
     }
 
-    // Check if personal with same CI already exists
-    const existingPersonalByCi = await PersonalModel.findOneByCi(ci)
-    if (existingPersonalByCi) {
+    // Check if personal with same cedula already exists
+    const existingPersonalByCedula = await PersonalModel.findOneByCedula(cedula)
+    if (existingPersonalByCedula) {
       return res.status(400).json({
         ok: false,
-        msg: "A personal member with this CI already exists",
+        msg: "A personal member with this cedula already exists",
       })
     }
 
@@ -88,9 +88,9 @@ const createPersonal = async (req, res) => {
     }
 
     // Validate phone format if provided
-    if (telephonenomber) {
+    if (telefono) {
       const phoneRegex = /^04\d{9}$/
-      if (!phoneRegex.test(telephonenomber)) {
+      if (!phoneRegex.test(telefono)) {
         return res.status(400).json({
           ok: false,
           msg: "Invalid phone format. Use format: 04123456789",
@@ -100,10 +100,10 @@ const createPersonal = async (req, res) => {
 
     const newPersonal = await PersonalModel.create({
       nombre,
-      lastname,
+      apellido,
       idrole,
-      telephonenomber,
-      ci,
+      telefono,
+      cedula,
       email,
       birthday,
       direccion,
@@ -292,7 +292,7 @@ const getPersonalWithSystemAccess = async (req, res) => {
 const updatePersonal = async (req, res) => {
   try {
     const { id } = req.params
-    const { nombre, lastname, idrole, telephonenomber, email, birthday, direccion, parroquia_id } = req.body
+    const { nombre, apellido, idrole, telefono, email, birthday, direccion, parroquia_id } = req.body
 
     // Check if personal exists
     const existingPersonal = await PersonalModel.findOneById(id)
@@ -311,10 +311,10 @@ const updatePersonal = async (req, res) => {
       })
     }
 
-    if (lastname && lastname.length > 30) {
+    if (apellido && apellido.length > 30) {
       return res.status(400).json({
         ok: false,
-        msg: `El apellido es demasiado largo. Máximo 30 caracteres, actual: ${lastname.length}`,
+        msg: `El apellido es demasiado largo. Máximo 30 caracteres, actual: ${apellido.length}`,
       })
     }
 
@@ -332,10 +332,10 @@ const updatePersonal = async (req, res) => {
       })
     }
 
-    if (telephonenomber && telephonenomber.length > 30) {
+    if (telefono && telefono.length > 30) {
       return res.status(400).json({
         ok: false,
-        msg: `El teléfono es demasiado largo. Máximo 30 caracteres, actual: ${telephonenomber.length}`,
+        msg: `El teléfono es demasiado largo. Máximo 30 caracteres, actual: ${telefono.length}`,
       })
     }
 
@@ -362,9 +362,9 @@ const updatePersonal = async (req, res) => {
     }
 
     // Validate phone format if provided
-    if (telephonenomber) {
+    if (telefono) {
       const phoneRegex = /^04\d{9}$/
-      if (!phoneRegex.test(telephonenomber)) {
+      if (!phoneRegex.test(telefono)) {
         return res.status(400).json({
           ok: false,
           msg: "Invalid phone format. Use format: 04123456789",
@@ -374,9 +374,9 @@ const updatePersonal = async (req, res) => {
 
     const updatedPersonal = await PersonalModel.update(id, {
       nombre,
-      lastname,
+      apellido,
       idrole,
-      telephonenomber,
+      telefono,
       email,
       birthday,
       direccion,
@@ -471,24 +471,24 @@ const searchPersonalByName = async (req, res) => {
   }
 }
 
-const searchPersonalByCi = async (req, res) => {
+const searchPersonalByCedula = async (req, res) => {
   try {
-    const { ci } = req.query
-    if (!ci) {
+    const { cedula } = req.query
+    if (!cedula) {
       return res.status(400).json({
         ok: false,
-        msg: "CI parameter is required",
+        msg: "Cedula parameter is required",
       })
     }
 
-    const personal = await PersonalModel.searchByCi(ci)
+    const personal = await PersonalModel.searchByCedula(cedula)
     return res.json({
       ok: true,
       personal,
       total: personal.length,
     })
   } catch (error) {
-    console.error("Error in searchPersonalByCi:", error)
+    console.error("Error in searchPersonalByCedula:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
@@ -546,7 +546,7 @@ export const PersonalController = {
   updatePersonal,
   deletePersonal,
   searchPersonalByName,
-  searchPersonalByCi,
+  searchPersonalByCedula,
   getRoles,
   getParroquias,
 }
