@@ -1,4 +1,4 @@
-import { db } from "../database/connection.database.js"
+import { db } from "../db/connection.database.js"
 
 const create = async ({ nombre, apellido, idrole, telefono, cedula, email, birthday, direccion, parroquia_id }) => {
   try {
