@@ -192,3 +192,13 @@ CREATE TABLE notas (
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
+
+CREATE TABLE asistencia_diaria (
+    id BIGSERIAL PRIMARY KEY,
+    fecha DATE NOT NULL,
+    grado_id BIGINT REFERENCES docente_grado(id), -- o docente_grado_id si deseas mayor detalle
+    cantidad_asistentes INTEGER NOT NULL,
+    observaciones TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
