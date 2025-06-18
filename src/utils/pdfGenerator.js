@@ -1,6 +1,7 @@
 // src/utils/pdfGenerator.js
 import PDFDocument from "pdfkit"
 import path from "path"
+import fs from "node:fs"
 import { fileURLToPath } from "url"
 
 // Para resolver __dirname en ES Modules
@@ -10,42 +11,37 @@ const __dirname = path.dirname(__filename)
 // Rutas a los logos (asumiendo que los pondrás en una carpeta 'assets' dentro de 'src')
 // Por favor, ajusta estas rutas y asegúrate de tener los logos.
 // Por ejemplo: src/assets/logo_institucion.png
-const LOGO_PATH = path.join(__dirname, "../assets/logo_institucion.png")
-const LOGO_SECUNDARIO_PATH = path.join(__dirname, "../assets/logo_secundario.png") // Opcional, si tienes un segundo logo
+const LOGO_PATH = path.join(__dirname, "../assets/SanCristobal-logo.jpg")
+const LOGO_SECUNDARIO_PATH = path.join(__dirname, "../assets/JoseGonzaloMendez-logo.png") // Opcional, si tienes un segundo logo
 
 export const createPdfBase = (doc, title) => {
-// Configuración de la cabecera
-const headerHeight = 80 // Altura para la cabecera
-
-// Dibuja un rectángulo para el fondo de la cabecera (opcional, para un fondo de color)
-doc.rect(0, 0, doc.page.width, headerHeight).fill("#F0F0F0") // Un gris claro, por ejemplo
-
-// Posiciona los logos
-// Asegúrate de que los archivos de logo existan en las rutas especificadas
-if (path.existsSync(LOGO_PATH)) {
-    doc.image(LOGO_PATH, 50, 10, { width: 50 }) // x, y, options
-} else {
-    console.warn(`Advertencia: Logo principal no encontrado en ${LOGO_PATH}`)
-}
-if (path.existsSync(LOGO_SECUNDARIO_PATH)) {
-    doc.image(LOGO_SECUNDARIO_PATH, doc.page.width - 100, 10, { width: 50 })
-} else {
-    console.warn(`Advertencia: Logo secundario no encontrado en ${LOGO_SECUNDARIO_PATH}`)
-}
+    const headerHeight = 100;
+    if (fs.existsSync(LOGO_PATH)) {
+        doc.image(LOGO_PATH, 50, 10, { width: 60 })
+    } else {
+        console.warn(`Advertencia: Logo principal no encontrado en ${LOGO_PATH}`)
+    }
+    if (fs.existsSync(LOGO_SECUNDARIO_PATH)) {
+        doc.image(LOGO_SECUNDARIO_PATH, doc.page.width - 100, 10, { width: 70 })
+    } else {
+        console.warn(`Advertencia: Logo secundario no encontrado en ${LOGO_SECUNDARIO_PATH}`)
+    }
 
 // Información de la institución en la cabecera
 doc
 .fillColor("#444444")
-.fontSize(12)
-.font("Helvetica-Bold")
-.text("Nombre de la Institución", 0, 20, { align: "center" })
-.fontSize(10)
+.fontSize(8)
 .font("Helvetica")
-.text("R.I.F. J-XXXXXXXX-X", 0, 35, { align: "center" })
-.text("Dirección de la Institución, Ciudad, Estado", 0, 50, { align: "center" })
-.text("Teléfono: (000) 123-4567 | Email: info@institucion.edu.ve", 0, 65, {
-    align: "center",
-})
+.text("REPUBLICA BOLIVARIANA DE VENEZUELA", 0, 10, { align: "center" })
+.text("MINISTERIO DEL PODER POPULAR PARA LA EDUCACION", 0, 20, { align: "center" })
+.text("ALCALDIA DEL MUNICIPIO SAN CRISTOBAL", 0, 30, { align: "center" })
+.text("ESCUELA MUNICIPAL", 0, 40, { align: "center", })
+.text("\"JOSE GONZALO MENDEZ\"", 0, 50, { align: "center", })
+.text("SAN CRISTOBAL - TACHIRA", 0, 60, { align: "center", })
+.text("CODIGO DEA 0001102023", 0, 70, { align: "center", })
+.text("CODIGO ESTADISTICO 200860", 0, 80, { align: "center", })
+.text("CODIGO DE DEPENDENCIA 004104456", 0, 90, { align: "center", })
+.text("J-31260557-0", 0, 100, { align: "center", })
 
 // Añadir un título al documento
 doc.moveDown() // Mueve el cursor hacia abajo después de la cabecera
@@ -55,7 +51,6 @@ doc
 .text(title, { align: "center" })
 doc.moveDown()
 }
-
 export const addPdfFooter = (doc) => {
     const bottomMargin = 50 // Margen inferior
     const footerY = doc.page.height - bottomMargin // Posición Y del pie de página
