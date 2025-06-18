@@ -12,6 +12,7 @@ router.post("/forgot-password", UserController.forgotPassword)
 router.post("/reset-password", UserController.resetPassword)
 router.post("/recover-password-security", UserController.recoverPasswordWithSecurity)
 
+
 // Routes with specific paths - ANTES de las rutas con parámetros
 router.get("/list", verifyToken, verifyAdmin, UserController.listUsers)
 router.get("/search", verifyToken, verifyAdminOrReadOnly, UserController.searchUsers)
