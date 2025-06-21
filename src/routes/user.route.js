@@ -19,6 +19,7 @@ router.post(
   UserController.recoverPasswordWithSecurity
 );
 
+
 // Routes with specific paths - ANTES de las rutas con parámetros
 router.get("/list", verifyToken, verifyAdmin, UserController.listUsers);
 router.get(

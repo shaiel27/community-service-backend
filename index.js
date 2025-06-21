@@ -2,8 +2,8 @@ import express from "express"
 import cors from "cors"
 import "dotenv/config"
 import userRoutes from "./src/routes/user.route.js"
-// Agregar la nueva ruta de personal
 import personalRoutes from "./src/routes/personal.route.js"
+import pdfRoutes from "./src/routes/pdf.route.js"
 
 const app = express()
 
@@ -22,8 +22,27 @@ app.use(express.urlencoded({ extended: true }))
 
 // Rutas
 app.use("/api/users", userRoutes)
-// En la sección de rutas, agregar:
 app.use("/api/personal", personalRoutes)
+app.use("/api/pdf", pdfRoutes)
+
+// Ruta de prueba para la base de datos (déjala o quítala si ya no la necesitas)
+app.get("/test-db-connection", async (req, res) => {
+  try {
+    const result = await db.query("SELECT NOW() as current_time;")
+    res.json({
+      ok: true,
+      message: "Conexión a la base de datos exitosa!",
+      currentTime: result.rows[0].current_time,
+    })
+  } catch (error) {
+    console.error("Error al probar la conexión a la base de datos:", error)
+    res.status(500).json({
+      ok: false,
+      message: "Fallo al conectar a la base de datos.",
+      error: error.message,
+    })
+  }
+})
 
 // Configuración del puerto
 const PORT = process.env.PORT || 3001
