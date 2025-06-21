@@ -61,7 +61,6 @@ export const addPdfFooter = (doc) => {
     .text(`Página ${doc.page.number} de ${doc.bufferedPageRange().count}`, doc.page.width - 100, footerY, { align: "right" })
     .text("Sistema de Gestión de Matrícula", 0, footerY + 15, { align: "center" })
 }
-
 export const addPageNumbers = (doc) => {
     let pages = doc.bufferedPageRange(); // Obtiene el rango de páginas actuales
     for (let i = 0; i < pages.count; i++) {

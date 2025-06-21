@@ -75,7 +75,6 @@ export const PdfController = {
           yPos += 20
         })
       }
-
       addPageNumbers(doc)
       doc.end()
     } catch (error) {
