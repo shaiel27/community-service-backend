@@ -120,11 +120,12 @@ CREATE TABLE estudiante (
     vive_padre BOOLEAN,
     vive_ambos BOOLEAN,
     vive_representante BOOLEAN,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    lugarNacimiento_id VARCHAR(20), -- Referencia textual a parroquia
+    lugarNacimiento_id VARCHAR(20), -- (Referencia textual a parroquia)
     sexo VARCHAR(7),
-    cedula_escolar VARCHAR(15)
+    cedula_escolar VARCHAR(15),
+    cant_hermanos INT,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
 );
 
 CREATE TABLE estudiante_bdf (
@@ -177,11 +178,24 @@ CREATE TABLE matricula (
     docente_grado_id BIGINT REFERENCES docente_grado(id),
     fecha_inscripcion DATE,
     periodo_escolar VARCHAR(20),
+    repitiente BOOLEAN,
+    talla_camisa VARCHAR(10),
+    talla_pantalon VARCHAR(10),
+    talla_zapatos VARCHAR(10),
+    peso FLOAT,
+    estatura FLOAT,
+    enfermedades VARCHAR(100),
+    observaciones VARCHAR(100),
+    acta_nacimiento_check BOOLEAN,
+    tarjeta_vacunas_check BOOLEAN,
+    fotos_estudiante_check BOOLEAN,
+    fotos_representante_check BOOLEAN,
+    copia_cedula_representante_check BOOLEAN,
+    rif_representante BOOLEAN,
+    copia_cedula_autorizados_check BOOLEAN,
     created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    repitiente BOOLEAN
+    updated_at TIMESTAMP
 );
-
 CREATE TABLE notas (
     id BIGSERIAL PRIMARY KEY,
     matricula_id BIGINT REFERENCES matricula(id),
