@@ -120,7 +120,7 @@ CREATE TABLE estudiante (
     vive_padre BOOLEAN,
     vive_ambos BOOLEAN,
     vive_representante BOOLEAN,
-    lugarNacimiento_id VARCHAR(20), -- (Referencia textual a parroquia)
+    lugarNacimiento_id BIGINT REFERENCES parroquia(id), -- (Referencia textual a parroquia)
     sexo VARCHAR(7),
     cedula_escolar VARCHAR(15),
     cant_hermanos INT,
