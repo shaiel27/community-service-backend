@@ -1,27 +1,20 @@
 import jwt from "jsonwebtoken"
 import { UserModel } from "../models/user.model.js"
-
 export const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization
-
   if (!authHeader) {
     return res.status(401).json({ error: "Token no proporcionado" })
   }
-
   const [bearer, token] = authHeader.split(" ")
-
   if (bearer !== "Bearer" || !token) {
     return res.status(401).json({ error: "Formato de Authorization inválido" })
   }
-
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
     const user = await UserModel.findUserByAccessToken(token)
-
     if (!user) {
       return res.status(401).json({ error: "Token inválido o expirado" })
     }
-
     req.user = {
       userId: user.id,
       username: user.username,

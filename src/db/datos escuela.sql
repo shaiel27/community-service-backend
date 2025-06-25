@@ -1,145 +1,123 @@
--- SQL SCRIPT PARA POBLAR LA BASE DE DATOS EscuelaDB
+-- Datos de Prueba para 'country'
+INSERT INTO "country" (name, created_at, updated_at) VALUES
+('Venezuela', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Colombia', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Brazil', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- -----------------------------------------------------------
--- 1. Población de tablas de Ubicación Geográfica
--- -----------------------------------------------------------
+-- Datos de Prueba para 'state'
+INSERT INTO "state" (name, "countryID", created_at, updated_at) VALUES
+('Táchira', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Mérida', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Carabobo', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Cundinamarca', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('São Paulo', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla pais
-INSERT INTO pais (nombre, created_at, updated_at) VALUES
-('Venezuela', NOW(), NOW()),
-('Colombia', NOW(), NOW());
+-- Datos de Prueba para 'municipality'
+INSERT INTO "municipality" (name, "stateID", created_at, updated_at) VALUES
+('San Cristóbal', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Libertador', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Valencia', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Bogotá', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Campinas', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla estado (asumiendo pais_id 1 para Venezuela)
-INSERT INTO estado (nombre, pais_id, created_at, updated_at) VALUES
-('Táchira', 1, NOW(), NOW()),
-('Mérida', 1, NOW(), NOW()),
-('Zulia', 1, NOW(), NOW()),
-('Norte de Santander', 2, NOW(), NOW()); -- Para simular un estado de Colombia
+-- Datos de Prueba para 'parish'
+INSERT INTO "parish" (name, "minicipalityID", created_at, updated_at) VALUES
+('San Juan Bautista', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('La Concordia', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('El Llano', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('San Blas', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Usaquén', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla municipio (asumiendo estado_id para Táchira y Mérida)
-INSERT INTO municipio (nombre, estado_id, created_at, updated_at) VALUES
-('San Cristóbal', 1, NOW(), NOW()),
-('Cárdenas', 1, NOW(), NOW()),
-('Libertador', 2, NOW(), NOW()), -- Mérida
-('Maracaibo', 3, NOW(), NOW()), -- Zulia
-('Cúcuta', 4, NOW(), NOW()); -- Norte de Santander, Colombia
+-- Datos de Prueba para 'rol'
+INSERT INTO "rol" (name, description, created_at, updated_at) VALUES
+('Docente', 'Personal encargado de la enseñanza.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Administrador', 'Personal administrativo de la institución.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Mantenimiento', 'Personal encargado del mantenimiento de las instalaciones.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Secretaría', 'Personal de secretaría y atención al público.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla parroquia (asumiendo municipio_id para San Cristóbal, Cárdenas, Libertador, Maracaibo, Cúcuta)
-INSERT INTO parroquia (nombre, municipio_id, created_at, updated_at) VALUES
-('San Juan Bautista', 1, NOW(), NOW()), -- San Cristóbal
-('La Concordia', 1, NOW(), NOW()), -- San Cristóbal
-('Táriba', 2, NOW(), NOW()), -- Cárdenas
-('Chiguará', 3, NOW(), NOW()), -- Libertador, Mérida
-('Olegario Villalobos', 4, NOW(), NOW()), -- Maracaibo
-('El Zulia', 5, NOW(), NOW()); -- Cúcuta, Colombia
+-- Datos de Prueba para 'permisos'
+INSERT INTO "permisos" (nombre, descripcion, created_at, updated_at) VALUES
+('Acceso Total', 'Permiso para acceder a todas las funciones del sistema.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Gestión Académica', 'Permiso para gestionar estudiantes, matrículas y notas.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Gestión Personal', 'Permiso para gestionar el personal de la institución.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Consulta Básica', 'Permiso solo para consultar información.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- -----------------------------------------------------------
--- 2. Población de tablas de Seguridad y Acceso
--- -----------------------------------------------------------
+-- Datos de Prueba para 'personal'
+INSERT INTO "personal" (ci, name, "lastName", "idRole", "telephoneNumber", email, birthday, direction, parish, created_at, updated_at) VALUES
+('12345678', 'Ana', 'García', 1, '04121234567', 'ana.garcia@example.com', '1980-05-15', 'Calle Real 123', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('87654321', 'Luis', 'Martínez', 2, '04149876543', 'luis.martinez@example.com', '1975-11-20', 'Avenida Siempre Viva', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('11223344', 'Carlos', 'Rodríguez', 3, '04261122334', 'carlos.r@example.com', '1990-03-10', 'Zona Industrial', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('99887766', 'María', 'Fernández', 1, '04165554433', 'maria.f@example.com', '1982-08-25', 'Callejón Angosto 5', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('22334455', 'Pedro', 'Pérez', 4, '04123332211', 'pedro.p@example.com', '1988-01-30', 'Centro Comercial', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla rol
-INSERT INTO rol (name, description, created_at, updated_at) VALUES
-('Director', 'Máxima autoridad de la institución.', NOW(), NOW()),
-('Administrativo', 'Personal encargado de la gestión administrativa y de oficina.', NOW(), NOW()),
-('Docente', 'Personal encargado de la enseñanza y educación.', NOW(), NOW()),
-('Obrero', 'Personal encargado del mantenimiento y servicios generales.', NOW(), NOW());
+-- Datos de Prueba para 'status_student'
+INSERT INTO "status_student" (descripcion, created_at, updated_at) VALUES
+('Activo', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Inactivo', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Graduado', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Retirado', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla permisos
-INSERT INTO permisos (nombre, descripcion, created_at, updated_at) VALUES
-('Administrador', 'Acceso total al sistema (lectura y escritura).', NOW(), NOW()),
-('Usuario', 'Acceso de solo lectura al sistema.', NOW(), NOW());
+-- Datos de Prueba para 'brigade'
+INSERT INTO "brigade" (name, created_at, updated_at) VALUES
+('Brigada Ecológica', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Brigada Deportiva', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Brigada Cívica', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla personal (Director, Docentes, Administrativo, Obrero)
-INSERT INTO personal (nombre, lastName, idRole, telephoneNomber, CI, Email, birthday, created_at, updated_at, direccion, parroquia_id) VALUES
-('Ana', 'García', (SELECT id FROM rol WHERE name = 'Director'), '04147778899', '12345678', 'ana.garcia@escuela.com', '1975-03-15', NOW(), NOW(), 'Av. Principal 123', (SELECT id FROM parroquia WHERE nombre = 'San Juan Bautista')),
-('Carlos', 'López', (SELECT id FROM rol WHERE name = 'Docente'), '04161112233', '10987654', 'carlos.lopez@escuela.com', '1980-07-20', NOW(), NOW(), 'Calle 5 #4-50', (SELECT id FROM parroquia WHERE nombre = 'La Concordia')),
-('María', 'Pérez', (SELECT id FROM rol WHERE name = 'Docente'), '04264445566', '11223344', 'maria.perez@escuela.com', '1982-11-01', NOW(), NOW(), 'Carrera 6 #10-20', (SELECT id FROM parroquia WHERE nombre = 'Táriba')),
-('José', 'Martínez', (SELECT id FROM rol WHERE name = 'Administrativo'), '04123334455', '13579246', 'jose.martinez@escuela.com', '1978-09-25', NOW(), NOW(), 'Residencias Sol, Apto 5', (SELECT id FROM parroquia WHERE nombre = 'San Juan Bautista')),
-('Luisa', 'Rodríguez', (SELECT id FROM rol WHERE name = 'Obrero'), '04246667788', '14701235', 'luisa.rodriguez@escuela.com', '1965-01-10', NOW(), NOW(), 'Sector El Carmen, Casa 3', (SELECT id FROM parroquia WHERE nombre = 'La Concordia')),
-('Pedro', 'Gómez', (SELECT id FROM rol WHERE name = 'Docente'), '04149990011', '15975310', 'pedro.gomez@escuela.com', '1985-05-30', NOW(), NOW(), 'Urb. Los Pinos, C-1', (SELECT id FROM parroquia WHERE nombre = 'San Juan Bautista'));
+-- Datos de Prueba para 'brigadeTeacherDate'
+INSERT INTO "brigadeTeacherDate" ("brigadeID", "dateI", "personalID", created_at, updated_at) VALUES
+(1, '2024-09-01', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(2, '2024-09-01', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(3, '2024-09-01', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla usuario (enlazando con personal)
-INSERT INTO usuario (username, email, password, permiso_id, access_token, refresh_token, token_expiry, email_verification_token, email_verified, password_reset_token, password_reset_expires, security_word, respuesta_de_seguridad, last_login, is_active, created_at, updated_at, personal_id) VALUES
-('anagarcia_admin', 'ana.garcia@escuela.com', 'hashedpassword123', (SELECT id FROM permisos WHERE nombre = 'Administrador'), 'token123', 'rtoken123', NOW() + INTERVAL '1 hour', 'emailveriftoken1', TRUE, NULL, NULL, 'animal favorito', 'perro', NOW(), TRUE, NOW(), NOW(), (SELECT id FROM personal WHERE CI = '12345678')),
-('carloslopez_doc', 'carlos.lopez@escuela.com', 'hashedpassword456', (SELECT id FROM permisos WHERE nombre = 'Usuario'), 'token456', 'rtoken456', NOW() + INTERVAL '1 hour', 'emailveriftoken2', TRUE, NULL, NULL, 'color favorito', 'azul', NOW(), TRUE, NOW(), NOW(), (SELECT id FROM personal WHERE CI = '10987654')),
-('josemartinez_adm', 'jose.martinez@escuela.com', 'hashedpassword789', (SELECT id FROM permisos WHERE nombre = 'Administrador'), 'token789', 'rtoken789', NOW() + INTERVAL '1 hour', 'emailveriftoken3', TRUE, NULL, NULL, 'nombre de madre', 'carmen', NOW(), TRUE, NOW(), NOW(), (SELECT id FROM personal WHERE CI = '13579246'));
+-- Datos de Prueba para 'representative'
+INSERT INTO "representative" (ci, name, "lastName", "telephoneNumber", email, "maritalStat", profesion, birthday, "telephoneHouse", "roomAdress", "workPlace", "jobNumber", created_at, updated_at) VALUES
+('10101010', 'Julia', 'González', '04247778899', 'julia.g@example.com', 'Casado', 'Abogado', '1978-02-10', '02761112233', 'Urb. Las Rosas', 'Bufete Legal', '02764445566', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('20202020', 'Roberto', 'Sánchez', '04161112233', 'roberto.s@example.com', 'Soltero', 'Ingeniero', '1970-07-22', '02769998877', 'Conjunto Residencial El Sol', 'Empresa de Software', '02767776655', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- -----------------------------------------------------------
--- 3. Información del estudiante
--- -----------------------------------------------------------
+-- Datos de Prueba para 'student'
+INSERT INTO "student" (ci, name, "lastName", sex, birthday, "placeBirth", "parishID", status_id, "brigadeTeacherDateID", "quantityBrothers", "representativeID", "motherName", "motherCi", "motherTelephone", "fatherName", "fatherCi", "fatherTelephone", "livesMother", "livesFather", "livesBoth", "livesRepresentative", "rolRopresentative", created_at, updated_at) VALUES
+('30001001', 'Diego', 'Pérez', 'Masculino', '2015-01-20', 'San Cristóbal', 1, 1, 1, 1, '10101010', 'Julia González', '10101010', '04247778899', 'Juan Pérez', '12345678', '04121234567', TRUE, FALSE, FALSE, TRUE, 'Madre', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('30002002', 'Sofía', 'López', 'Femenino', '2016-03-12', 'Mérida', 3, 1, 2, 0, '20202020', 'Carla López', '98765432', '04161112233', 'Pedro López', '87654321', '04149876543', FALSE, TRUE, FALSE, TRUE, 'Padre', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('30003003', 'Andrés', 'Ramírez', 'Masculino', '2014-09-05', 'Valencia', 4, 1, 1, 2, '10101010', 'Julia González', '10101010', '04247778899', 'Juan Pérez', '12345678', '04121234567', TRUE, FALSE, FALSE, TRUE, 'Madre', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla status_student
-INSERT INTO status_student (descripcion, created_at, updated_at) VALUES
-('Activo', NOW(), NOW()),
-('Inactivo', NOW(), NOW()),
-('Egresado', NOW(), NOW()),
-('Retirado', NOW(), NOW());
+-- Datos de Prueba para 'grade'
+INSERT INTO "grade" (name, created_at, updated_at) VALUES
+('Primer Grado', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Segundo Grado', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Tercer Grado', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla brigada
-INSERT INTO brigada (nombre, created_at, updated_at) VALUES
-('Brigada Ecológica', NOW(), NOW()),
-('Brigada de Primeros Auxilios', NOW(), NOW()),
-('Brigada de Recreación', NOW(), NOW());
+-- Datos de Prueba para 'section'
+INSERT INTO "section" ("teacherCI", "gradeID", seccion, period, created_at, updated_at) VALUES
+(1, 1, 'A', '2024-2025', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(4, 1, 'B', '2024-2025', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(1, 2, 'A', '2024-2025', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla brigada_docente_fecha (Docentes a cargo de brigadas)
-INSERT INTO brigada_docente_fecha (brigada_id, fecha, personal_id, created_at, updated_at) VALUES
-((SELECT id FROM brigada WHERE nombre = 'Brigada Ecológica'), '2025-09-01', (SELECT id FROM personal WHERE CI = '10987654'), NOW(), NOW()), -- Carlos López
-((SELECT id FROM brigada WHERE nombre = 'Brigada de Primeros Auxilios'), '2025-09-01', (SELECT id FROM personal WHERE CI = '11223344'), NOW(), NOW()), -- María Pérez
-((SELECT id FROM brigada WHERE nombre = 'Brigada de Recreación'), '2025-09-01', (SELECT id FROM personal WHERE CI = '15975310'), NOW(), NOW()); -- Pedro Gómez
+-- Datos de Prueba para 'enrollment'
+INSERT INTO "enrollment" ("studentID", "sectionID", "brigadeTeacherDateID", "registrationDate", repeater, "chemiseSize", "pantsSize", "shoesSize", weight, stature, diseases, observation, "birthCertificateCheck", "vaccinationCardCheck", "studentPhotosCheck", "representativePhotosCheck", "representativeCopyIDCheck", "representativeRIFCheck", "autorizedCopyIDCheck", created_at, updated_at) VALUES
+(1, 1, 1, '2024-09-10', FALSE, 'M', 'M', '30', 30.5, 1.20, 'Ninguna', 'Buen estudiante', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(2, 2, 2, '2024-09-10', FALSE, 'S', 'S', '28', 28.0, 1.15, 'Asma', 'Requiere atención especial', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(3, 1, 1, '2024-09-10', TRUE, 'M', 'M', '31', 32.0, 1.25, 'Alergia al polen', 'Necesita inhalador', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla estudiante
-INSERT INTO estudiante (nombre, apellido, status_id, brigada_docente_fecha_id, vive_madre, vive_padre, vive_ambos, vive_representante, lugarNacimiento_id, sexo, cedula_escolar, cant_hermanos, created_at, updated_at) VALUES
-('Sofía', 'Delgado', (SELECT id FROM status_student WHERE descripcion = 'Activo'), (SELECT id FROM brigada_docente_fecha WHERE personal_id = (SELECT id FROM personal WHERE CI = '10987654') AND brigada_id = (SELECT id FROM brigada WHERE nombre = 'Brigada Ecológica')), TRUE, TRUE, TRUE, FALSE, 'San Juan Bautista', 'Femenino', 'E-001', 1, NOW(), NOW()),
-('Diego', 'Ramírez', (SELECT id FROM status_student WHERE descripcion = 'Activo'), (SELECT id FROM brigada_docente_fecha WHERE personal_id = (SELECT id FROM personal WHERE CI = '11223344') AND brigada_id = (SELECT id FROM brigada WHERE nombre = 'Brigada de Primeros Auxilios')), TRUE, FALSE, FALSE, FALSE, 'La Concordia', 'Masculino', 'E-002', 2, NOW(), NOW()),
-('Valentina', 'Rojas', (SELECT id FROM status_student WHERE descripcion = 'Activo'), (SELECT id FROM brigada_docente_fecha WHERE personal_id = (SELECT id FROM personal WHERE CI = '15975310') AND brigada_id = (SELECT id FROM brigada WHERE nombre = 'Brigada de Recreación')), FALSE, FALSE, FALSE, TRUE, 'Táriba', 'Femenino', 'E-003', 0, NOW(), NOW()),
-('Sebastián', 'Silva', (SELECT id FROM status_student WHERE descripcion = 'Activo'), (SELECT id FROM brigada_docente_fecha WHERE personal_id = (SELECT id FROM personal WHERE CI = '10987654') AND brigada_id = (SELECT id FROM brigada WHERE nombre = 'Brigada Ecológica')), TRUE, TRUE, TRUE, FALSE, 'San Juan Bautista', 'Masculino', 'E-004', 3, NOW(), NOW());
+-- Datos de Prueba para 'notes'
+INSERT INTO "notes" ("enrollmentID", notes, period, subject, "registrationDate", created_at, updated_at) VALUES
+(1, 18.50, 'Primer Lapso', 'Matemáticas', '2024-12-15', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(1, 19.00, 'Primer Lapso', 'Lengua', '2024-12-15', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(2, 16.00, 'Primer Lapso', 'Matemáticas', '2024-12-15', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(3, 15.50, 'Primer Lapso', 'Matemáticas', '2024-12-15', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Tabla estudiante_bdf (Brigadas a las que pertenece el estudiante)
-INSERT INTO estudiante_bdf (descripcion, student_id, created_at, updated_at, brigada_id) VALUES
-('Miembro de la brigada ecológica.', (SELECT id FROM estudiante WHERE cedula_escolar = 'E-001'), NOW(), NOW(), (SELECT id FROM brigada WHERE nombre = 'Brigada Ecológica')),
-('Miembro de la brigada de primeros auxilios.', (SELECT id FROM estudiante WHERE cedula_escolar = 'E-002'), NOW(), NOW(), (SELECT id FROM brigada WHERE nombre = 'Brigada de Primeros Auxilios')),
-('Miembro de la brigada de recreación.', (SELECT id FROM estudiante WHERE cedula_escolar = 'E-003'), NOW(), NOW(), (SELECT id FROM brigada WHERE nombre = 'Brigada de Recreación'));
+-- Datos de Prueba para 'usuario'
+INSERT INTO "usuario" (username, email, password, permiso_id, is_active, email_verified, security_word, respuesta_de_seguridad, personal_id, created_at, updated_at) VALUES
+('admin.ana', 'admin.ana@example.com', '$2a$10$xyz...', 1, TRUE, TRUE, 'color favorito', 'azul', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Contraseña hasheada
+('teacher.maria', 'teacher.maria@example.com', '$2a$10$abc...', 2, TRUE, FALSE, 'nombre mascota', 'fido', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Contraseña hasheada
+('secretary.pedro', 'secretary.pedro@example.com', '$2a$10$def...', 3, TRUE, TRUE, 'comida favorita', 'pizza', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP); -- Contraseña hasheada
 
--- Tabla representante (asociado a un estudiante)
-INSERT INTO representante (name, lastName, roleName, telephoneNomber, Cedula, Email, birthday, created_at, updated_at, estudiante_id, telephoneHouse, direccionHabitacion, lugar_trabajo, telefono_trabajo) VALUES
-('Laura', 'Delgado', 'Madre', '04141234567', '20123456', 'laura.delgado@example.com', '1988-02-28', NOW(), NOW(), (SELECT id FROM estudiante WHERE cedula_escolar = 'E-001'), '02761234567', 'Calle Principal #1', 'Comercio C.A.', '02767890123'),
-('Roberto', 'Ramírez', 'Padre', '04169876543', '18765432', 'roberto.ramirez@example.com', '1985-09-10', NOW(), NOW(), (SELECT id FROM estudiante WHERE cedula_escolar = 'E-002'), '02762345678', 'Av. Bolívar #2', 'Oficina S.A.', '02768901234'),
-('Carla', 'González', 'Representante Legal', '04245556677', '22345678', 'carla.gonzalez@example.com', '1970-04-05', NOW(), NOW(), (SELECT id FROM estudiante WHERE cedula_escolar = 'E-003'), '02763456789', 'Barrio Obrero, Casa 4', 'Consultoría X', '02769012345');
+-- Datos de Prueba para 'attendance'
+INSERT INTO "attendance" (date_a, "sectionID", observaciones, created_at, updated_at) VALUES
+('2025-01-10', 1, 'Asistencia regular', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2025-01-10', 2, 'Faltaron 2 estudiantes', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- -----------------------------------------------------------
--- 4. Parte académica
--- -----------------------------------------------------------
-
--- Tabla grado
-INSERT INTO grado (nombre, created_at, updated_at) VALUES
-('1er Grado', NOW(), NOW()),
-('2do Grado', NOW(), NOW()),
-('3er Grado', NOW(), NOW()),
-('4to Grado', NOW(), NOW()),
-('5to Grado', NOW(), NOW()),
-('6to Grado', NOW(), NOW());
-
--- Tabla docente_grado (Asignación de docentes a grados y secciones)
-INSERT INTO docente_grado (docente_id, grado_id, created_at, updated_at, seccion) VALUES
-((SELECT id FROM personal WHERE CI = '10987654'), (SELECT id FROM grado WHERE nombre = '1er Grado'), NOW(), NOW(), 'A'), -- Carlos López
-((SELECT id FROM personal WHERE CI = '11223344'), (SELECT id FROM grado WHERE nombre = '2do Grado'), NOW(), NOW(), 'B'), -- María Pérez
-((SELECT id FROM personal WHERE CI = '15975310'), (SELECT id FROM grado WHERE nombre = '3er Grado'), NOW(), NOW(), 'A'); -- Pedro Gómez
-
--- Tabla matricula (Simulación de inscripción)
-INSERT INTO matricula (estudiante_id, docente_grado_id, fecha_inscripcion, periodo_escolar, repitiente, talla_camisa, talla_pantalon, talla_zapatos, peso, estatura, enfermedades, observaciones, acta_nacimiento_check, tarjeta_vacunas_check, fotos_estudiante_check, fotos_representante_check, copia_cedula_representante_check, rif_representante, copia_cedula_autorizados_check, created_at, updated_at) VALUES
-((SELECT id FROM estudiante WHERE cedula_escolar = 'E-001'), (SELECT id FROM docente_grado WHERE docente_id = (SELECT id FROM personal WHERE CI = '10987654') AND seccion = 'A'), '2025-09-05', '2025-2026', FALSE, 'S', 'S', '28', 25.5, 1.20, 'Ninguna', 'Excelente desempeño.', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, NOW(), NOW()),
-((SELECT id FROM estudiante WHERE cedula_escolar = 'E-002'), (SELECT id FROM docente_grado WHERE docente_id = (SELECT id FROM personal WHERE CI = '11223344') AND seccion = 'B'), '2025-09-06', '2025-2026', FALSE, 'M', 'M', '30', 30.0, 1.30, 'Asma', 'Requiere atención especial en educación física.', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, NOW(), NOW()),
-((SELECT id FROM estudiante WHERE cedula_escolar = 'E-003'), (SELECT id FROM docente_grado WHERE docente_id = (SELECT id FROM personal WHERE CI = '15975310') AND seccion = 'A'), '2025-09-07', '2025-2026', TRUE, 'S', 'S', '29', 27.0, 1.25, 'Alergia al polen', 'Buen rendimiento a pesar de haber repetido.', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, NOW(), NOW());
-
--- Tabla notas
-INSERT INTO notas (matricula_id, nota, periodo, asignatura, fecha_registro, created_at, updated_at) VALUES
-((SELECT id FROM matricula WHERE estudiante_id = (SELECT id FROM estudiante WHERE cedula_escolar = 'E-001')), 18.50, '1er Lapso', 'Matemáticas', '2025-11-15', NOW(), NOW()),
-((SELECT id FROM matricula WHERE estudiante_id = (SELECT id FROM estudiante WHERE cedula_escolar = 'E-001')), 19.00, '1er Lapso', 'Lenguaje', '2025-11-15', NOW(), NOW()),
-((SELECT id FROM matricula WHERE estudiante_id = (SELECT id FROM estudiante WHERE cedula_escolar = 'E-002')), 15.00, '1er Lapso', 'Matemáticas', '2025-11-16', NOW(), NOW()),
-((SELECT id FROM matricula WHERE estudiante_id = (SELECT id FROM estudiante WHERE cedula_escolar = 'E-003')), 17.25, '1er Lapso', 'Ciencias Naturales', '2025-11-17', NOW(), NOW());
-
--- Tabla asistencia_diaria
-INSERT INTO asistencia_diaria (fecha, grado_id, cantidad_asistentes, observaciones, created_at, updated_at) VALUES
-('2025-09-09', (SELECT id FROM docente_grado WHERE docente_id = (SELECT id FROM personal WHERE CI = '10987654') AND seccion = 'A'), 25, 'Asistencia normal en 1er Grado A.', NOW(), NOW()),
-('2025-09-09', (SELECT id FROM docente_grado WHERE docente_id = (SELECT id FROM personal WHERE CI = '11223344') AND seccion = 'B'), 20, 'Hubo 2 inasistencias en 2do Grado B.', NOW(), NOW()),
-('2025-09-10', (SELECT id FROM docente_grado WHERE docente_id = (SELECT id FROM personal WHERE CI = '10987654') AND seccion = 'A'), 24, 'Un estudiante con permiso médico en 1er Grado A.', NOW(), NOW());
+-- Datos de Prueba para 'attendanceDetails'
+INSERT INTO "attendanceDetails" ("attendanceID", "studentID", assistant) VALUES
+(1, 1, TRUE),
+(1, 3, TRUE),
+(2, 2, TRUE);
