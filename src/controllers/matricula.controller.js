@@ -4,9 +4,9 @@ const createMatricula = async (req, res) => {
   try {
     const {
       estudiante_id,
-      docente_grado_id,
+      section_id, // Cambiado de docente_grado_id a section_id
       fecha_inscripcion,
-      periodo_escolar,
+      // periodo_escolar ya no es necesario aquí, se obtiene de la sección
       repitiente = false,
       talla_camisa,
       talla_pantalon,
@@ -24,20 +24,21 @@ const createMatricula = async (req, res) => {
       copia_cedula_autorizados_check = false,
     } = req.body
 
-    // Validaciones obligatorias
-    if (!estudiante_id || !docente_grado_id || !fecha_inscripcion || !periodo_escolar) {
+    // Validaciones obligatorias: ahora section_id es clave
+    if (!estudiante_id || !section_id || !fecha_inscripcion) {
       return res.status(400).json({
         ok: false,
-        msg: "Campos obligatorios: estudiante_id, docente_grado_id, fecha_inscripcion, periodo_escolar",
+        msg: "Campos obligatorios: estudiante_id, section_id, fecha_inscripcion",
       })
     }
 
-    // Validar que no exista una matrícula para el mismo estudiante en el mismo período
-    const existingMatricula = await MatriculaModel.checkExistingMatricula(estudiante_id, periodo_escolar)
+    // Validar que no exista una matrícula para el mismo estudiante en la misma sección
+    // El modelo MatriculaModel.checkExistingMatricula ahora espera section_id
+    const existingMatricula = await MatriculaModel.checkExistingMatricula(estudiante_id, section_id)
     if (existingMatricula) {
       return res.status(400).json({
         ok: false,
-        msg: "El estudiante ya tiene una matrícula registrada para este período escolar",
+        msg: "El estudiante ya tiene una matrícula registrada para esta sección",
       })
     }
 
@@ -94,9 +95,8 @@ const createMatricula = async (req, res) => {
 
     const newMatricula = await MatriculaModel.create({
       estudiante_id,
-      docente_grado_id,
+      section_id, // Pasamos section_id al modelo
       fecha_inscripcion,
-      periodo_escolar,
       repitiente,
       talla_camisa,
       talla_pantalon,
@@ -232,7 +232,8 @@ const updateMatricula = async (req, res) => {
       })
     }
 
-    // Validaciones similares al create
+    // Validaciones similares al create (solo peso y estatura como ejemplo)
+    // Asegúrate de que todas las validaciones de longitud de texto también se repliquen aquí si son editables
     if (updateData.peso && (updateData.peso < 0 || updateData.peso > 200)) {
       return res.status(400).json({
         ok: false,
@@ -247,6 +248,42 @@ const updateMatricula = async (req, res) => {
       })
     }
 
+    if (updateData.enfermedades && updateData.enfermedades.length > 100) {
+      return res.status(400).json({
+        ok: false,
+        msg: "El campo enfermedades no puede exceder 100 caracteres",
+      })
+    }
+
+    if (updateData.observaciones && updateData.observaciones.length > 100) {
+      return res.status(400).json({
+        ok: false,
+        msg: "El campo observaciones no puede exceder 100 caracteres",
+      })
+    }
+
+    if (updateData.talla_camisa && updateData.talla_camisa.length > 10) {
+      return res.status(400).json({
+        ok: false,
+        msg: "La talla de camisa no puede exceder 10 caracteres",
+      })
+    }
+
+    if (updateData.talla_pantalon && updateData.talla_pantalon.length > 10) {
+      return res.status(400).json({
+        ok: false,
+        msg: "La talla de pantalón no puede exceder 10 caracteres",
+      })
+    }
+
+    if (updateData.talla_zapatos && updateData.talla_zapatos.length > 10) {
+      return res.status(400).json({
+        ok: false,
+        msg: "La talla de zapatos no puede exceder 10 caracteres",
+      })
+    }
+    // Si se permite cambiar la sección de la matrícula, se debe pasar section_id
+    // El modelo MatriculaModel.update espera section_id si se proporciona
     const updatedMatricula = await MatriculaModel.update(id, updateData)
 
     return res.json({

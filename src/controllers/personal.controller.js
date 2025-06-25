@@ -2,54 +2,60 @@ import { PersonalModel } from "../models/personal.model.js"
 
 const createPersonal = async (req, res) => {
   try {
-    const { nombre, apellido, idrole, telefono, cedula, email, birthday, direccion, parroquia_id } = req.body
+    const { name, lastName, idrole, telephoneNumber, ci, email, birthday, direction, parishID } = req.body // Renombrado parishID
 
-    if (!nombre || !apellido || !idrole || !cedula) {
+    if (!name || !lastName || !idrole || !ci) { // Usar name y lastName
       return res.status(400).json({
         ok: false,
-        msg: "Missing required fields: nombre, apellido, idrole, and cedula are mandatory",
+        msg: "Missing required fields: name, lastName, idrole, and ci are mandatory", // Mensaje actualizado
       })
     }
 
-    // Validaciones de longitud específicas
-    if (nombre.length > 30) {
+    // Validaciones de longitud específicas (mantener estas validaciones a nivel de controlador es bueno para feedback inmediato)
+    if (name.length > 100) { // Actualizado a 100 según el modelo
       return res.status(400).json({
         ok: false,
-        msg: `El nombre es demasiado largo. Máximo 30 caracteres, actual: ${nombre.length}`,
+        msg: `El nombre es demasiado largo. Máximo 100 caracteres, actual: ${name.length}`,
       })
     }
 
-    if (apellido.length > 30) {
+    if (lastName.length > 100) { // Actualizado a 100 según el modelo
       return res.status(400).json({
         ok: false,
-        msg: `El apellido es demasiado largo. Máximo 30 caracteres, actual: ${apellido.length}`,
+        msg: `El apellido es demasiado largo. Máximo 100 caracteres, actual: ${lastName.length}`,
       })
     }
 
-    if (email && email.length > 50) {
+    if (email && email.length > 100) { // Actualizado a 100 según el modelo
       return res.status(400).json({
         ok: false,
-        msg: `El email es demasiado largo. Máximo 50 caracteres, actual: ${email.length}`,
+        msg: `El email es demasiado largo. Máximo 100 caracteres, actual: ${email.length}`,
       })
     }
 
-    if (direccion && direccion.length > 100) {
+    if (direction && direction.length > 30) { // Actualizado a 30 según el modelo
       return res.status(400).json({
         ok: false,
-        msg: `La dirección es demasiado larga. Máximo 100 caracteres, actual: ${direccion.length}`,
+        msg: `La dirección es demasiado larga. Máximo 30 caracteres, actual: ${direction.length}`,
       })
     }
 
-    if (telefono && telefono.length > 30) {
+    if (telephoneNumber && telephoneNumber.length > 20) { // Actualizado a 20 según el modelo
       return res.status(400).json({
         ok: false,
-        msg: `El teléfono es demasiado largo. Máximo 30 caracteres, actual: ${telefono.length}`,
+        msg: `El teléfono es demasiado largo. Máximo 20 caracteres, actual: ${telephoneNumber.length}`,
+      })
+    }
+    if (ci && ci.length > 20) { // Actualizado a 20 según el modelo
+      return res.status(400).json({
+        ok: false,
+        msg: `La cédula es demasiado larga. Máximo 20 caracteres, actual: ${ci.length}`,
       })
     }
 
     // Validate cedula format (Venezuelan format)
     const cedulaRegex = /^[VE]\d{7,8}$/
-    if (!cedulaRegex.test(cedula)) {
+    if (!cedulaRegex.test(ci)) { // Usar ci
       return res.status(400).json({
         ok: false,
         msg: "Invalid cedula format. Use format: V12345678 or E12345678",
@@ -57,7 +63,7 @@ const createPersonal = async (req, res) => {
     }
 
     // Check if personal with same cedula already exists
-    const existingPersonalByCedula = await PersonalModel.findOneByCedula(cedula)
+    const existingPersonalByCedula = await PersonalModel.findOneByCi(ci) // Usar findOneByCi
     if (existingPersonalByCedula) {
       return res.status(400).json({
         ok: false,
@@ -88,9 +94,9 @@ const createPersonal = async (req, res) => {
     }
 
     // Validate phone format if provided
-    if (telefono) {
+    if (telephoneNumber) { // Usar telephoneNumber
       const phoneRegex = /^04\d{9}$/
-      if (!phoneRegex.test(telefono)) {
+      if (!phoneRegex.test(telephoneNumber)) { // Usar telephoneNumber
         return res.status(400).json({
           ok: false,
           msg: "Invalid phone format. Use format: 04123456789",
@@ -99,15 +105,15 @@ const createPersonal = async (req, res) => {
     }
 
     const newPersonal = await PersonalModel.create({
-      nombre,
-      apellido,
+      name, // Usar name
+      lastName, // Usar lastName
       idrole,
-      telefono,
-      cedula,
+      telephoneNumber, // Usar telephoneNumber
+      ci, // Usar ci
       email,
       birthday,
-      direccion,
-      parroquia_id,
+      direction,
+      parishID, // Usar parishID
     })
 
     return res.status(201).json({
@@ -292,7 +298,7 @@ const getPersonalWithSystemAccess = async (req, res) => {
 const updatePersonal = async (req, res) => {
   try {
     const { id } = req.params
-    const { nombre, apellido, idrole, telefono, email, birthday, direccion, parroquia_id } = req.body
+    const { name, lastName, idrole, telephoneNumber, email, birthday, direction, parishID } = req.body // Renombrado parishID, name, lastName, telephoneNumber
 
     // Check if personal exists
     const existingPersonal = await PersonalModel.findOneById(id)
@@ -304,45 +310,46 @@ const updatePersonal = async (req, res) => {
     }
 
     // Validaciones de longitud específicas
-    if (nombre && nombre.length > 30) {
+    if (name && name.length > 100) { // Actualizado a 100
       return res.status(400).json({
         ok: false,
-        msg: `El nombre es demasiado largo. Máximo 30 caracteres, actual: ${nombre.length}`,
+        msg: `El nombre es demasiado largo. Máximo 100 caracteres, actual: ${name.length}`,
       })
     }
 
-    if (apellido && apellido.length > 30) {
+    if (lastName && lastName.length > 100) { // Actualizado a 100
       return res.status(400).json({
         ok: false,
-        msg: `El apellido es demasiado largo. Máximo 30 caracteres, actual: ${apellido.length}`,
+        msg: `El apellido es demasiado largo. Máximo 100 caracteres, actual: ${lastName.length}`,
       })
     }
 
-    if (email && email.length > 50) {
+    if (email && email.length > 100) { // Actualizado a 100
       return res.status(400).json({
         ok: false,
-        msg: `El email es demasiado largo. Máximo 50 caracteres, actual: ${email.length}`,
+        msg: `El email es demasiado largo. Máximo 100 caracteres, actual: ${email.length}`,
       })
     }
 
-    if (direccion && direccion.length > 100) {
+    if (direction && direction.length > 30) { // Actualizado a 30
       return res.status(400).json({
         ok: false,
-        msg: `La dirección es demasiado larga. Máximo 100 caracteres, actual: ${direccion.length}`,
+        msg: `La dirección es demasiado larga. Máximo 30 caracteres, actual: ${direction.length}`,
       })
     }
 
-    if (telefono && telefono.length > 30) {
+    if (telephoneNumber && telephoneNumber.length > 20) { // Actualizado a 20
       return res.status(400).json({
         ok: false,
-        msg: `El teléfono es demasiado largo. Máximo 30 caracteres, actual: ${telefono.length}`,
+        msg: `El teléfono es demasiado largo. Máximo 20 caracteres, actual: ${telephoneNumber.length}`,
       })
     }
 
     // Check if email is being updated and if it already exists
     if (email && email !== existingPersonal.email) {
       const existingPersonalByEmail = await PersonalModel.findOneByEmail(email)
-      if (existingPersonalByEmail && existingPersonalByEmail.id !== Number.parseInt(id)) {
+      // La comparación debe ser con `existingPersonal.id` que viene del modelo, no con `Number.parseInt(id)`
+      if (existingPersonalByEmail && existingPersonalByEmail.id !== existingPersonal.id) {
         return res.status(400).json({
           ok: false,
           msg: "A personal member with this email already exists",
@@ -362,9 +369,9 @@ const updatePersonal = async (req, res) => {
     }
 
     // Validate phone format if provided
-    if (telefono) {
+    if (telephoneNumber) { // Usar telephoneNumber
       const phoneRegex = /^04\d{9}$/
-      if (!phoneRegex.test(telefono)) {
+      if (!phoneRegex.test(telephoneNumber)) { // Usar telephoneNumber
         return res.status(400).json({
           ok: false,
           msg: "Invalid phone format. Use format: 04123456789",
@@ -373,14 +380,14 @@ const updatePersonal = async (req, res) => {
     }
 
     const updatedPersonal = await PersonalModel.update(id, {
-      nombre,
-      apellido,
+      name, // Usar name
+      lastName, // Usar lastName
       idrole,
-      telefono,
+      telephoneNumber, // Usar telephoneNumber
       email,
       birthday,
-      direccion,
-      parroquia_id,
+      direction,
+      parishID, // Usar parishID
     })
 
     return res.json({
@@ -447,7 +454,7 @@ const deletePersonal = async (req, res) => {
 
 const searchPersonalByName = async (req, res) => {
   try {
-    const { name } = req.query
+    const { name } = req.query // Usar name
     if (!name) {
       return res.status(400).json({
         ok: false,
@@ -473,7 +480,7 @@ const searchPersonalByName = async (req, res) => {
 
 const searchPersonalByCedula = async (req, res) => {
   try {
-    const { cedula } = req.query
+    const { cedula } = req.query // Usar cedula
     if (!cedula) {
       return res.status(400).json({
         ok: false,
@@ -481,7 +488,7 @@ const searchPersonalByCedula = async (req, res) => {
       })
     }
 
-    const personal = await PersonalModel.searchByCedula(cedula)
+    const personal = await PersonalModel.searchByCi(cedula) // Usar searchByCi
     return res.json({
       ok: true,
       personal,
@@ -517,7 +524,7 @@ const getRoles = async (req, res) => {
 
 const getParroquias = async (req, res) => {
   try {
-    const parroquias = await PersonalModel.getParroquias()
+    const parroquias = await PersonalModel.getParishes() // Corregido el nombre de la función
     return res.json({
       ok: true,
       parroquias,
