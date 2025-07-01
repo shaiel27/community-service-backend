@@ -1,7 +1,7 @@
-import bcryptjs from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { UserModel } from "../models/user.model.js";
-import crypto from "crypto";
+import bcryptjs from "bcryptjs"
+import jwt from "jsonwebtoken"
+import { UserModel } from "../models/user.model.js"
+import crypto from "crypto"
 
 const register = async (req, res) => {
   try {
@@ -13,39 +13,39 @@ const register = async (req, res) => {
       security_word,
       respuesta_de_seguridad,
       personal_id,
-    } = req.body;
+    } = req.body
 
     if (!username || !password || !permiso_id) {
       return res.status(400).json({
         ok: false,
         msg: "Missing required fields: username, password, and permiso_id are mandatory",
-      });
+      })
     }
 
     if (password.length < 6) {
       return res.status(400).json({
         ok: false,
         msg: "Password must be at least 6 characters long",
-      });
+      })
     }
 
     // Check if username already exists
-    const existingUser = await UserModel.findOneByUsername(username);
+    const existingUser = await UserModel.findOneByUsername(username)
     if (existingUser) {
       return res.status(400).json({
         ok: false,
         msg: "Username already exists",
-      });
+      })
     }
 
     // Check if email already exists (if provided)
     if (email) {
-      const existingUserByEmail = await UserModel.findOneByEmail(email);
+      const existingUserByEmail = await UserModel.findOneByEmail(email)
       if (existingUserByEmail) {
         return res.status(400).json({
           ok: false,
           msg: "Email already exists",
-        });
+        })
       }
     }
 
@@ -53,12 +53,12 @@ const register = async (req, res) => {
     if (personal_id) {
       const existingPersonalUser = await UserModel.findByPersonalId(
         personal_id
-      );
+      )
       if (existingPersonalUser) {
         return res.status(400).json({
           ok: false,
           msg: "This personal member already has a user account",
-        });
+        })
       }
     }
 
@@ -70,13 +70,13 @@ const register = async (req, res) => {
       security_word,
       respuesta_de_seguridad,
       personal_id,
-    });
+    })
 
     if (!newUser) {
       return res.status(500).json({
         ok: false,
         msg: "Error creating user",
-      });
+      })
     }
 
     return res.status(201).json({
@@ -89,41 +89,43 @@ const register = async (req, res) => {
         permiso_id: newUser.permiso_id,
         personal_id: newUser.personal_id,
         is_active: newUser.is_active,
+        email_verified: newUser.email_verified, // Añadido este campo
       },
-    });
+    })
   } catch (error) {
-    console.error("Error in register:", error);
+    console.error("Error in register:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body
 
-    console.log("🔍 Intento de login:", { email, password: "***" });
+    console.log("🔍 Intento de login:", { email, password: "***" })
 
     if (!email || !password) {
       return res.status(400).json({
         ok: false,
         msg: "Email and password are required",
-      });
+      })
     }
 
-    console.log("🔍 Buscando usuario con email:", email);
-    const user = await UserModel.findOneByEmail(email);
-    console.log("🔍 Usuario encontrado:", user);
+    console.log("🔍 Buscando usuario con email:", email)
+    // El modelo findOneByEmail ya trae permiso_nombre y rol_nombre si personal_id está presente
+    const user = await UserModel.findOneByEmail(email)
+    console.log("🔍 Usuario encontrado:", user)
 
     if (!user) {
-      console.log("❌ Usuario no encontrado");
+      console.log("❌ Usuario no encontrado")
       return res.status(400).json({
         ok: false,
         msg: "Invalid email",
-      });
+      })
     }
 
     console.log("✅ Usuario encontrado:", {
@@ -133,29 +135,30 @@ const login = async (req, res) => {
       is_active: user.is_active,
       permiso_id: user.permiso_id,
       permiso_nombre: user.permiso_nombre,
-    });
+      // rol_nombre: user.rol_nombre, // rol_nombre viene si personal_id está presente
+    })
 
     if (!user.is_active) {
-      console.log("❌ Usuario inactivo");
+      console.log("❌ Usuario inactivo")
       return res.status(403).json({
         ok: false,
         msg: "Account is inactive. Please contact an administrator",
-      });
+      })
     }
 
-    console.log("🔑 Verificando password...");
-    const validPassword = await bcryptjs.compare(password, user.password);
-    console.log("🔑 Password válido:", validPassword);
+    console.log("🔑 Verificando password...")
+    const validPassword = await bcryptjs.compare(password, user.password)
+    console.log("🔑 Password válido:", validPassword)
 
     if (!validPassword) {
-      console.log("❌ Password incorrecto");
+      console.log("❌ Password incorrecto")
       return res.status(400).json({
         ok: false,
         msg: "Invalid password",
-      });
+      })
     }
 
-    console.log("🎉 Login exitoso, generando tokens...");
+    console.log("🎉 Login exitoso, generando tokens...")
 
     // Generate access token
     const accessToken = jwt.sign(
@@ -164,10 +167,11 @@ const login = async (req, res) => {
         username: user.username,
         permiso_id: user.permiso_id,
         personal_id: user.personal_id,
+        // Aquí puedes añadir rol_nombre si es necesario en el token
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
-    );
+    )
 
     // Generate refresh token
     const refreshToken = jwt.sign(
@@ -176,18 +180,17 @@ const login = async (req, res) => {
       },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "7d" }
-    );
+    )
 
-    const expiration = new Date(Date.now() + 3600000); // 1 hour from now
+    // El modelo ya maneja la expiración y actualiza updated_at
     await UserModel.saveLoginToken(
       user.id,
       accessToken,
-      refreshToken,
-      expiration
-    );
+      refreshToken
+    )
 
-    res.header("Access-Control-Allow-Origin", "http://localhost:3000");
-    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000")
+    res.header("Access-Control-Allow-Credentials", "true")
 
     res.json({
       ok: true,
@@ -205,47 +208,47 @@ const login = async (req, res) => {
         personal_apellido: user.personal_apellido,
         rol_nombre: user.rol_nombre,
       },
-    });
+    })
   } catch (error) {
-    console.error("❌ Login error:", error);
+    console.error("❌ Login error:", error)
     res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken } = req.body
 
     if (!refreshToken) {
       return res.status(400).json({
         ok: false,
         msg: "Refresh token is required",
-      });
+      })
     }
 
     try {
       // Verify the refresh token
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-      const userId = decoded.userId;
+      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
+      const userId = decoded.userId
 
       // Get the user
-      const user = await UserModel.findOneById(userId);
+      const user = await UserModel.findOneById(userId)
       if (!user) {
         return res.status(404).json({
           ok: false,
           msg: "User not found",
-        });
+        })
       }
 
       if (!user.is_active) {
         return res.status(403).json({
           ok: false,
           msg: "Account is inactive",
-        });
+        })
       }
 
       // Generate new access token
@@ -258,7 +261,7 @@ const refreshToken = async (req, res) => {
         },
         process.env.JWT_SECRET,
         { expiresIn: "1h" }
-      );
+      )
 
       // Generate new refresh token
       const newRefreshToken = jwt.sign(
@@ -267,150 +270,153 @@ const refreshToken = async (req, res) => {
         },
         process.env.JWT_REFRESH_SECRET,
         { expiresIn: "7d" }
-      );
+      )
 
-      const expiration = new Date(Date.now() + 3600000); // 1 hour from now
+      // El modelo ya maneja la expiración y actualiza updated_at
       await UserModel.saveLoginToken(
         user.id,
         accessToken,
-        newRefreshToken,
-        expiration
-      );
+        newRefreshToken
+      )
 
       return res.json({
         ok: true,
         accessToken,
         refreshToken: newRefreshToken,
-      });
+      })
     } catch (error) {
       if (error.name === "TokenExpiredError") {
         return res.status(401).json({
           ok: false,
           msg: "Refresh token expired",
-        });
+        })
       }
       if (error.name === "JsonWebTokenError") {
         return res.status(401).json({
           ok: false,
           msg: "Invalid refresh token",
-        });
+        })
       }
-      throw error;
+      throw error
     }
   } catch (error) {
-    console.error("Error in refreshToken:", error);
+    console.error("Error in refreshToken:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
-    });
+    })
   }
-};
+}
 
 const logout = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization
     if (!authHeader) {
       return res.status(401).json({
         ok: false,
         msg: "No token provided",
-      });
+      })
     }
 
-    const [bearer, token] = authHeader.split(" ");
+    const [bearer, token] = authHeader.split(" ")
     if (bearer !== "Bearer" || !token) {
       return res.status(401).json({
         ok: false,
         msg: "Invalid token format",
-      });
+      })
     }
 
-    const user = await UserModel.findUserByAccessToken(token);
+    const user = await UserModel.findUserByAccessToken(token)
 
     if (!user) {
       return res.status(403).json({
         ok: false,
         msg: "Invalid token",
-      });
+      })
     }
 
-    await UserModel.clearLoginTokens(user.id);
+    await UserModel.clearLoginTokens(user.id)
 
     return res.json({
       ok: true,
       msg: "Logged out successfully",
-    });
+    })
   } catch (error) {
-    console.error("Error in logout:", error);
+    console.error("Error in logout:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
-    });
+    })
   }
-};
+}
 
 const profile = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.userId
 
-    const user = await UserModel.findOneById(userId);
+    // El modelo findOneById ya trae la información completa con joins si personal_id está presente
+    const user = await UserModel.findOneById(userId)
 
     if (!user) {
       return res.status(404).json({
         ok: false,
         msg: "User not found",
-      });
+      })
     }
 
     const {
       password: _,
       access_token: __,
       refresh_token: ___,
+      // Otros campos sensibles que no deberían ser expuestos directamente
+      security_word: ____, // Añadido
+      respuesta_de_seguridad: _____, // Añadido
       ...userWithoutSensitiveInfo
-    } = user;
+    } = user
     return res.json({
       ok: true,
       user: userWithoutSensitiveInfo,
-    });
+    })
   } catch (error) {
-    console.error("Error in profile:", error);
+    console.error("Error in profile:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
-    });
+    })
   }
-};
+}
 
 const listUsers = async (req, res) => {
   try {
-    const users = await UserModel.findAll();
+    const users = await UserModel.findAll()
     return res.json({
       ok: true,
       users,
       total: users.length,
-    });
+    })
   } catch (error) {
-    console.error("Error in listUsers:", error);
+    console.error("Error in listUsers:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const { email, security_word, respuesta_de_seguridad } = req.body;
+    const userId = req.user.userId
+    const { email, security_word, respuesta_de_seguridad } = req.body
 
     // Check if email is being updated and if it already exists
     if (email) {
-      const existingUserByEmail = await UserModel.findOneByEmail(email);
+      const existingUserByEmail = await UserModel.findOneByEmail(email)
       if (existingUserByEmail && existingUserByEmail.id !== userId) {
         return res.status(400).json({
           ok: false,
           msg: "Email already exists",
-        });
+        })
       }
     }
 
@@ -418,112 +424,111 @@ const updateProfile = async (req, res) => {
       email,
       security_word,
       respuesta_de_seguridad,
-    });
+    })
 
     if (!updatedUser) {
       return res.status(404).json({
         ok: false,
         msg: "User not found",
-      });
+      })
     }
 
     return res.json({
       ok: true,
       msg: "Profile updated successfully",
       user: updatedUser,
-    });
+    })
   } catch (error) {
-    console.error("Error in updateProfile:", error);
+    console.error("Error in updateProfile:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const changePassword = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId
+    const { currentPassword, newPassword } = req.body
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         ok: false,
         msg: "Current password and new password are required",
-      });
+      })
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         ok: false,
         msg: "New password must be at least 6 characters long",
-      });
+      })
     }
 
-    const user = await UserModel.findOneById(userId);
+    const user = await UserModel.findOneById(userId)
     if (!user) {
       return res.status(404).json({
         ok: false,
         msg: "User not found",
-      });
+      })
     }
 
     const validPassword = await bcryptjs.compare(
       currentPassword,
       user.password
-    );
+    )
     if (!validPassword) {
       return res.status(400).json({
         ok: false,
         msg: "Current password is incorrect",
-      });
+      })
     }
 
-    const salt = await bcryptjs.genSalt(10);
-    const hashedPassword = await bcryptjs.hash(newPassword, salt);
+    const salt = await bcryptjs.genSalt(10)
+    const hashedPassword = await bcryptjs.hash(newPassword, salt)
 
-    await UserModel.updatePassword(userId, hashedPassword);
+    await UserModel.updatePassword(userId, hashedPassword)
 
     return res.json({
       ok: true,
       msg: "Password changed successfully",
-    });
+    })
   } catch (error) {
-    console.error("Error in changePassword:", error);
+    console.error("Error in changePassword:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const forgotPassword = async (req, res) => {
   try {
-    const { username } = req.body;
+    const { username } = req.body
 
     if (!username) {
       return res.status(400).json({
         ok: false,
         msg: "Username is required",
-      });
+      })
     }
 
-    const user = await UserModel.findOneByUsername(username);
+    const user = await UserModel.findOneByUsername(username)
     if (!user) {
       // For security reasons, don't reveal that the user doesn't exist
       return res.json({
         ok: true,
         msg: "If your username exists in our system, you will receive a password reset token",
-      });
+      })
     }
 
     // Generate a random token
-    const resetToken = crypto.randomBytes(20).toString("hex");
-    const expires = new Date(Date.now() + 3600000); // 1 hour from now
-
-    await UserModel.setPasswordResetToken(username, resetToken, expires);
+    const resetToken = crypto.randomBytes(20).toString("hex")
+    // No es necesario calcular expires aquí, el modelo lo manejará
+    await UserModel.setPasswordResetToken(user.id, resetToken) // Usar user.id
 
     // In a real application, you would send an email with the reset token
     // For this example, we'll just return it in the response
@@ -532,186 +537,186 @@ const forgotPassword = async (req, res) => {
       msg: "If your username exists in our system, you will receive a password reset token",
       // Only for development purposes:
       resetToken,
-    });
+    })
   } catch (error) {
-    console.error("Error in forgotPassword:", error);
+    console.error("Error in forgotPassword:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const { token, newPassword } = req.body
 
     if (!token || !newPassword) {
       return res.status(400).json({
         ok: false,
         msg: "Token and new password are required",
-      });
+      })
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         ok: false,
         msg: "New password must be at least 6 characters long",
-      });
+      })
     }
 
-    const user = await UserModel.findByPasswordResetToken(token);
+    const user = await UserModel.findByPasswordResetToken(token)
     if (!user) {
       return res.status(400).json({
         ok: false,
         msg: "Invalid or expired password reset token",
-      });
+      })
     }
 
-    const salt = await bcryptjs.genSalt(10);
-    const hashedPassword = await bcryptjs.hash(newPassword, salt);
+    const salt = await bcryptjs.genSalt(10)
+    const hashedPassword = await bcryptjs.hash(newPassword, salt)
 
-    await UserModel.updatePassword(user.id, hashedPassword);
-    await UserModel.clearPasswordResetToken(user.id);
+    await UserModel.updatePassword(user.id, hashedPassword)
+    await UserModel.clearPasswordResetToken(user.id)
 
     return res.json({
       ok: true,
       msg: "Password has been reset successfully",
-    });
+    })
   } catch (error) {
-    console.error("Error in resetPassword:", error);
+    console.error("Error in resetPassword:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const activateUser = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
-    const user = await UserModel.findOneById(id);
+    const user = await UserModel.findOneById(id)
     if (!user) {
       return res.status(404).json({
         ok: false,
         msg: "User not found",
-      });
+      })
     }
 
-    const updatedUser = await UserModel.setActive(id, true);
+    const updatedUser = await UserModel.setActive(id, true)
 
     return res.json({
       ok: true,
       msg: "User activated successfully",
       user: updatedUser,
-    });
+    })
   } catch (error) {
-    console.error("Error in activateUser:", error);
+    console.error("Error in activateUser:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const deactivateUser = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
-    const user = await UserModel.findOneById(id);
+    const user = await UserModel.findOneById(id)
     if (!user) {
       return res.status(404).json({
         ok: false,
         msg: "User not found",
-      });
+      })
     }
 
-    const updatedUser = await UserModel.setActive(id, false);
+    const updatedUser = await UserModel.setActive(id, false)
 
     return res.json({
       ok: true,
       msg: "User deactivated successfully",
       user: updatedUser,
-    });
+    })
   } catch (error) {
-    console.error("Error in deactivateUser:", error);
+    console.error("Error in deactivateUser:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const deleteUser = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
-    const user = await UserModel.findOneById(id);
+    const user = await UserModel.findOneById(id)
     if (!user) {
       return res.status(404).json({
         ok: false,
         msg: "User not found",
-      });
+      })
     }
 
-    const result = await UserModel.remove(id);
+    const result = await UserModel.remove(id)
 
     return res.json({
       ok: true,
       msg: "User deleted successfully",
       id: result.id,
-    });
+    })
   } catch (error) {
-    console.error("Error in deleteUser:", error);
+    console.error("Error in deleteUser:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const searchUsers = async (req, res) => {
   try {
-    const { username } = req.query;
+    const { username } = req.query
     if (!username) {
       return res.status(400).json({
         ok: false,
         msg: "Username parameter is required",
-      });
+      })
     }
 
-    const users = await UserModel.searchByUsername(username);
+    const users = await UserModel.searchByUsername(username)
     return res.json({
       ok: true,
       users,
       total: users.length,
-    });
+    })
   } catch (error) {
-    console.error("Error in searchUsers:", error);
+    console.error("Error in searchUsers:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const verifyEmail = async (req, res) => {
   try {
-    const { token } = req.params;
+    const { token } = req.params
 
-    const user = await UserModel.verifyEmail(token);
+    const user = await UserModel.verifyEmail(token)
     if (!user) {
       return res.status(400).json({
         ok: false,
         msg: "Invalid or expired verification token",
-      });
+      })
     }
 
     return res.json({
@@ -723,102 +728,102 @@ const verifyEmail = async (req, res) => {
         email: user.email,
         email_verified: user.email_verified,
       },
-    });
+    })
   } catch (error) {
-    console.error("Error in verifyEmail:", error);
+    console.error("Error in verifyEmail:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const recoverPasswordWithSecurity = async (req, res) => {
   try {
-    const { username, respuesta_de_seguridad, newPassword } = req.body;
+    const { username, respuesta_de_seguridad, newPassword } = req.body
 
     if (!username || !respuesta_de_seguridad || !newPassword) {
       return res.status(400).json({
         ok: false,
         msg: "Username, security answer, and new password are required",
-      });
+      })
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         ok: false,
         msg: "New password must be at least 6 characters long",
-      });
+      })
     }
 
     // Verify security answer
     const user = await UserModel.verifySecurityAnswer(
       username,
       respuesta_de_seguridad
-    );
+    )
     if (!user) {
       return res.status(400).json({
         ok: false,
         msg: "Invalid username or security answer",
-      });
+      })
     }
 
     // Hash new password
-    const salt = await bcryptjs.genSalt(10);
-    const hashedPassword = await bcryptjs.hash(newPassword, salt);
+    const salt = await bcryptjs.genSalt(10)
+    const hashedPassword = await bcryptjs.hash(newPassword, salt)
 
     // Update password
-    await UserModel.updatePassword(user.id, hashedPassword);
+    await UserModel.updatePassword(user.id, hashedPassword)
 
     return res.json({
       ok: true,
       msg: "Password has been reset successfully using security question",
-    });
+    })
   } catch (error) {
-    console.error("Error in recoverPasswordWithSecurity:", error);
+    console.error("Error in recoverPasswordWithSecurity:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const getSecurityQuestion = async (req, res) => {
   try {
-    const { username } = req.params;
+    const { username } = req.params
 
     if (!username) {
       return res.status(400).json({
         ok: false,
         msg: "Username is required",
-      });
+      })
     }
 
-    const user = await UserModel.findOneByUsername(username);
+    const user = await UserModel.findOneByUsername(username)
     if (!user) {
       // For security reasons, don't reveal that the user doesn't exist
       return res.status(404).json({
         ok: false,
         msg: "User not found",
-      });
+      })
     }
 
     return res.json({
       ok: true,
       security_question: user.security_word,
       username: user.username,
-    });
+    })
   } catch (error) {
-    console.error("Error in getSecurityQuestion:", error);
+    console.error("Error in getSecurityQuestion:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 export const UserController = {
   register,
@@ -838,4 +843,4 @@ export const UserController = {
   verifyEmail,
   recoverPasswordWithSecurity,
   getSecurityQuestion,
-};
+}

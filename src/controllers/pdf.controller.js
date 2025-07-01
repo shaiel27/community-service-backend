@@ -1,8 +1,9 @@
 // src/controllers/pdf.controller.js
 import PDFDocument from "pdfkit"
-// ¡IMPORTANTE! Ahora solo importamos drawPageHeader
 import { drawPageHeader } from "../utils/pdfGenerator.js"
-import { db } from "../db/connection.database.js"
+// Importamos los modelos necesarios
+import { MatriculaModel } from "../models/matricula.model.js"
+// Ya no necesitamos 'db' directamente aquí porque usamos los modelos
 
 export const PdfController = {
   generateStudentListPdf: async (req, res) => {
@@ -10,10 +11,10 @@ export const PdfController = {
       const doc = new PDFDocument({
         margin: 50,
         autoFirstPage: false,
-      });
+      })
 
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", 'attachment; filename="listado_estudiantes.pdf"');
+      res.setHeader("Content-Type", "application/pdf")
+      res.setHeader("Content-Disposition", 'attachment; filename="listado_estudiantes.pdf"')
 
       doc.on("error", (err) => {
         console.error("Error en la stream del PDF (generateStudentListPdf):", err)
@@ -32,15 +33,19 @@ export const PdfController = {
       drawPageHeader(doc, "LISTADO DE ESTUDIANTES")
 
       // --- Contenido del PDF: Listado de Estudiantes ---
-      const studentsQuery = `
-        SELECT E.id, E.nombre, E.apellido, E.cedula_escolar, G.nombre AS grado_nombre, DG.seccion AS seccion_nombre
-        FROM estudiante AS E
-        LEFT JOIN matricula AS M ON E.id = M.estudiante_id
-        LEFT JOIN docente_grado AS DG ON M.docente_grado_id = DG.id
-        LEFT JOIN grado AS G ON DG.grado_id = G.id
-        ORDER BY g.nombre, dg.seccion, e.apellido, e.nombre;
-      `
-      const { rows: students } = await db.query(studentsQuery)
+      // Usar el modelo de Matrícula para obtener la lista de estudiantes
+      // El modelo MatriculaModel.findAll ya trae student, section, grade y personal data
+      const enrollments = await MatriculaModel.findAll()
+
+      // Adaptar los datos para el formato esperado por el PDF
+      const students = enrollments.map(enrollment => ({
+        id: enrollment.student_id,
+        nombre: enrollment.student_name,
+        apellido: enrollment.student_lastName,
+        cedula_escolar: enrollment.student_school_id, // Asumiendo que existe este campo en el modelo o se puede adaptar
+        grado_nombre: enrollment.grade_name,
+        seccion_nombre: enrollment.section_name,
+      }))
 
       if (students.length === 0) {
         doc.fontSize(12).text("No hay estudiantes registrados.", { align: "center" })
@@ -79,7 +84,6 @@ export const PdfController = {
         })
       }
 
-      // NO SE LLAMA NINGUNA FUNCIÓN DE PIE DE PÁGINA AQUÍ
       doc.end()
     } catch (error) {
       console.error("Error al generar PDF de listado de estudiantes:", error)
@@ -95,50 +99,29 @@ export const PdfController = {
 
   generateEnrollmentFormPdf: async (req, res) => {
     try {
-      const studentId = req.params.id
-      if (!studentId) {
+      const enrollmentId = req.params.id // Aquí debería ser el ID de la matrícula, no del estudiante.
+                                        // Asumo que se pasa el ID de la tabla "enrollment"
+      if (!enrollmentId) {
         return res.status(400).json({
           ok: false,
-          msg: "ID del estudiante es requerido para generar la ficha de matrícula.",
+          msg: "ID de matrícula es requerido para generar la ficha de matrícula.",
         })
       }
 
-      const studentQuery = `
-        SELECT
-          e.cedula_escolar AS estudiante_cedula, e.apellido AS estudiante_apellido, e.nombre AS estudiante_nombre,
-          e.birthday AS estudiante_fecha_nacimiento, e.direccion AS estudiante_direccion,
-          e.telephoneNomber AS estudiante_telefono, e.email AS estudiante_email,
-          e.lugarNacimiento_id AS estudiante_lugar_nacimiento, e.sexo AS estudiante_sexo, e.cant_hermanos AS estudiante_cant_hermanos,
-          e.vive_madre, e.vive_padre, e.vive_ambos, e.vive_representante,
-          r.name AS representante_nombre, r.lastName AS representante_apellido, r.Cedula AS representante_cedula,
-          r.telephoneNomber AS representante_telefono, r.Email AS representante_email,
-          r.direccionHabitacion AS representante_direccion, r.lugar_trabajo AS representante_lugar_trabajo,
-          r.telefono_trabajo AS representante_telefono_trabajo,
-          m.fecha_inscripcion, m.periodo_escolar, m.repitiente,
-          g.nombre AS grado_nombre, dg.seccion AS seccion_nombre,
-          p.nombre AS docente_nombre, p.lastName AS docente_apellido
-        FROM estudiante AS e
-        LEFT JOIN representante r ON e.id = r.estudiante_id
-        LEFT JOIN matricula m ON e.id = m.estudiante_id
-        LEFT JOIN docente_grado dg ON m.docente_grado_id = dg.id
-        LEFT JOIN grado g ON dg.grado_id = g.id
-        LEFT JOIN personal p ON dg.docente_id = p.id
-        WHERE e.id = $1
-      `
-      const { rows: studentData } = await db.query(studentQuery, [studentId])
+      // Usar el modelo MatriculaModel.findById para obtener todos los datos con joins
+      const student = await MatriculaModel.findById(enrollmentId) // Renombrado a 'student' para mantener la coherencia con el resto del código
 
-      if (studentData.length === 0) {
+      if (!student) {
         return res.status(404).json({
           ok: false,
-          msg: "Estudiante no encontrado.",
+          msg: "Matrícula no encontrada para el ID proporcionado.",
         })
       }
-      const student = studentData[0]
 
       const doc = new PDFDocument({ margin: 50, autoFirstPage: false })
 
       res.setHeader("Content-Type", "application/pdf")
-      res.setHeader("Content-Disposition", `attachment; filename="ficha_matricula_${studentId}.pdf"`)
+      res.setHeader("Content-Disposition", `attachment; filename="ficha_matricula_${student.id}.pdf"`) // Usar student.id del resultado del modelo
 
       doc.on("error", (err) => {
         console.error("Error en la stream del PDF (generateEnrollmentFormPdf):", err)
@@ -159,39 +142,63 @@ export const PdfController = {
       doc.moveDown()
       doc.font("Helvetica-Bold").fontSize(14).text("Datos del Estudiante")
       doc.font("Helvetica").fontSize(10)
-      doc.text(`Nombre: ${student.estudiante_nombre} ${student.estudiante_apellido}`)
-      doc.text(`Cédula Escolar: ${student.estudiante_cedula}`)
-      doc.text(`Fecha de Nacimiento: ${student.estudiante_fecha_nacimiento ? new Date(student.estudiante_fecha_nacimiento).toLocaleDateString('es-ES') : 'N/A'}`)
-      doc.text(`Lugar de Nacimiento: ${student.estudiante_lugar_nacimiento || 'N/A'}`)
-      doc.text(`Sexo: ${student.estudiante_sexo || 'N/A'}`)
-      doc.text(`Cantidad de Hermanos: ${student.estudiante_cant_hermanos !== null ? student.estudiante_cant_hermanos : 'N/A'}`)
-      doc.text(`Vive con la madre: ${student.vive_madre ? 'Sí' : 'No'}`)
-      doc.text(`Vive con el padre: ${student.vive_padre ? 'Sí' : 'No'}`)
-      doc.text(`Vive con ambos: ${student.vive_ambos ? 'Sí' : 'No'}`)
-      doc.text(`Vive con el representante: ${student.vive_representante ? 'Sí' : 'No'}`)
+      // Adaptar los nombres de los campos a los retornados por MatriculaModel.findById
+      doc.text(`Nombre: ${student.student_name} ${student.student_lastName}`)
+      doc.text(`Cédula Escolar: ${student.student_school_id || 'N/A'}`)
+      doc.text(`Fecha de Nacimiento: ${student.student_birthday ? new Date(student.student_birthday).toLocaleDateString('es-ES') : 'N/A'}`)
+      doc.text(`Lugar de Nacimiento: ${student.student_birthplace_name || 'N/A'}`) // Asumiendo que el modelo trae el nombre
+      doc.text(`Sexo: ${student.student_sex || 'N/A'}`)
+      doc.text(`Cantidad de Hermanos: ${student.student_sibling_count !== null ? student.student_sibling_count : 'N/A'}`)
+      doc.text(`Vive con la madre: ${student.lives_with_mother ? 'Sí' : 'No'}`)
+      doc.text(`Vive con el padre: ${student.lives_with_father ? 'Sí' : 'No'}`)
+      doc.text(`Vive con ambos: ${student.lives_with_both ? 'Sí' : 'No'}`)
+      doc.text(`Vive con el representante: ${student.lives_with_representative ? 'Sí' : 'No'}`)
 
       doc.moveDown(2)
       doc.font("Helvetica-Bold").fontSize(14).text("Datos del Representante")
       doc.font("Helvetica").fontSize(10)
-      doc.text(`Nombre: ${student.representante_nombre || 'N/A'} ${student.representante_apellido || ''}`)
-      doc.text(`Cédula: ${student.representante_cedula || 'N/A'}`)
-      doc.text(`Teléfono: ${student.representante_telefono || 'N/A'}`)
-      doc.text(`Email: ${student.representante_email || 'N/A'}`)
-      doc.text(`Dirección: ${student.representante_direccion || 'N/A'}`)
-      doc.text(`Lugar de Trabajo: ${student.representante_lugar_trabajo || 'N/A'}`)
-      doc.text(`Teléfono Trabajo: ${student.representante_telefono_trabajo || 'N/A'}`)
+      // Adaptar los nombres de los campos a los retornados por MatriculaModel.findById
+      doc.text(`Nombre: ${student.representative_name || 'N/A'} ${student.representative_lastName || ''}`)
+      doc.text(`Cédula: ${student.representative_ci || 'N/A'}`)
+      doc.text(`Teléfono: ${student.representative_phoneNumber || 'N/A'}`)
+      doc.text(`Email: ${student.representative_email || 'N/A'}`)
+      doc.text(`Dirección: ${student.representative_address || 'N/A'}`)
+      doc.text(`Lugar de Trabajo: ${student.representative_workplace || 'N/A'}`)
+      doc.text(`Teléfono Trabajo: ${student.representative_work_phone || 'N/A'}`)
 
       doc.moveDown(2)
       doc.font("Helvetica-Bold").fontSize(14).text("Datos de Matrícula")
       doc.font("Helvetica").fontSize(10)
-      doc.text(`Fecha de Inscripción: ${student.fecha_inscripcion ? new Date(student.fecha_inscripcion).toLocaleDateString('es-ES') : 'N/A'}`)
-      doc.text(`Período Escolar: ${student.periodo_escolar || 'N/A'}`)
-      doc.text(`Grado: ${student.grado_nombre || 'N/A'}`)
-      doc.text(`Sección: ${student.seccion_nombre || 'N/A'}`)
-      doc.text(`Repitiente: ${student.repitiente ? 'Sí' : 'No'}`)
-      doc.text(`Docente de Grado: ${student.docente_nombre || 'N/A'} ${student.docente_apellido || ''}`)
+      // Adaptar los nombres de los campos a los retornados por MatriculaModel.findById
+      doc.text(`Fecha de Inscripción: ${student.registration_date ? new Date(student.registration_date).toLocaleDateString('es-ES') : 'N/A'}`)
+      doc.text(`Período Escolar: ${student.period || 'N/A'}`) // Asumiendo que el modelo trae 'period'
+      doc.text(`Grado: ${student.grade_name || 'N/A'}`)
+      doc.text(`Sección: ${student.section_name || 'N/A'}`)
+      doc.text(`Repitiente: ${student.repeater ? 'Sí' : 'No'}`)
+      doc.text(`Docente de Grado: ${student.teacher_name || 'N/A'} ${student.teacher_lastName || ''}`)
 
-      // NO SE LLAMA NINGUNA FUNCIÓN DE PIE DE PÁGINA AQUÍ
+      doc.moveDown(2)
+      doc.font("Helvetica-Bold").fontSize(14).text("Información Adicional de Matrícula")
+      doc.font("Helvetica").fontSize(10)
+      doc.text(`Talla Camisa: ${student.chemiseSize || 'N/A'}`)
+      doc.text(`Talla Pantalón: ${student.pantsSize || 'N/A'}`)
+      doc.text(`Talla Zapatos: ${student.shoesSize || 'N/A'}`)
+      doc.text(`Peso: ${student.weight || 'N/A'} kg`)
+      doc.text(`Estatura: ${student.stature || 'N/A'} cm`)
+      doc.text(`Enfermedades: ${student.diseases || 'Ninguna'}`)
+      doc.text(`Observaciones: ${student.observation || 'Ninguna'}`)
+
+      doc.moveDown(2)
+      doc.font("Helvetica-Bold").fontSize(14).text("Documentación Entregada")
+      doc.font("Helvetica").fontSize(10)
+      doc.text(`Acta de Nacimiento: ${student.birthCertificateCheck ? 'Sí' : 'No'}`)
+      doc.text(`Tarjeta de Vacunas: ${student.vaccinationCardCheck ? 'Sí' : 'No'}`)
+      doc.text(`Fotos del Estudiante: ${student.studentPhotosCheck ? 'Sí' : 'No'}`)
+      doc.text(`Fotos del Representante: ${student.representativePhotosCheck ? 'Sí' : 'No'}`)
+      doc.text(`Copia Cédula Representante: ${student.representativeCopyIDCheck ? 'Sí' : 'No'}`)
+      doc.text(`Copia Cédula Autorizados: ${student.autorizedCopyIDCheck ? 'Sí' : 'No'}`)
+
+
       doc.end()
     } catch (error) {
       console.error("Error al generar PDF de ficha de matrícula:", error)
