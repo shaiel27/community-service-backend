@@ -1,20 +1,20 @@
 // src/controllers/pdf.controller.js
 import PDFDocument from "pdfkit"
-import { addPdfFooter, createPdfBase, addPageNumbers } from "../utils/pdfGenerator.js"
-import { db } from "../db/connection.database.js" // Para acceder a la base de datos
+// ¡IMPORTANTE! Ahora solo importamos drawPageHeader
+import { drawPageHeader } from "../utils/pdfGenerator.js"
+import { db } from "../db/connection.database.js"
 
 export const PdfController = {
-  // Método para generar un listado básico de estudiantes
   generateStudentListPdf: async (req, res) => {
     try {
       const doc = new PDFDocument({
         margin: 50,
         autoFirstPage: false,
       });
-      // Configurar la respuesta HTTP para el PDF
+
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", 'attachment; filename="listado_estudiantes.pdf"');
-      // Manejar errores de la stream del PDF
+
       doc.on("error", (err) => {
         console.error("Error en la stream del PDF (generateStudentListPdf):", err)
         if (!res.headersSent) {
@@ -24,14 +24,16 @@ export const PdfController = {
           doc.end()
         }
       })
-      // Pipe el documento a la respuesta HTTP
+
       doc.pipe(res)
-      // Añadir la primera página y la cabecera
+
+      // Añadir la primera página y dibujar la cabecera
       doc.addPage()
-      createPdfBase(doc, "LISTADO DE ESTUDIANTES")
+      drawPageHeader(doc, "LISTADO DE ESTUDIANTES")
+
       // --- Contenido del PDF: Listado de Estudiantes ---
       const studentsQuery = `
-        SELECT E.id, E.nombre, E.apellido, G.nombre AS grado_nombre, DG.seccion AS seccion_nombre
+        SELECT E.id, E.nombre, E.apellido, E.cedula_escolar, G.nombre AS grado_nombre, DG.seccion AS seccion_nombre
         FROM estudiante AS E
         LEFT JOIN matricula AS M ON E.id = M.estudiante_id
         LEFT JOIN docente_grado AS DG ON M.docente_grado_id = DG.id
@@ -54,10 +56,11 @@ export const PdfController = {
 
         doc.font("Helvetica").fontSize(10)
         students.forEach((student) => {
-          if (yPos + 20 > doc.page.height - doc.page.margins.bottom - 50) {
+          // Si el contenido excede el espacio en la página, añade una nueva página y su cabecera
+          if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) { // Ajusta este valor si es necesario
             doc.addPage()
-            createPdfBase(doc, "LISTADO DE ESTUDIANTES (Continuación)")
-            yPos = doc.y + 10
+            drawPageHeader(doc, "LISTADO DE ESTUDIANTES (Continuación)") // Llama a la cabecera para la nueva página
+            yPos = doc.y + 10 // Reinicia yPos después de la cabecera
             doc.font("Helvetica-Bold").fontSize(10)
             doc.text("Cédula", 50, yPos, { width: 100 })
             doc.text("Nombre Completo", 150, yPos, { width: 200 })
@@ -68,7 +71,7 @@ export const PdfController = {
             doc.font("Helvetica").fontSize(10)
           }
 
-          doc.text(student.cedula || "N/A", 50, yPos, { width: 100 })
+          doc.text(student.cedula_escolar || "N/A", 50, yPos, { width: 100 })
           doc.text(`${student.nombre} ${student.apellido}`, 150, yPos, { width: 200 })
           doc.text(student.grado_nombre || "N/A", 350, yPos, { width: 100 })
           doc.text(student.seccion_nombre || "N/A", 450, yPos, { width: 100 })
@@ -76,7 +79,7 @@ export const PdfController = {
         })
       }
 
-      addPageNumbers(doc)
+      // NO SE LLAMA NINGUNA FUNCIÓN DE PIE DE PÁGINA AQUÍ
       doc.end()
     } catch (error) {
       console.error("Error al generar PDF de listado de estudiantes:", error)
@@ -90,11 +93,9 @@ export const PdfController = {
     }
   },
 
-  // Método para generar una ficha de matrícula de un estudiante específico
   generateEnrollmentFormPdf: async (req, res) => {
     try {
       const studentId = req.params.id
-
       if (!studentId) {
         return res.status(400).json({
           ok: false,
@@ -102,20 +103,21 @@ export const PdfController = {
         })
       }
 
-      // --- PASO 1: Obtener los datos del estudiante de la base de datos ---
       const studentQuery = `
         SELECT
-          e.id AS estudiante_id, e.nombre AS estudiante_nombre, e.apellido AS estudiante_apellido, e.cedula AS estudiante_cedula,
+          e.cedula_escolar AS estudiante_cedula, e.apellido AS estudiante_apellido, e.nombre AS estudiante_nombre,
           e.birthday AS estudiante_fecha_nacimiento, e.direccion AS estudiante_direccion,
           e.telephoneNomber AS estudiante_telefono, e.email AS estudiante_email,
-          r.nombre AS representante_nombre, r.lastName AS representante_apellido, r.CI AS representante_cedula,
-          r.telephoneNomber AS representante_telefono, r.email AS representante_email,
+          e.lugarNacimiento_id AS estudiante_lugar_nacimiento, e.sexo AS estudiante_sexo, e.cant_hermanos AS estudiante_cant_hermanos,
+          e.vive_madre, e.vive_padre, e.vive_ambos, e.vive_representante,
+          r.name AS representante_nombre, r.lastName AS representante_apellido, r.Cedula AS representante_cedula,
+          r.telephoneNomber AS representante_telefono, r.Email AS representante_email,
           r.direccionHabitacion AS representante_direccion, r.lugar_trabajo AS representante_lugar_trabajo,
           r.telefono_trabajo AS representante_telefono_trabajo,
           m.fecha_inscripcion, m.periodo_escolar, m.repitiente,
           g.nombre AS grado_nombre, dg.seccion AS seccion_nombre,
           p.nombre AS docente_nombre, p.lastName AS docente_apellido
-        FROM estudiante e
+        FROM estudiante AS e
         LEFT JOIN representante r ON e.id = r.estudiante_id
         LEFT JOIN matricula m ON e.id = m.estudiante_id
         LEFT JOIN docente_grado dg ON m.docente_grado_id = dg.id
@@ -131,16 +133,13 @@ export const PdfController = {
           msg: "Estudiante no encontrado.",
         })
       }
+      const student = studentData[0]
 
-      const student = studentData[0] // Asumimos una única fila para un ID de estudiante
-
-      // --- PASO 2: Si los datos se obtuvieron, entonces iniciar la generación del PDF ---
       const doc = new PDFDocument({ margin: 50, autoFirstPage: false })
 
       res.setHeader("Content-Type", "application/pdf")
       res.setHeader("Content-Disposition", `attachment; filename="ficha_matricula_${studentId}.pdf"`)
 
-      // Manejar errores que puedan ocurrir durante la generación del PDF (después del pipe)
       doc.on("error", (err) => {
         console.error("Error en la stream del PDF (generateEnrollmentFormPdf):", err)
         if (!res.headersSent) {
@@ -151,21 +150,25 @@ export const PdfController = {
         }
       })
 
-      doc.pipe(res) // Ahora se "pipea" aquí, después de validar los datos
+      doc.pipe(res)
 
+      // Añadir la primera página y dibujar la cabecera
       doc.addPage()
-      createPdfBase(doc, "FICHA DE MATRÍCULA DEL ESTUDIANTE")
+      drawPageHeader(doc, "FICHA DE MATRÍCULA DEL ESTUDIANTE")
 
       doc.moveDown()
       doc.font("Helvetica-Bold").fontSize(14).text("Datos del Estudiante")
       doc.font("Helvetica").fontSize(10)
       doc.text(`Nombre: ${student.estudiante_nombre} ${student.estudiante_apellido}`)
-      doc.text(`Cédula: ${student.estudiante_cedula}`)
+      doc.text(`Cédula Escolar: ${student.estudiante_cedula}`)
       doc.text(`Fecha de Nacimiento: ${student.estudiante_fecha_nacimiento ? new Date(student.estudiante_fecha_nacimiento).toLocaleDateString('es-ES') : 'N/A'}`)
-      // Aquí se usa solo la dirección, sin intentar acceder a parroquia_estudiante
-      doc.text(`Dirección: ${student.estudiante_direccion || 'N/A'}`)
-      doc.text(`Teléfono: ${student.estudiante_telefono || 'N/A'}`)
-      doc.text(`Email: ${student.estudiante_email || 'N/A'}`)
+      doc.text(`Lugar de Nacimiento: ${student.estudiante_lugar_nacimiento || 'N/A'}`)
+      doc.text(`Sexo: ${student.estudiante_sexo || 'N/A'}`)
+      doc.text(`Cantidad de Hermanos: ${student.estudiante_cant_hermanos !== null ? student.estudiante_cant_hermanos : 'N/A'}`)
+      doc.text(`Vive con la madre: ${student.vive_madre ? 'Sí' : 'No'}`)
+      doc.text(`Vive con el padre: ${student.vive_padre ? 'Sí' : 'No'}`)
+      doc.text(`Vive con ambos: ${student.vive_ambos ? 'Sí' : 'No'}`)
+      doc.text(`Vive con el representante: ${student.vive_representante ? 'Sí' : 'No'}`)
 
       doc.moveDown(2)
       doc.font("Helvetica-Bold").fontSize(14).text("Datos del Representante")
@@ -188,11 +191,10 @@ export const PdfController = {
       doc.text(`Repitiente: ${student.repitiente ? 'Sí' : 'No'}`)
       doc.text(`Docente de Grado: ${student.docente_nombre || 'N/A'} ${student.docente_apellido || ''}`)
 
-      addPageNumbers(doc)
+      // NO SE LLAMA NINGUNA FUNCIÓN DE PIE DE PÁGINA AQUÍ
       doc.end()
     } catch (error) {
       console.error("Error al generar PDF de ficha de matrícula:", error)
-      // Solo enviamos una respuesta JSON si las cabeceras aún no se han enviado
       if (!res.headersSent) {
         res.status(500).json({
           ok: false,
