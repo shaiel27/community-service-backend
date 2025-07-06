@@ -47,8 +47,7 @@ INSERT INTO "personal" (ci, name, "lastName", "idRole", "telephoneNumber", email
 ('12345678', 'Ana', 'García', 1, '04121234567', 'ana.garcia@example.com', '1980-05-15', 'Calle Real 123', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('87654321', 'Luis', 'Martínez', 2, '04149876543', 'luis.martinez@example.com', '1975-11-20', 'Avenida Siempre Viva', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('11223344', 'Carlos', 'Rodríguez', 3, '04261122334', 'carlos.r@example.com', '1990-03-10', 'Zona Industrial', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('99887766', 'María', 'Fernández', 1, '04165554433', 'maria.f@example.com', '1982-08-25', 'Callejón Angosto 5', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('22334455', 'Pedro', 'Pérez', 4, '04123332211', 'pedro.p@example.com', '1988-01-30', 'Centro Comercial', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('99887766', 'María', 'Fernández', 1, '04165554433', 'maria.f@example.com', '1982-08-25', 'Callejón Angosto 5', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- Datos de Prueba para 'status_student'
 INSERT INTO "status_student" (descripcion, created_at, updated_at) VALUES
@@ -108,16 +107,16 @@ INSERT INTO "notes" ("enrollmentID", notes, period, subject, "registrationDate",
 -- Datos de Prueba para 'usuario'
 INSERT INTO "usuario" (username, email, password, permiso_id, is_active, email_verified, security_word, respuesta_de_seguridad, personal_id, created_at, updated_at) VALUES
 ('admin.ana', 'admin.ana@example.com', '$2a$10$xyz...', 1, TRUE, TRUE, 'color favorito', 'azul', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Contraseña hasheada
-('teacher.maria', 'teacher.maria@example.com', '$2a$10$abc...', 2, TRUE, FALSE, 'nombre mascota', 'fido', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Contraseña hasheada
-('secretary.pedro', 'secretary.pedro@example.com', '$2a$10$def...', 3, TRUE, TRUE, 'comida favorita', 'pizza', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP); -- Contraseña hasheada
+('teacher.maria', 'teacher.maria@example.com', '$2a$10$abc...', 2, TRUE, FALSE, 'nombre mascota', 'fido', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Contraseña hasheada
+('secretary.pedro', 'secretary.pedro@example.com', '$2a$10$def...', 3, TRUE, TRUE, 'comida favorita', 'pizza', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP); -- Contraseña hasheada
 
 -- Datos de Prueba para 'attendance'
 INSERT INTO "attendance" (date_a, "sectionID", observaciones, created_at, updated_at) VALUES
 ('2025-01-10', 1, 'Asistencia regular', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('2025-01-10', 2, 'Faltaron 2 estudiantes', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
+
 -- Datos de Prueba para 'attendanceDetails'
 INSERT INTO "attendanceDetails" ("attendanceID", "studentID", assistant) VALUES
 (1, 1, TRUE),
-(1, 3, TRUE),
-(2, 2, TRUE);
+(2, 3, TRUE);
