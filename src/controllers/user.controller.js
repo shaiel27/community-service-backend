@@ -181,12 +181,14 @@ const login = async (req, res) => {
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "7d" }
     )
-
+    const now = new Date();
+    const tokenExpiry = new Date(now.getTime() + 60 * 60 * 1000);
     // El modelo ya maneja la expiración y actualiza updated_at
     await UserModel.saveLoginToken(
       user.id,
       accessToken,
-      refreshToken
+      refreshToken,
+      tokenExpiry
     )
 
     res.header("Access-Control-Allow-Origin", "http://localhost:3000")
