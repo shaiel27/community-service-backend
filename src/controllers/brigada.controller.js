@@ -3,12 +3,12 @@ import { BrigadaModel } from "../models/brigada.model.js"
 /**
  * Crear una nueva brigada
  */
-const crearBrigada = async (req, res) => {
+const createBrigada = async (req, res) => {
   try {
-    const { nombre } = req.body
+    const { name } = req.body
 
     // Validación de campos obligatorios
-    if (!nombre || nombre.trim() === "") {
+    if (!name || name.trim() === "") {
       return res.status(400).json({
         ok: false,
         msg: "El nombre de la brigada es obligatorio",
@@ -16,22 +16,22 @@ const crearBrigada = async (req, res) => {
     }
 
     // Validar longitud del nombre
-    if (nombre.length > 100) {
+    if (name.length > 100) {
       return res.status(400).json({
         ok: false,
-        msg: `El nombre de la brigada es demasiado largo. Máximo 100 caracteres, actual: ${nombre.length}`,
+        msg: `El nombre de la brigada es demasiado largo. Máximo 100 caracteres, actual: ${name.length}`,
       })
     }
 
-    const nuevaBrigada = await BrigadaModel.create({ nombre: nombre.trim() })
+    const newBrigada = await BrigadaModel.create({ name: name.trim() })
 
     return res.status(201).json({
       ok: true,
       msg: "Brigada creada exitosamente",
-      brigada: nuevaBrigada,
+      brigada: newBrigada,
     })
   } catch (error) {
-    console.error("Error in crearBrigada:", error)
+    console.error("Error in createBrigada:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -43,7 +43,7 @@ const crearBrigada = async (req, res) => {
 /**
  * Obtener todas las brigadas
  */
-const obtenerTodasBrigadas = async (req, res) => {
+const getAllBrigadas = async (req, res) => {
   try {
     const brigadas = await BrigadaModel.findAll()
 
@@ -53,7 +53,7 @@ const obtenerTodasBrigadas = async (req, res) => {
       total: brigadas.length,
     })
   } catch (error) {
-    console.error("Error in obtenerTodasBrigadas:", error)
+    console.error("Error in getAllBrigadas:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -65,7 +65,7 @@ const obtenerTodasBrigadas = async (req, res) => {
 /**
  * Obtener una brigada por ID
  */
-const obtenerBrigadaPorId = async (req, res) => {
+const getBrigadaById = async (req, res) => {
   try {
     const { id } = req.params
 
@@ -83,7 +83,7 @@ const obtenerBrigadaPorId = async (req, res) => {
       brigada,
     })
   } catch (error) {
-    console.error("Error in obtenerBrigadaPorId:", error)
+    console.error("Error in getBrigadaById:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -95,7 +95,7 @@ const obtenerBrigadaPorId = async (req, res) => {
 /**
  * Obtener estudiantes de una brigada
  */
-const obtenerEstudiantesPorBrigada = async (req, res) => {
+const getStudentsByBrigade = async (req, res) => {
   try {
     const { id } = req.params
 
@@ -108,22 +108,22 @@ const obtenerEstudiantesPorBrigada = async (req, res) => {
       })
     }
 
-    const estudiantes = await BrigadaModel.getEstudiantesPorBrigada(id)
+    const students = await BrigadaModel.getStudentsByBrigade(id)
 
     return res.json({
       ok: true,
       brigada: {
         id: brigada.id,
-        nombre: brigada.nombre,
+        name: brigada.name,
         encargado: brigada.encargado_nombre
           ? `${brigada.encargado_nombre} ${brigada.encargado_apellido}`
           : "Sin encargado",
       },
-      estudiantes,
-      total: estudiantes.length,
+      students,
+      total: students.length,
     })
   } catch (error) {
-    console.error("Error in obtenerEstudiantesPorBrigada:", error)
+    console.error("Error in getStudentsByBrigade:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -135,13 +135,13 @@ const obtenerEstudiantesPorBrigada = async (req, res) => {
 /**
  * Asignar encargado a una brigada
  */
-const asignarEncargado = async (req, res) => {
+const assignTeacher = async (req, res) => {
   try {
     const { id } = req.params
-    const { personal_id, fecha_inicio } = req.body
+    const { personalId, dateI } = req.body
 
     // Validaciones
-    if (!personal_id) {
+    if (!personalId) {
       return res.status(400).json({
         ok: false,
         msg: "El ID del personal es obligatorio",
@@ -165,15 +165,15 @@ const asignarEncargado = async (req, res) => {
       })
     }
 
-    const asignacion = await BrigadaModel.asignarEncargado(id, personal_id, fecha_inicio)
+    const assignment = await BrigadaModel.assignTeacher(id, personalId, dateI)
 
     return res.json({
       ok: true,
       msg: "Encargado asignado exitosamente",
-      asignacion,
+      assignment,
     })
   } catch (error) {
-    console.error("Error in asignarEncargado:", error)
+    console.error("Error in assignTeacher:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -185,13 +185,13 @@ const asignarEncargado = async (req, res) => {
 /**
  * Inscribir estudiantes en una brigada
  */
-const inscribirEstudiantes = async (req, res) => {
+const enrollStudents = async (req, res) => {
   try {
     const { id } = req.params
-    const { estudiante_ids } = req.body
+    const { studentIds } = req.body
 
     // Validaciones
-    if (!estudiante_ids || !Array.isArray(estudiante_ids) || estudiante_ids.length === 0) {
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return res.status(400).json({
         ok: false,
         msg: "Debe proporcionar al menos un ID de estudiante",
@@ -207,22 +207,22 @@ const inscribirEstudiantes = async (req, res) => {
       })
     }
 
-    if (!brigada.brigada_docente_fecha_id) {
+    if (!brigada.brigade_teacher_date_id) {
       return res.status(400).json({
         ok: false,
         msg: "La brigada debe tener un encargado asignado antes de inscribir estudiantes",
       })
     }
 
-    const resultado = await BrigadaModel.inscribirEstudiantes(estudiante_ids, brigada.brigada_docente_fecha_id)
+    const result = await BrigadaModel.enrollStudents(studentIds, brigada.brigade_teacher_date_id)
 
     return res.json({
       ok: true,
-      msg: `${resultado.estudiantesInscritos} estudiantes inscritos exitosamente`,
-      resultado,
+      msg: `${result.studentsEnrolled} estudiantes inscritos exitosamente`,
+      result,
     })
   } catch (error) {
-    console.error("Error in inscribirEstudiantes:", error)
+    console.error("Error in enrollStudents:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -234,7 +234,7 @@ const inscribirEstudiantes = async (req, res) => {
 /**
  * Limpiar una brigada (quitar encargado y estudiantes)
  */
-const limpiarBrigada = async (req, res) => {
+const clearBrigade = async (req, res) => {
   try {
     const { id } = req.params
 
@@ -247,15 +247,15 @@ const limpiarBrigada = async (req, res) => {
       })
     }
 
-    const resultado = await BrigadaModel.limpiarBrigada(id)
+    const result = await BrigadaModel.clearBrigade(id)
 
     return res.json({
       ok: true,
       msg: "Brigada limpiada exitosamente",
-      resultado,
+      result,
     })
   } catch (error) {
-    console.error("Error in limpiarBrigada:", error)
+    console.error("Error in clearBrigade:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -267,28 +267,28 @@ const limpiarBrigada = async (req, res) => {
 /**
  * Eliminar una brigada
  */
-const eliminarBrigada = async (req, res) => {
+const deleteBrigada = async (req, res) => {
   try {
     const { id } = req.params
 
     // Verificar que la brigada existe
-    const brigadaExistente = await BrigadaModel.findById(id)
-    if (!brigadaExistente) {
+    const existingBrigada = await BrigadaModel.findById(id)
+    if (!existingBrigada) {
       return res.status(404).json({
         ok: false,
         msg: "Brigada no encontrada",
       })
     }
 
-    const resultado = await BrigadaModel.remove(id)
+    const result = await BrigadaModel.remove(id)
 
     return res.json({
       ok: true,
       msg: "Brigada eliminada exitosamente",
-      brigada: resultado,
+      brigada: result,
     })
   } catch (error) {
-    console.error("Error in eliminarBrigada:", error)
+    console.error("Error in deleteBrigada:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -300,17 +300,17 @@ const eliminarBrigada = async (req, res) => {
 /**
  * Obtener estudiantes disponibles para inscribir en brigadas
  */
-const obtenerEstudiantesDisponibles = async (req, res) => {
+const getAvailableStudents = async (req, res) => {
   try {
-    const estudiantes = await BrigadaModel.getEstudiantesDisponibles()
+    const students = await BrigadaModel.getAvailableStudents()
 
     return res.json({
       ok: true,
-      estudiantes,
-      total: estudiantes.length,
+      students,
+      total: students.length,
     })
   } catch (error) {
-    console.error("Error in obtenerEstudiantesDisponibles:", error)
+    console.error("Error in getAvailableStudents:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -322,17 +322,17 @@ const obtenerEstudiantesDisponibles = async (req, res) => {
 /**
  * Obtener personal disponible para ser encargado
  */
-const obtenerDocentesDisponibles = async (req, res) => {
+const getAvailableTeachers = async (req, res) => {
   try {
-    const docentes = await BrigadaModel.getDocentesDisponibles()
+    const teachers = await BrigadaModel.getAvailableTeachers()
 
     return res.json({
       ok: true,
-      docentes,
-      total: docentes.length,
+      teachers,
+      total: teachers.length,
     })
   } catch (error) {
-    console.error("Error in obtenerDocentesDisponibles:", error)
+    console.error("Error in getAvailableTeachers:", error)
     return res.status(500).json({
       ok: false,
       msg: "Error interno del servidor",
@@ -342,14 +342,14 @@ const obtenerDocentesDisponibles = async (req, res) => {
 }
 
 export const BrigadaController = {
-  crearBrigada,
-  obtenerTodasBrigadas,
-  obtenerBrigadaPorId,
-  obtenerEstudiantesPorBrigada,
-  asignarEncargado,
-  inscribirEstudiantes,
-  limpiarBrigada,
-  eliminarBrigada,
-  obtenerEstudiantesDisponibles,
-  obtenerDocentesDisponibles,
+  createBrigada,
+  getAllBrigadas,
+  getBrigadaById,
+  getStudentsByBrigade,
+  assignTeacher,
+  enrollStudents,
+  clearBrigade,
+  deleteBrigada,
+  getAvailableStudents,
+  getAvailableTeachers,
 }

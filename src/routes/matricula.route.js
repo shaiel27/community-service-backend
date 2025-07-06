@@ -1,33 +1,36 @@
 import express from "express"
-import { MatriculaController } from "../controllers/matricula.controller.js"
+import { EnrollmentController } from "../controllers/matricula.controller.js"
 import { verifyToken, verifyAdmin, verifyAdminOrReadOnly } from "../middleware/jwt.middleware.js"
 
 const router = express.Router()
 
 // Rutas de utilidad (deben ir ANTES de las rutas con parámetros)
-router.get("/utils/grados", verifyToken, verifyAdminOrReadOnly, MatriculaController.getGrados)
-
-router.get("/utils/docente-grados", verifyToken, verifyAdminOrReadOnly, MatriculaController.getDocenteGrados)
-
-// Rutas principales de matrícula
-router.post("/", verifyToken, verifyAdmin, MatriculaController.createMatricula)
-
-router.get("/", verifyToken, verifyAdminOrReadOnly, MatriculaController.getAllMatriculas)
-
-// Rutas con parámetros (deben ir AL FINAL)
-router.get("/periodo/:periodo_escolar", verifyToken, verifyAdminOrReadOnly, MatriculaController.getMatriculasByPeriodo)
+router.get("/utils/grados", verifyToken, verifyAdminOrReadOnly, EnrollmentController.obtenerGrados)
 
 router.get(
-  "/estudiante/:estudiante_id",
+  "/utils/docente-grados",
   verifyToken,
   verifyAdminOrReadOnly,
-  MatriculaController.getMatriculasByEstudiante,
+  EnrollmentController.obtenerSeccionesConDocentes,
 )
 
-router.get("/:id", verifyToken, verifyAdminOrReadOnly, MatriculaController.getMatriculaById)
+// Rutas principales de matrículas
+router.post("/", verifyToken, verifyAdmin, EnrollmentController.crearMatricula)
 
-router.put("/:id", verifyToken, verifyAdmin, MatriculaController.updateMatricula)
+router.get("/", verifyToken, verifyAdminOrReadOnly, EnrollmentController.obtenerTodasMatriculas)
 
-router.delete("/:id", verifyToken, verifyAdmin, MatriculaController.deleteMatricula)
+// Rutas con parámetros (deben ir AL FINAL)
+router.get("/:id", verifyToken, verifyAdminOrReadOnly, EnrollmentController.obtenerMatriculaPorId)
+
+router.get(
+  "/estudiante/:estudianteId",
+  verifyToken,
+  verifyAdminOrReadOnly,
+  EnrollmentController.obtenerMatriculasPorEstudiante,
+)
+
+router.get("/periodo/:periodo", verifyToken, verifyAdminOrReadOnly, EnrollmentController.obtenerMatriculasPorPeriodo)
+
+router.put("/:id", verifyToken, verifyAdmin, EnrollmentController.actualizarMatricula)
 
 export default router

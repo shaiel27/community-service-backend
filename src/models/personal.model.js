@@ -1,37 +1,46 @@
 import { db } from "../db/connection.database.js"
 
-const create = async ({ name, lastName, idrole, telephoneNumber, ci, email, birthday, direction, parishID }) => {
+/**
+ * Crear un nuevo miembro del personal
+ * @param {Object} personalData - Datos del personal
+ * @returns {Object} - Personal creado
+ */
+const create = async (personalData) => {
   try {
-    // Validaciones de longitud antes de insertar
-    if (name && name.length > 100) {
-      throw new Error(`El nombre es demasiado largo (máximo 100 caracteres, actual: ${name.length})`)
+    const { nombre, apellido, rol_id, telefono, cedula, email, fecha_nacimiento, direccion, parroquia_id } =
+      personalData
+
+    // Validar longitud de campos
+    if (nombre && nombre.length > 100) {
+      throw new Error(`El nombre es demasiado largo (máximo 100 caracteres, actual: ${nombre.length})`)
     }
-    if (lastName && lastName.length > 100) {
-      throw new Error(`El apellido es demasiado largo (máximo 100 caracteres, actual: ${lastName.length})`)
+
+    if (apellido && apellido.length > 100) {
+      throw new Error(`El apellido es demasiado largo (máximo 100 caracteres, actual: ${apellido.length})`)
     }
-    if (telephoneNumber && telephoneNumber.length > 20) {
-      throw new Error(`El teléfono es demasiado largo (máximo 20 caracteres, actual: ${telephoneNumber.length})`)
+
+    if (direccion && direccion.length > 30) {
+      throw new Error(`La dirección es demasiado larga (máximo 30 caracteres, actual: ${direccion.length})`)
     }
-    if (ci && ci.length > 20) {
-      throw new Error(`La cédula es demasiado larga (máximo 20 caracteres, actual: ${ci.length})`)
+
+    // Verificar si ya existe un personal con la misma cédula
+    const existingPersonal = await db.query('SELECT id FROM "personal" WHERE cedula = $1', [cedula])
+    if (existingPersonal.rows.length > 0) {
+      throw new Error("Ya existe un miembro del personal con esta cédula")
     }
-    if (email && email.length > 100) {
-      throw new Error(`El email es demasiado largo (máximo 100 caracteres, actual: ${email.length})`)
-    }
-    if (direction && direction.length > 30) {
-      throw new Error(`La dirección es demasiado larga (máximo 30 caracteres, actual: ${direction.length})`)
-    }
+
     const query = {
       text: `
         INSERT INTO "personal" (
-          "name", "lastName", "idRole", "telephoneNumber", "ci", "email", "birthday",
-          "direction", "parish", "created_at", "updated_at"
+          nombre, apellido, rol_id, telefono, cedula, email, 
+          fecha_nacimiento, direccion, parroquia_id, fecha_creacion, fecha_actualizacion
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING "id", "name", "lastName", "idRole", "telephoneNumber", "ci", "email", "birthday", "direction", "parish", "created_at"
+        RETURNING *
       `,
-      values: [name, lastName, idrole, telephoneNumber, ci, email, birthday, direction, parishID],
+      values: [nombre, apellido, rol_id, telefono, cedula, email, fecha_nacimiento, direccion, parroquia_id],
     }
+
     const { rows } = await db.query(query)
     return rows[0]
   } catch (error) {
@@ -39,94 +48,31 @@ const create = async ({ name, lastName, idrole, telephoneNumber, ci, email, birt
     throw error
   }
 }
-const findOneById = async (id) => {
-  try {
-    const query = {
-      text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish", p."created_at", p."updated_at",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name
-        FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        WHERE p."id" = $1
-      `,
-      values: [id],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findOneById personal:", error)
-    throw error
-  }
-}
 
-const findOneByCi = async (ci) => {
-  try {
-    const query = {
-      text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name
-        FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        WHERE p."ci" = $1
-      `,
-      values: [ci],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findOneByCi personal:", error)
-    throw error
-  }
-}
-
-const findOneByEmail = async (email) => {
-  try {
-    const query = {
-      text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name
-        FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        WHERE p."email" = $1
-      `,
-      values: [email],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findOneByEmail personal:", error)
-    throw error
-  }
-}
-
+/**
+ * Obtener todo el personal con información de rol y parroquia
+ * @returns {Array} - Lista de personal
+ */
 const findAll = async () => {
   try {
     const query = {
       text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish", p."created_at",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name,
-               CASE
-                 WHEN u."id" IS NOT NULL THEN true
-                 ELSE false
-               END as tiene_usuario_sistema
+        SELECT 
+          p.*,
+          r.nombre as rol_nombre,
+          r.descripcion as rol_descripcion,
+          par.nombre as parroquia_nombre,
+          mun.nombre as municipio_nombre,
+          est.nombre as estado_nombre
         FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        LEFT JOIN "usuario" u ON p."id" = u."personal_id"
-        ORDER BY p."id"
+        LEFT JOIN "rol" r ON p.rol_id = r.id
+        LEFT JOIN "parroquia" par ON p.parroquia_id = par.id
+        LEFT JOIN "municipio" mun ON par.municipio_id = mun.id
+        LEFT JOIN "estado" est ON mun.estado_id = est.id
+        ORDER BY p.fecha_creacion DESC
       `,
     }
+
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
@@ -135,203 +81,218 @@ const findAll = async () => {
   }
 }
 
-const findByRole = async (idRole) => {
+/**
+ * Obtener personal por ID
+ * @param {number} id - ID del personal
+ * @returns {Object} - Personal encontrado
+ */
+const findById = async (id) => {
   try {
     const query = {
       text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name,
-               CASE
-                 WHEN u."id" IS NOT NULL THEN true
-                 ELSE false
-               END as tiene_usuario_sistema
+        SELECT 
+          p.*,
+          r.nombre as rol_nombre,
+          r.descripcion as rol_descripcion,
+          par.nombre as parroquia_nombre,
+          mun.nombre as municipio_nombre,
+          est.nombre as estado_nombre
         FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        LEFT JOIN "usuario" u ON p."id" = u."personal_id"
-        WHERE p."idRole" = $1
-        ORDER BY p."id"
+        LEFT JOIN "rol" r ON p.rol_id = r.id
+        LEFT JOIN "parroquia" par ON p.parroquia_id = par.id
+        LEFT JOIN "municipio" mun ON par.municipio_id = mun.id
+        LEFT JOIN "estado" est ON mun.estado_id = est.id
+        WHERE p.id = $1
       `,
-      values: [idRole],
+      values: [id],
     }
+
     const { rows } = await db.query(query)
-    return rows
+    return rows[0]
   } catch (error) {
-    console.error("Error in findByRole personal:", error)
+    console.error("Error in findById personal:", error)
     throw error
   }
 }
 
-const findTeachers = async () => {
+/**
+ * Buscar personal por cédula
+ * @param {string} cedula - Cédula del personal
+ * @returns {Object} - Personal encontrado
+ */
+const findByCedula = async (cedula) => {
   try {
     const query = {
       text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name,
-               CASE
-                 WHEN u."id" IS NOT NULL THEN true
-                 ELSE false
-               END as tiene_usuario_sistema
+        SELECT 
+          p.*,
+          r.nombre as rol_nombre,
+          r.descripcion as rol_descripcion
         FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        LEFT JOIN "usuario" u ON p."id" = u."personal_id"
-        WHERE r."name" = 'Docente'
-        ORDER BY p."id"
+        LEFT JOIN "rol" r ON p.rol_id = r.id
+        WHERE p.cedula = $1
       `,
+      values: [cedula],
     }
+
     const { rows } = await db.query(query)
-    return rows
+    return rows[0]
   } catch (error) {
-    console.error("Error in findTeachers personal:", error)
+    console.error("Error in findByCedula personal:", error)
     throw error
   }
 }
 
-const findAdministrators = async () => {
+/**
+ * Buscar personal por nombre
+ * @param {string} nombre - Nombre a buscar
+ * @returns {Array} - Lista de personal que coincide
+ */
+const findByNombre = async (nombre) => {
   try {
     const query = {
       text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name,
-               CASE
-                 WHEN u."id" IS NOT NULL THEN true
-                 ELSE false
-               END as tiene_usuario_sistema
+        SELECT 
+          p.*,
+          r.nombre as rol_nombre,
+          r.descripcion as rol_descripcion
         FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        LEFT JOIN "usuario" u ON p."id" = u."personal_id"
-        WHERE r."name" = 'Administrador'
-        ORDER BY p."id"
+        LEFT JOIN "rol" r ON p.rol_id = r.id
+        WHERE LOWER(p.nombre) LIKE LOWER($1) OR LOWER(p.apellido) LIKE LOWER($1)
+        ORDER BY p.nombre, p.apellido
       `,
+      values: [`%${nombre}%`],
     }
+
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in findAdministrators personal:", error)
+    console.error("Error in findByNombre personal:", error)
     throw error
   }
 }
 
-const findMaintenance = async () => {
+/**
+ * Obtener personal por rol
+ * @param {number} roleId - ID del rol
+ * @returns {Array} - Lista de personal del rol
+ */
+const findByRol = async (roleId) => {
   try {
     const query = {
       text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name,
-               CASE
-                 WHEN u."id" IS NOT NULL THEN true
-                 ELSE false
-               END as tiene_usuario_sistema
+        SELECT 
+          p.*,
+          r.nombre as rol_nombre,
+          r.descripcion as rol_descripcion
         FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        LEFT JOIN "usuario" u ON p."id" = u."personal_id"
-        WHERE r."name" = 'Mantenimiento'
-        ORDER BY p."id"
+        LEFT JOIN "rol" r ON p.rol_id = r.id
+        WHERE p.rol_id = $1
+        ORDER BY p.nombre, p.apellido
       `,
+      values: [roleId],
     }
+
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in findMaintenance personal:", error)
+    console.error("Error in findByRol personal:", error)
     throw error
   }
 }
 
-const findWithoutSystemAccess = async () => {
+/**
+ * Obtener solo docentes (rol ID = 2)
+ * @returns {Array} - Lista de docentes
+ */
+const findDocentes = async () => {
   try {
     const query = {
       text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name
+        SELECT 
+          p.*,
+          r.nombre as rol_nombre,
+          r.descripcion as rol_descripcion
         FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        LEFT JOIN "usuario" u ON p."id" = u."personal_id"
-        WHERE u."id" IS NULL
-        ORDER BY p."id"
+        LEFT JOIN "rol" r ON p.rol_id = r.id
+        WHERE p.rol_id = 2
+        ORDER BY p.nombre, p.apellido
       `,
     }
+
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in findWithoutSystemAccess personal:", error)
+    console.error("Error in findDocentes:", error)
     throw error
   }
 }
 
-const findWithSystemAccess = async () => {
+/**
+ * Obtener solo administradores (rol ID = 3)
+ * @returns {Array} - Lista de administradores
+ */
+const findAdministradores = async () => {
   try {
     const query = {
       text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name,
-               u."username", u."email" as usuario_email, u."is_active" as usuario_activo
+        SELECT 
+          p.*,
+          r.nombre as rol_nombre,
+          r.descripcion as rol_descripcion
         FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        INNER JOIN "usuario" u ON p."id" = u."personal_id"
-        ORDER BY p."id"
+        LEFT JOIN "rol" r ON p.rol_id = r.id
+        WHERE p.rol_id = 3
+        ORDER BY p.nombre, p.apellido
       `,
     }
+
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in findWithSystemAccess personal:", error)
+    console.error("Error in findAdministradores:", error)
     throw error
   }
 }
 
-const update = async (id, { name, lastName, idrole, telephoneNumber, email, birthday, direction, parishID }) => {
+/**
+ * Actualizar personal
+ * @param {number} id - ID del personal
+ * @param {Object} updateData - Datos a actualizar
+ * @returns {Object} - Personal actualizado
+ */
+const update = async (id, updateData) => {
   try {
-    // Validaciones de longitud antes de actualizar
-    if (name && name.length > 100) {
-      throw new Error(`El nombre es demasiado largo (máximo 100 caracteres, actual: ${name.length})`)
+    const fields = []
+    const values = []
+    let paramCount = 1
+
+    // Construir dinámicamente la consulta de actualización
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] !== undefined && updateData[key] !== null) {
+        fields.push(`${key} = $${paramCount}`)
+        values.push(updateData[key])
+        paramCount++
+      }
+    })
+
+    if (fields.length === 0) {
+      throw new Error("No hay campos para actualizar")
     }
-    if (lastName && lastName.length > 100) {
-      throw new Error(`El apellido es demasiado largo (máximo 100 caracteres, actual: ${lastName.length})`)
-    }
-    if (telephoneNumber && telephoneNumber.length > 20) {
-      throw new Error(`El teléfono es demasiado largo (máximo 20 caracteres, actual: ${telephoneNumber.length})`)
-    }
-    if (email && email.length > 100) {
-      throw new Error(`El email es demasiado largo (máximo 100 caracteres, actual: ${email.length})`)
-    }
-    if (direction && direction.length > 30) {
-      throw new Error(`La dirección es demasiado larga (máximo 30 caracteres, actual: ${direction.length})`)
-    }
+
+    fields.push(`fecha_actualizacion = CURRENT_TIMESTAMP`)
+    values.push(id)
 
     const query = {
       text: `
-        UPDATE "personal"
-        SET "name" = COALESCE($1, "name"),
-            "lastName" = COALESCE($2, "lastName"),
-            "idRole" = COALESCE($3, "idRole"),
-            "telephoneNumber" = COALESCE($4, "telephoneNumber"),
-            "email" = COALESCE($5, "email"),
-            "birthday" = COALESCE($6, "birthday"),
-            "direction" = COALESCE($7, "direction"),
-            "parish" = COALESCE($8, "parish"),
-            "updated_at" = CURRENT_TIMESTAMP
-        WHERE "id" = $9
-        RETURNING "id", "name", "lastName", "idRole", "telephoneNumber", "ci", "email", "birthday", "direction", "parish"
+        UPDATE "personal" 
+        SET ${fields.join(", ")}
+        WHERE id = $${paramCount}
+        RETURNING *
       `,
-      values: [name, lastName, idrole, telephoneNumber, email, birthday, direction, parishID, id],
+      values: values,
     }
+
     const { rows } = await db.query(query)
     return rows[0]
   } catch (error) {
@@ -340,22 +301,18 @@ const update = async (id, { name, lastName, idrole, telephoneNumber, email, birt
   }
 }
 
+/**
+ * Eliminar personal
+ * @param {number} id - ID del personal
+ * @returns {Object} - Personal eliminado
+ */
 const remove = async (id) => {
   try {
-    // First check if the personal has a user account
-    const checkUserQuery = {
-      text: `SELECT COUNT(*) FROM "usuario" WHERE "personal_id" = $1`,
+    const query = {
+      text: 'DELETE FROM "personal" WHERE id = $1 RETURNING *',
       values: [id],
-    }
-    const checkUserResult = await db.query(checkUserQuery)
-    if (Number.parseInt(checkUserResult.rows[0].count) > 0) {
-      throw new Error("Cannot delete personal who has a user account. Delete the user account first.")
     }
 
-    const query = {
-      text: 'DELETE FROM "personal" WHERE "id" = $1 RETURNING "id"',
-      values: [id],
-    }
     const { rows } = await db.query(query)
     return rows[0]
   } catch (error) {
@@ -364,73 +321,16 @@ const remove = async (id) => {
   }
 }
 
-const searchByName = async (name) => {
-  try {
-    const query = {
-      text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name,
-               CASE
-                 WHEN u."id" IS NOT NULL THEN true
-                 ELSE false
-               END as tiene_usuario_sistema
-        FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        LEFT JOIN "usuario" u ON p."id" = u."personal_id"
-        WHERE p."name" ILIKE $1 OR p."lastName" ILIKE $1
-        ORDER BY p."id"
-      `,
-      values: [`%${name}%`],
-    }
-    const { rows } = await db.query(query)
-    return rows
-  } catch (error) {
-    console.error("Error in searchByName personal:", error)
-    throw error
-  }
-}
-
-const searchByCi = async (ci) => {
-  try {
-    const query = {
-      text: `
-        SELECT p."id", p."name", p."lastName", p."idRole", p."telephoneNumber",
-               p."ci", p."email", p."birthday", p."direction", p."parish",
-               r."name" as rol_name, r."description" as rol_description,
-               par."name" as parish_name,
-               CASE
-                 WHEN u."id" IS NOT NULL THEN true
-                 ELSE false
-               END as tiene_usuario_sistema
-        FROM "personal" p
-        LEFT JOIN "rol" r ON p."idRole" = r."id"
-        LEFT JOIN "parish" par ON p."parish" = par."id"
-        LEFT JOIN "usuario" u ON p."id" = u."personal_id"
-        WHERE p."ci" ILIKE $1
-        ORDER BY p."id"
-      `,
-      values: [`%${ci}%`],
-    }
-    const { rows } = await db.query(query)
-    return rows
-  } catch (error) {
-    console.error("Error in searchByCi personal:", error)
-    throw error
-  }
-}
-
+/**
+ * Obtener todos los roles disponibles
+ * @returns {Array} - Lista de roles
+ */
 const getRoles = async () => {
   try {
     const query = {
-      text: `
-        SELECT "id", "name", "description"
-        FROM "rol"
-        ORDER BY "id"
-      `,
+      text: 'SELECT * FROM "rol" ORDER BY nombre',
     }
+
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
@@ -439,39 +339,44 @@ const getRoles = async () => {
   }
 }
 
-const getParishes = async () => {
+/**
+ * Obtener todas las parroquias disponibles
+ * @returns {Array} - Lista de parroquias
+ */
+const getParroquias = async () => {
   try {
     const query = {
       text: `
-        SELECT "id", "name"
-        FROM "parish"
-        ORDER BY "name"
+        SELECT 
+          p.*,
+          m.nombre as municipio_nombre,
+          s.nombre as estado_nombre
+        FROM "parroquia" p
+        LEFT JOIN "municipio" m ON p.municipio_id = m.id
+        LEFT JOIN "estado" s ON m.estado_id = s.id
+        ORDER BY s.nombre, m.nombre, p.nombre
       `,
     }
+
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in getParishes:", error)
+    console.error("Error in getParroquias:", error)
     throw error
   }
 }
 
 export const PersonalModel = {
   create,
-  findOneById,
-  findOneByCi,
-  findOneByEmail,
   findAll,
-  findByRole,
-  findTeachers,
-  findAdministrators,
-  findMaintenance,
-  findWithoutSystemAccess,
-  findWithSystemAccess,
+  findById,
+  findByCedula,
+  findByNombre,
+  findByRol,
+  findDocentes,
+  findAdministradores,
   update,
   remove,
-  searchByName,
-  searchByCi,
   getRoles,
-  getParishes,
+  getParroquias,
 }

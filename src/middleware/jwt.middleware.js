@@ -1,80 +1,142 @@
 import jwt from "jsonwebtoken"
-import { UserModel } from "../models/user.model.js"
+import { UsuarioModel } from "../models/user.model.js"
+
+/**
+ * Middleware para verificar token JWT
+ * Extrae información del usuario y la adjunta a req.user
+ */
 export const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization
+
   if (!authHeader) {
-    return res.status(401).json({ error: "Token no proporcionado" })
+    return res.status(401).json({
+      ok: false,
+      error: "Token no proporcionado",
+    })
   }
+
   const [bearer, token] = authHeader.split(" ")
+
   if (bearer !== "Bearer" || !token) {
-    return res.status(401).json({ error: "Formato de Authorization inválido" })
+    return res.status(401).json({
+      ok: false,
+      error: "Formato de Authorization inválido. Use: Bearer <token>",
+    })
   }
+
   try {
+    // Verificar el token JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    const user = await UserModel.findUserByAccessToken(token)
-    if (!user) {
-      return res.status(401).json({ error: "Token inválido o expirado" })
+
+    // Buscar el usuario en la base de datos para obtener información actualizada
+    const usuario = await UsuarioModel.findById(decoded.userId)
+
+    if (!usuario) {
+      return res.status(401).json({
+        ok: false,
+        error: "Token inválido o usuario no encontrado",
+      })
     }
+
+    // Verificar que el usuario esté activo
+    if (!usuario.activo) {
+      return res.status(403).json({
+        ok: false,
+        error: "Usuario inactivo. Contacte al administrador.",
+      })
+    }
+
+    // Adjuntar información del usuario a la request
     req.user = {
-      userId: user.id,
-      username: user.username,
-      permiso_id: user.permiso_id,
-      permiso_nombre: user.permiso_nombre,
-      personal_id: user.personal_id,
-      personal_nombre: user.personal_nombre,
-      personal_apellido: user.personal_apellido,
-      rol_nombre: user.rol_nombre,
+      userId: usuario.id,
+      nombre_usuario: usuario.nombre_usuario,
+      email: usuario.email,
+      permiso_id: usuario.permiso_id,
+      permiso_nombre: usuario.permiso_nombre,
+      personal_id: usuario.personal_id,
+      personal_nombre: usuario.personal_nombre,
+      personal_apellido: usuario.personal_apellido,
+      rol_nombre: usuario.rol_nombre,
+      // Información adicional útil
+      isAdmin: Number(usuario.permiso_id) === 1,
+      isReadOnly: Number(usuario.permiso_id) === 2,
+      isPersonal: usuario.personal_id !== null,
     }
 
     next()
   } catch (error) {
     console.error("Error in verifyToken:", error)
+
     if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({ error: "Token inválido" })
+      return res.status(401).json({
+        ok: false,
+        error: "Token inválido",
+      })
     }
+
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "Token expirado" })
+      return res.status(401).json({
+        ok: false,
+        error: "Token expirado. Por favor, inicie sesión nuevamente.",
+      })
     }
-    res.status(500).json({ error: "Error en la verificación del token" })
+
+    res.status(500).json({
+      ok: false,
+      error: "Error en la verificación del token",
+    })
   }
 }
 
-// MIDDLEWARE SIMPLIFICADO - Verificar si el usuario tiene permisos de administrador
+/**
+ * Middleware para verificar permisos de administrador
+ * Requiere permiso_id = 1 (Acceso Total)
+ */
 export const verifyAdmin = (req, res, next) => {
   console.log("=== VERIFICANDO PERMISOS DE ADMIN ===")
-  console.log("req.user completo:", req.user)
-  console.log("permiso_id:", req.user.permiso_id)
-  console.log("tipo de permiso_id:", typeof req.user.permiso_id)
-  console.log("permiso_nombre:", req.user.permiso_nombre)
+  console.log("Usuario:", req.user?.nombre_usuario)
+  console.log("Permiso ID:", req.user?.permiso_id)
+  console.log("Permiso Nombre:", req.user?.permiso_nombre)
 
   if (!req.user) {
-    return res.status(401).json({ error: "Usuario no autenticado" })
+    return res.status(401).json({
+      ok: false,
+      error: "Usuario no autenticado",
+    })
   }
 
   // Convertir a número para asegurar la comparación correcta
   const permisoId = Number(req.user.permiso_id)
-  console.log("permiso_id convertido a número:", permisoId)
-  console.log("¿Es igual a 1?:", permisoId === 1)
 
   // Permiso ID 1 = Admin con acceso completo
   if (permisoId === 1) {
-    console.log("✅ Usuario tiene permisos de admin, continuando...")
+    console.log("✅ Usuario tiene permisos de admin")
     return next()
   }
 
   console.log("❌ Usuario NO tiene permisos de admin")
   return res.status(403).json({
+    ok: false,
     error: "Acceso denegado. Se requieren permisos de administrador.",
-    user_permiso_id: req.user.permiso_id,
-    user_permiso_nombre: req.user.permiso_nombre,
-    required_permiso_id: 1,
+    details: {
+      user_permiso_id: req.user.permiso_id,
+      user_permiso_nombre: req.user.permiso_nombre,
+      required_permiso_id: 1,
+      required_permiso_nombre: "Acceso Total",
+    },
   })
 }
 
-// Verificar si el usuario tiene permisos de administrador O solo lectura
+/**
+ * Middleware para verificar permisos de administrador O solo lectura
+ * Permite permiso_id = 1 (Acceso Total) o permiso_id = 2 (Solo Lectura)
+ */
 export const verifyAdminOrReadOnly = (req, res, next) => {
   if (!req.user) {
-    return res.status(401).json({ error: "Usuario no autenticado" })
+    return res.status(401).json({
+      ok: false,
+      error: "Usuario no autenticado",
+    })
   }
 
   const permisoId = Number(req.user.permiso_id)
@@ -85,46 +147,13 @@ export const verifyAdminOrReadOnly = (req, res, next) => {
   }
 
   return res.status(403).json({
+    ok: false,
     error: "Acceso denegado. Se requieren permisos de administrador o lectura.",
-    user_permiso_id: req.user.permiso_id,
-    user_permiso_nombre: req.user.permiso_nombre,
-    allowed_permiso_ids: [1, 2],
+    details: {
+      user_permiso_id: req.user.permiso_id,
+      user_permiso_nombre: req.user.permiso_nombre,
+      allowed_permiso_ids: [1, 2],
+      allowed_permiso_nombres: ["Acceso Total", "Gestión Académica"],
+    },
   })
-}
-
-// Verificar si el usuario es personal de la escuela
-export const verifyPersonal = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ error: "Usuario no autenticado" })
-  }
-
-  if (req.user.personal_id) {
-    return next()
-  }
-
-  return res.status(403).json({
-    error: "Acceso denegado. Solo para personal de la institución.",
-  })
-}
-
-// Middleware personalizado para verificar permisos específicos por nombre
-export const verifyPermission = (permisoNombre) => {
-  return async (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: "Usuario no autenticado" })
-    }
-
-    try {
-      if (req.user.permiso_nombre !== permisoNombre) {
-        return res.status(403).json({
-          error: `Acceso denegado. Se requiere el permiso: ${permisoNombre}`,
-          user_permiso: req.user.permiso_nombre,
-        })
-      }
-      next()
-    } catch (error) {
-      console.error("Error in verifyPermission:", error)
-      return res.status(500).json({ error: "Error al verificar permisos" })
-    }
-  }
 }

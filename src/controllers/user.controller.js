@@ -1,9 +1,11 @@
-import bcryptjs from "bcryptjs"
+import { UsuarioModel } from "../models/user.model.js"
 import jwt from "jsonwebtoken"
-import { UserModel } from "../models/user.model.js"
-import crypto from "crypto"
+import bcrypt from "bcryptjs"
 
-const register = async (req, res) => {
+/**
+ * Registrar un nuevo usuario
+ */
+const registerUser = async (req, res) => {
   try {
     const {
       username,
@@ -12,57 +14,37 @@ const register = async (req, res) => {
       permiso_id,
       security_word,
       respuesta_de_seguridad,
-      personal_id,
+      personal_id = null,
     } = req.body
 
-    if (!username || !password || !permiso_id) {
+    // Validaciones básicas
+    if (!username || !email || !password || !permiso_id || !security_word || !respuesta_de_seguridad) {
       return res.status(400).json({
         ok: false,
-        msg: "Missing required fields: username, password, and permiso_id are mandatory",
+        msg: "Todos los campos obligatorios deben ser proporcionados",
+        required: ["username", "email", "password", "permiso_id", "security_word", "respuesta_de_seguridad"],
       })
     }
 
+    // Validar longitud de contraseña
     if (password.length < 6) {
       return res.status(400).json({
         ok: false,
-        msg: "Password must be at least 6 characters long",
+        msg: "La contraseña debe tener al menos 6 caracteres",
       })
     }
 
-    // Check if username already exists
-    const existingUser = await UserModel.findOneByUsername(username)
-    if (existingUser) {
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
       return res.status(400).json({
         ok: false,
-        msg: "Username already exists",
+        msg: "Formato de email inválido",
       })
     }
 
-    // Check if email already exists (if provided)
-    if (email) {
-      const existingUserByEmail = await UserModel.findOneByEmail(email)
-      if (existingUserByEmail) {
-        return res.status(400).json({
-          ok: false,
-          msg: "Email already exists",
-        })
-      }
-    }
-
-    // Check if personal already has a user account (if personal_id is provided)
-    if (personal_id) {
-      const existingPersonalUser = await UserModel.findByPersonalId(
-        personal_id
-      )
-      if (existingPersonalUser) {
-        return res.status(400).json({
-          ok: false,
-          msg: "This personal member already has a user account",
-        })
-      }
-    }
-
-    const newUser = await UserModel.create({
+    // Crear el usuario
+    const newUser = await UsuarioModel.create({
       username,
       email,
       password,
@@ -72,131 +54,93 @@ const register = async (req, res) => {
       personal_id,
     })
 
-    if (!newUser) {
-      return res.status(500).json({
-        ok: false,
-        msg: "Error creating user",
-      })
-    }
-
     return res.status(201).json({
       ok: true,
-      msg: "User created successfully",
+      msg: "Usuario registrado exitosamente",
       user: {
         id: newUser.id,
         username: newUser.username,
         email: newUser.email,
         permiso_id: newUser.permiso_id,
         personal_id: newUser.personal_id,
-        is_active: newUser.is_active,
-        email_verified: newUser.email_verified, // Añadido este campo
+        created_at: newUser.created_at,
       },
     })
   } catch (error) {
-    console.error("Error in register:", error)
+    console.error("Error in registerUser:", error)
+
+    // Manejar errores específicos
+    if (error.message.includes("ya existe") || error.message.includes("already exists")) {
+      return res.status(400).json({
+        ok: false,
+        msg: error.message,
+      })
+    }
+
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const login = async (req, res) => {
+/**
+ * Login de usuario
+ */
+const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body
 
-    console.log("🔍 Intento de login:", { email, password: "***" })
-
+    // Validaciones
     if (!email || !password) {
       return res.status(400).json({
         ok: false,
-        msg: "Email and password are required",
+        msg: "Email y contraseña son obligatorios",
       })
     }
 
-    console.log("🔍 Buscando usuario con email:", email)
-    // El modelo findOneByEmail ya trae permiso_nombre y rol_nombre si personal_id está presente
-    const user = await UserModel.findOneByEmail(email)
-    console.log("🔍 Usuario encontrado:", user)
-
+    // Buscar usuario por email
+    const user = await UsuarioModel.findByEmail(email)
     if (!user) {
-      console.log("❌ Usuario no encontrado")
-      return res.status(400).json({
+      return res.status(401).json({
         ok: false,
-        msg: "Invalid email",
+        msg: "Credenciales inválidas",
       })
     }
 
-    console.log("✅ Usuario encontrado:", {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      is_active: user.is_active,
-      permiso_id: user.permiso_id,
-      permiso_nombre: user.permiso_nombre,
-      // rol_nombre: user.rol_nombre, // rol_nombre viene si personal_id está presente
-    })
+    // Verificar contraseña
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        ok: false,
+        msg: "Credenciales inválidas",
+      })
+    }
 
+    // Verificar que el usuario esté activo
     if (!user.is_active) {
-      console.log("❌ Usuario inactivo")
       return res.status(403).json({
         ok: false,
-        msg: "Account is inactive. Please contact an administrator",
+        msg: "Usuario inactivo. Contacte al administrador.",
       })
     }
 
-    console.log("🔑 Verificando password...")
-    const validPassword = await bcryptjs.compare(password, user.password)
-    console.log("🔑 Password válido:", validPassword)
-
-    if (!validPassword) {
-      console.log("❌ Password incorrecto")
-      return res.status(400).json({
-        ok: false,
-        msg: "Invalid password",
-      })
-    }
-
-    console.log("🎉 Login exitoso, generando tokens...")
-
-    // Generate access token
-    const accessToken = jwt.sign(
+    // Generar JWT token
+    const token = jwt.sign(
       {
         userId: user.id,
         username: user.username,
+        email: user.email,
         permiso_id: user.permiso_id,
-        personal_id: user.personal_id,
-        // Aquí puedes añadir rol_nombre si es necesario en el token
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "24h" },
     )
 
-    // Generate refresh token
-    const refreshToken = jwt.sign(
-      {
-        userId: user.id,
-      },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
-    )
-
-    // El modelo ya maneja la expiración y actualiza updated_at
-    await UserModel.saveLoginToken(
-      user.id,
-      accessToken,
-      refreshToken
-    )
-
-    res.header("Access-Control-Allow-Origin", "http://localhost:3000")
-    res.header("Access-Control-Allow-Credentials", "true")
-
-    res.json({
+    return res.json({
       ok: true,
-      msg: "Login successful",
-      accessToken,
-      refreshToken,
+      msg: "Login exitoso",
       user: {
         id: user.id,
         username: user.username,
@@ -208,639 +152,243 @@ const login = async (req, res) => {
         personal_apellido: user.personal_apellido,
         rol_nombre: user.rol_nombre,
       },
+      accessToken: token,
+      expiresIn: "24h",
     })
   } catch (error) {
-    console.error("❌ Login error:", error)
-    res.status(500).json({
+    console.error("Error in loginUser:", error)
+    return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const refreshToken = async (req, res) => {
-  try {
-    const { refreshToken } = req.body
-
-    if (!refreshToken) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Refresh token is required",
-      })
-    }
-
-    try {
-      // Verify the refresh token
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
-      const userId = decoded.userId
-
-      // Get the user
-      const user = await UserModel.findOneById(userId)
-      if (!user) {
-        return res.status(404).json({
-          ok: false,
-          msg: "User not found",
-        })
-      }
-
-      if (!user.is_active) {
-        return res.status(403).json({
-          ok: false,
-          msg: "Account is inactive",
-        })
-      }
-
-      // Generate new access token
-      const accessToken = jwt.sign(
-        {
-          userId: user.id,
-          username: user.username,
-          permiso_id: user.permiso_id,
-          personal_id: user.personal_id,
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-      )
-
-      // Generate new refresh token
-      const newRefreshToken = jwt.sign(
-        {
-          userId: user.id,
-        },
-        process.env.JWT_REFRESH_SECRET,
-        { expiresIn: "7d" }
-      )
-
-      // El modelo ya maneja la expiración y actualiza updated_at
-      await UserModel.saveLoginToken(
-        user.id,
-        accessToken,
-        newRefreshToken
-      )
-
-      return res.json({
-        ok: true,
-        accessToken,
-        refreshToken: newRefreshToken,
-      })
-    } catch (error) {
-      if (error.name === "TokenExpiredError") {
-        return res.status(401).json({
-          ok: false,
-          msg: "Refresh token expired",
-        })
-      }
-      if (error.name === "JsonWebTokenError") {
-        return res.status(401).json({
-          ok: false,
-          msg: "Invalid refresh token",
-        })
-      }
-      throw error
-    }
-  } catch (error) {
-    console.error("Error in refreshToken:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-    })
-  }
-}
-
-const logout = async (req, res) => {
-  try {
-    const authHeader = req.headers.authorization
-    if (!authHeader) {
-      return res.status(401).json({
-        ok: false,
-        msg: "No token provided",
-      })
-    }
-
-    const [bearer, token] = authHeader.split(" ")
-    if (bearer !== "Bearer" || !token) {
-      return res.status(401).json({
-        ok: false,
-        msg: "Invalid token format",
-      })
-    }
-
-    const user = await UserModel.findUserByAccessToken(token)
-
-    if (!user) {
-      return res.status(403).json({
-        ok: false,
-        msg: "Invalid token",
-      })
-    }
-
-    await UserModel.clearLoginTokens(user.id)
-
-    return res.json({
-      ok: true,
-      msg: "Logged out successfully",
-    })
-  } catch (error) {
-    console.error("Error in logout:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-    })
-  }
-}
-
-const profile = async (req, res) => {
+/**
+ * Obtener perfil del usuario
+ */
+const getUserProfile = async (req, res) => {
   try {
     const userId = req.user.userId
 
-    // El modelo findOneById ya trae la información completa con joins si personal_id está presente
-    const user = await UserModel.findOneById(userId)
-
+    const user = await UsuarioModel.findById(userId)
     if (!user) {
       return res.status(404).json({
         ok: false,
-        msg: "User not found",
+        msg: "Usuario no encontrado",
       })
     }
 
-    const {
-      password: _,
-      access_token: __,
-      refresh_token: ___,
-      // Otros campos sensibles que no deberían ser expuestos directamente
-      security_word: ____, // Añadido
-      respuesta_de_seguridad: _____, // Añadido
-      ...userWithoutSensitiveInfo
-    } = user
     return res.json({
       ok: true,
-      user: userWithoutSensitiveInfo,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        permiso_id: user.permiso_id,
+        permiso_nombre: user.permiso_nombre,
+        personal_id: user.personal_id,
+        personal_nombre: user.personal_nombre,
+        personal_apellido: user.personal_apellido,
+        rol_nombre: user.rol_nombre,
+        is_active: user.is_active,
+        created_at: user.created_at,
+      },
     })
   } catch (error) {
-    console.error("Error in profile:", error)
+    console.error("Error in getUserProfile:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
+      error: error.message,
     })
   }
 }
 
-const listUsers = async (req, res) => {
+/**
+ * Listar todos los usuarios (solo admin)
+ */
+const getAllUsers = async (req, res) => {
   try {
-    const users = await UserModel.findAll()
+    const users = await UsuarioModel.findAll()
+
     return res.json({
       ok: true,
-      users,
+      users: users.map((user) => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        permiso_id: user.permiso_id,
+        permiso_nombre: user.permiso_nombre,
+        personal_id: user.personal_id,
+        personal_nombre: user.personal_nombre,
+        personal_apellido: user.personal_apellido,
+        rol_nombre: user.rol_nombre,
+        is_active: user.is_active,
+        created_at: user.created_at,
+      })),
       total: users.length,
     })
   } catch (error) {
-    console.error("Error in listUsers:", error)
+    console.error("Error in getAllUsers:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const updateProfile = async (req, res) => {
-  try {
-    const userId = req.user.userId
-    const { email, security_word, respuesta_de_seguridad } = req.body
-
-    // Check if email is being updated and if it already exists
-    if (email) {
-      const existingUserByEmail = await UserModel.findOneByEmail(email)
-      if (existingUserByEmail && existingUserByEmail.id !== userId) {
-        return res.status(400).json({
-          ok: false,
-          msg: "Email already exists",
-        })
-      }
-    }
-
-    const updatedUser = await UserModel.updateProfile(userId, {
-      email,
-      security_word,
-      respuesta_de_seguridad,
-    })
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        ok: false,
-        msg: "User not found",
-      })
-    }
-
-    return res.json({
-      ok: true,
-      msg: "Profile updated successfully",
-      user: updatedUser,
-    })
-  } catch (error) {
-    console.error("Error in updateProfile:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
+/**
+ * Cambiar contraseña
+ */
 const changePassword = async (req, res) => {
   try {
     const userId = req.user.userId
     const { currentPassword, newPassword } = req.body
 
+    // Validaciones
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         ok: false,
-        msg: "Current password and new password are required",
+        msg: "Contraseña actual y nueva contraseña son obligatorias",
       })
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         ok: false,
-        msg: "New password must be at least 6 characters long",
+        msg: "La nueva contraseña debe tener al menos 6 caracteres",
       })
     }
 
-    const user = await UserModel.findOneById(userId)
+    // Buscar usuario
+    const user = await UsuarioModel.findById(userId)
     if (!user) {
       return res.status(404).json({
         ok: false,
-        msg: "User not found",
+        msg: "Usuario no encontrado",
       })
     }
 
-    const validPassword = await bcryptjs.compare(
-      currentPassword,
-      user.password
-    )
-    if (!validPassword) {
-      return res.status(400).json({
+    // Verificar contraseña actual
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password)
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({
         ok: false,
-        msg: "Current password is incorrect",
+        msg: "Contraseña actual incorrecta",
       })
     }
 
-    const salt = await bcryptjs.genSalt(10)
-    const hashedPassword = await bcryptjs.hash(newPassword, salt)
-
-    await UserModel.updatePassword(userId, hashedPassword)
+    // Actualizar contraseña
+    await UsuarioModel.updatePassword(userId, newPassword)
 
     return res.json({
       ok: true,
-      msg: "Password changed successfully",
+      msg: "Contraseña actualizada exitosamente",
     })
   } catch (error) {
     console.error("Error in changePassword:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const forgotPassword = async (req, res) => {
-  try {
-    const { username } = req.body
-
-    if (!username) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Username is required",
-      })
-    }
-
-    const user = await UserModel.findOneByUsername(username)
-    if (!user) {
-      // For security reasons, don't reveal that the user doesn't exist
-      return res.json({
-        ok: true,
-        msg: "If your username exists in our system, you will receive a password reset token",
-      })
-    }
-
-    // Generate a random token
-    const resetToken = crypto.randomBytes(20).toString("hex")
-    // No es necesario calcular expires aquí, el modelo lo manejará
-    await UserModel.setPasswordResetToken(user.id, resetToken) // Usar user.id
-
-    // In a real application, you would send an email with the reset token
-    // For this example, we'll just return it in the response
-    return res.json({
-      ok: true,
-      msg: "If your username exists in our system, you will receive a password reset token",
-      // Only for development purposes:
-      resetToken,
-    })
-  } catch (error) {
-    console.error("Error in forgotPassword:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const resetPassword = async (req, res) => {
-  try {
-    const { token, newPassword } = req.body
-
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Token and new password are required",
-      })
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        ok: false,
-        msg: "New password must be at least 6 characters long",
-      })
-    }
-
-    const user = await UserModel.findByPasswordResetToken(token)
-    if (!user) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Invalid or expired password reset token",
-      })
-    }
-
-    const salt = await bcryptjs.genSalt(10)
-    const hashedPassword = await bcryptjs.hash(newPassword, salt)
-
-    await UserModel.updatePassword(user.id, hashedPassword)
-    await UserModel.clearPasswordResetToken(user.id)
-
-    return res.json({
-      ok: true,
-      msg: "Password has been reset successfully",
-    })
-  } catch (error) {
-    console.error("Error in resetPassword:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const activateUser = async (req, res) => {
-  try {
-    const { id } = req.params
-
-    const user = await UserModel.findOneById(id)
-    if (!user) {
-      return res.status(404).json({
-        ok: false,
-        msg: "User not found",
-      })
-    }
-
-    const updatedUser = await UserModel.setActive(id, true)
-
-    return res.json({
-      ok: true,
-      msg: "User activated successfully",
-      user: updatedUser,
-    })
-  } catch (error) {
-    console.error("Error in activateUser:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const deactivateUser = async (req, res) => {
-  try {
-    const { id } = req.params
-
-    const user = await UserModel.findOneById(id)
-    if (!user) {
-      return res.status(404).json({
-        ok: false,
-        msg: "User not found",
-      })
-    }
-
-    const updatedUser = await UserModel.setActive(id, false)
-
-    return res.json({
-      ok: true,
-      msg: "User deactivated successfully",
-      user: updatedUser,
-    })
-  } catch (error) {
-    console.error("Error in deactivateUser:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params
-
-    const user = await UserModel.findOneById(id)
-    if (!user) {
-      return res.status(404).json({
-        ok: false,
-        msg: "User not found",
-      })
-    }
-
-    const result = await UserModel.remove(id)
-
-    return res.json({
-      ok: true,
-      msg: "User deleted successfully",
-      id: result.id,
-    })
-  } catch (error) {
-    console.error("Error in deleteUser:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const searchUsers = async (req, res) => {
-  try {
-    const { username } = req.query
-    if (!username) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Username parameter is required",
-      })
-    }
-
-    const users = await UserModel.searchByUsername(username)
-    return res.json({
-      ok: true,
-      users,
-      total: users.length,
-    })
-  } catch (error) {
-    console.error("Error in searchUsers:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.params
-
-    const user = await UserModel.verifyEmail(token)
-    if (!user) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Invalid or expired verification token",
-      })
-    }
-
-    return res.json({
-      ok: true,
-      msg: "Email verified successfully",
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        email_verified: user.email_verified,
-      },
-    })
-  } catch (error) {
-    console.error("Error in verifyEmail:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const recoverPasswordWithSecurity = async (req, res) => {
-  try {
-    const { username, respuesta_de_seguridad, newPassword } = req.body
-
-    if (!username || !respuesta_de_seguridad || !newPassword) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Username, security answer, and new password are required",
-      })
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        ok: false,
-        msg: "New password must be at least 6 characters long",
-      })
-    }
-
-    // Verify security answer
-    const user = await UserModel.verifySecurityAnswer(
-      username,
-      respuesta_de_seguridad
-    )
-    if (!user) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Invalid username or security answer",
-      })
-    }
-
-    // Hash new password
-    const salt = await bcryptjs.genSalt(10)
-    const hashedPassword = await bcryptjs.hash(newPassword, salt)
-
-    // Update password
-    await UserModel.updatePassword(user.id, hashedPassword)
-
-    return res.json({
-      ok: true,
-      msg: "Password has been reset successfully using security question",
-    })
-  } catch (error) {
-    console.error("Error in recoverPasswordWithSecurity:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
+/**
+ * Obtener pregunta de seguridad
+ */
 const getSecurityQuestion = async (req, res) => {
   try {
     const { username } = req.params
 
-    if (!username) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Username is required",
-      })
-    }
-
-    const user = await UserModel.findOneByUsername(username)
+    const user = await UsuarioModel.findByUsername(username)
     if (!user) {
-      // For security reasons, don't reveal that the user doesn't exist
       return res.status(404).json({
         ok: false,
-        msg: "User not found",
+        msg: "Usuario no encontrado",
       })
     }
 
     return res.json({
       ok: true,
-      security_question: user.security_word,
-      username: user.username,
+      security_word: user.security_word,
     })
   } catch (error) {
     console.error("Error in getSecurityQuestion:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * Verificar respuesta de seguridad
+ */
+const verifySecurityAnswer = async (req, res) => {
+  try {
+    const { username, securityAnswer } = req.body
+
+    if (!username || !securityAnswer) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Username y respuesta de seguridad son obligatorios",
+      })
+    }
+
+    const isValid = await UsuarioModel.verifySecurityAnswer(username, securityAnswer)
+    if (!isValid) {
+      return res.status(401).json({
+        ok: false,
+        msg: "Respuesta de seguridad incorrecta",
+      })
+    }
+
+    return res.json({
+      ok: true,
+      msg: "Respuesta de seguridad correcta",
+    })
+  } catch (error) {
+    console.error("Error in verifySecurityAnswer:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * Logout
+ */
+const logout = async (req, res) => {
+  try {
+    return res.json({
+      ok: true,
+      msg: "Logout exitoso",
+    })
+  } catch (error) {
+    console.error("Error in logout:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
 export const UserController = {
-  register,
-  login,
-  refreshToken,
-  logout,
-  profile,
-  listUsers,
-  updateProfile,
+  registerUser,
+  loginUser,
+  getUserProfile,
+  getAllUsers,
   changePassword,
-  forgotPassword,
-  resetPassword,
-  activateUser,
-  deactivateUser,
-  deleteUser,
-  searchUsers,
-  verifyEmail,
-  recoverPasswordWithSecurity,
   getSecurityQuestion,
+  verifySecurityAnswer,
+  logout,
 }

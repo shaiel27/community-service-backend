@@ -1,12 +1,17 @@
 import { db } from "../db/connection.database.js"
 
+/**
+ * Crear una nueva matrícula
+ * @param {Object} matriculaData - Datos de la matrícula
+ * @returns {Object} - Matrícula creada
+ */
 const create = async (matriculaData) => {
   try {
     const {
       estudiante_id,
-      section_id,
+      seccion_id,
       fecha_inscripcion,
-      repitiente,
+      repitiente = false,
       talla_camisa,
       talla_pantalon,
       talla_zapatos,
@@ -14,28 +19,40 @@ const create = async (matriculaData) => {
       estatura,
       enfermedades,
       observaciones,
-      acta_nacimiento_check,
-      tarjeta_vacunas_check,
-      fotos_estudiante_check,
-      fotos_representante_check,
-      copia_cedula_representante_check,
-      copia_cedula_autorizados_check,
+      acta_nacimiento_check = false,
+      tarjeta_vacunas_check = false,
+      fotos_estudiante_check = false,
+      fotos_representante_check = false,
+      copia_cedula_representante_check = false,
+      rif_representante_check = false,
+      copia_cedula_autorizados_check = false,
     } = matriculaData
+
+    // Verificar si el estudiante ya tiene matrícula en esta sección
+    const existingEnrollment = await db.query(
+      'SELECT id FROM "matricula" WHERE estudiante_id = $1 AND seccion_id = $2',
+      [estudiante_id, seccion_id],
+    )
+
+    if (existingEnrollment.rows.length > 0) {
+      throw new Error("El estudiante ya tiene una matrícula registrada para esta sección")
+    }
 
     const query = {
       text: `
-        INSERT INTO "enrollment" (
-          "studentID", "sectionID", "registrationDate", "repeater",
-          "chemiseSize", "pantsSize", "shoesSize", "weight", "stature", "diseases",
-          "observation", "birthCertificateCheck", "vaccinationCardCheck", "studentPhotosCheck",
-          "representativePhotosCheck", "representativeCopyIDCheck", "autorizedCopyIDCheck", "created_at", "updated_at"
+        INSERT INTO "matricula" (
+          estudiante_id, seccion_id, fecha_inscripcion, repitiente,
+          talla_camisa, talla_pantalon, talla_zapatos, peso, estatura,
+          enfermedades, observaciones, acta_nacimiento_check, tarjeta_vacunas_check,
+          fotos_estudiante_check, fotos_representante_check, copia_cedula_representante_check,
+          rif_representante_check, copia_cedula_autorizados_check, fecha_creacion, fecha_actualizacion
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING *
       `,
       values: [
         estudiante_id,
-        section_id,
+        seccion_id,
         fecha_inscripcion,
         repitiente,
         talla_camisa,
@@ -50,6 +67,7 @@ const create = async (matriculaData) => {
         fotos_estudiante_check,
         fotos_representante_check,
         copia_cedula_representante_check,
+        rif_representante_check,
         copia_cedula_autorizados_check,
       ],
     }
@@ -62,30 +80,29 @@ const create = async (matriculaData) => {
   }
 }
 
+/**
+ * Obtener todas las matrículas con información completa
+ * @returns {Array} - Lista de matrículas
+ */
 const findAll = async () => {
   try {
     const query = {
       text: `
-        SELECT
-          e.*,
-          s."name" as estudiante_nombre,
-          s."lastName" as estudiante_apellido,
-          s."ci" as estudiante_cedula_escolar,
-          g."name" as grado_nombre,
-          sec."seccion",
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido,
-          rep."name" as representante_nombre,
-          rep."lastName" as representante_apellido,
-          rep."ci" as representante_cedula,
-          rep."telephoneNumber" as representante_telefono
-        FROM "enrollment" e
-        LEFT JOIN "student" s ON e."studentID" = s."id"
-        LEFT JOIN "section" sec ON e."sectionID" = sec."id"
-        LEFT JOIN "grade" g ON sec."gradeID" = g."id"
-        LEFT JOIN "personal" per ON sec."teacherCI" = per."id"
-        LEFT JOIN "representative" rep ON s."representativeID" = rep."ci"
-        ORDER BY e."created_at" DESC
+        SELECT 
+          m.*,
+          e.nombre as estudiante_nombre,
+          e.apellido as estudiante_apellido,
+          e.cedula as estudiante_cedula,
+          s.seccion,
+          g.nombre as grado_nombre,
+          p.nombre as docente_nombre,
+          p.apellido as docente_apellido
+        FROM "matricula" m
+        LEFT JOIN "estudiante" e ON m.estudiante_id = e.id
+        LEFT JOIN "seccion" s ON m.seccion_id = s.id
+        LEFT JOIN "grado" g ON s.grado_id = g.id
+        LEFT JOIN "personal" p ON s.docente_id = p.id
+        ORDER BY m.fecha_creacion DESC
       `,
     }
 
@@ -97,37 +114,30 @@ const findAll = async () => {
   }
 }
 
+/**
+ * Obtener matrícula por ID
+ * @param {number} id - ID de la matrícula
+ * @returns {Object} - Matrícula encontrada
+ */
 const findById = async (id) => {
   try {
     const query = {
       text: `
-        SELECT
-          e.*,
-          s."name" as estudiante_nombre,
-          s."lastName" as estudiante_apellido,
-          s."ci" as estudiante_cedula_escolar,
-          s."sex" as estudiante_sexo,
-          s."placeBirth" as estudiante_lugarnacimiento,
-          s."quantityBrothers" as estudiante_cant_hermanos,
-          g."name" as grado_nombre,
-          sec."seccion",
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido,
-          rep."name" as representante_nombre,
-          rep."lastName" as representante_apellido,
-          rep."ci" as representante_cedula,
-          rep."telephoneNumber" as representante_telefono,
-          rep."email" as representante_email,
-          rep."roomAdress" as representante_direccionhabitacion,
-          rep."workPlace" as representante_lugar_trabajo,
-          rep."jobNumber" as representante_telefono_trabajo
-        FROM "enrollment" e
-        LEFT JOIN "student" s ON e."studentID" = s."id"
-        LEFT JOIN "section" sec ON e."sectionID" = sec."id"
-        LEFT JOIN "grade" g ON sec."gradeID" = g."id"
-        LEFT JOIN "personal" per ON sec."teacherCI" = per."id"
-        LEFT JOIN "representative" rep ON s."representativeID" = rep."ci"
-        WHERE e."id" = $1
+        SELECT 
+          m.*,
+          e.nombre as estudiante_nombre,
+          e.apellido as estudiante_apellido,
+          e.cedula as estudiante_cedula,
+          s.seccion,
+          g.nombre as grado_nombre,
+          p.nombre as docente_nombre,
+          p.apellido as docente_apellido
+        FROM "matricula" m
+        LEFT JOIN "estudiante" e ON m.estudiante_id = e.id
+        LEFT JOIN "seccion" s ON m.seccion_id = s.id
+        LEFT JOIN "grado" g ON s.grado_id = g.id
+        LEFT JOIN "personal" p ON s.docente_id = p.id
+        WHERE m.id = $1
       `,
       values: [id],
     }
@@ -140,162 +150,81 @@ const findById = async (id) => {
   }
 }
 
-const findByEstudianteId = async (estudiante_id) => {
+/**
+ * Obtener matrículas por estudiante
+ * @param {number} estudianteId - ID del estudiante
+ * @returns {Array} - Lista de matrículas del estudiante
+ */
+const findByEstudiante = async (estudianteId) => {
   try {
     const query = {
       text: `
-        SELECT
-          e.*,
-          g."name" as grado_nombre,
-          sec."seccion",
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido
-        FROM "enrollment" e
-        LEFT JOIN "section" sec ON e."sectionID" = sec."id"
-        LEFT JOIN "grade" g ON sec."gradeID" = g."id"
-        LEFT JOIN "personal" per ON sec."teacherCI" = per."id"
-        WHERE e."studentID" = $1
-        ORDER BY e."created_at" DESC
+        SELECT 
+          m.*,
+          s.seccion,
+          g.nombre as grado_nombre,
+          p.nombre as docente_nombre,
+          p.apellido as docente_apellido
+        FROM "matricula" m
+        LEFT JOIN "seccion" s ON m.seccion_id = s.id
+        LEFT JOIN "grado" g ON s.grado_id = g.id
+        LEFT JOIN "personal" p ON s.docente_id = p.id
+        WHERE m.estudiante_id = $1
+        ORDER BY m.fecha_creacion DESC
       `,
-      values: [estudiante_id],
+      values: [estudianteId],
     }
 
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in findByEstudianteId matricula:", error)
+    console.error("Error in findByEstudiante:", error)
     throw error
   }
 }
 
-const findByPeriodoEscolar = async (periodo_escolar) => {
+/**
+ * Obtener matrículas por período
+ * @param {string} periodo - Período escolar
+ * @returns {Array} - Lista de matrículas del período
+ */
+const findByPeriodo = async (periodo) => {
   try {
     const query = {
       text: `
-        SELECT
-          e.*,
-          s."name" as estudiante_nombre,
-          s."lastName" as estudiante_apellido,
-          s."ci" as estudiante_cedula_escolar,
-          g."name" as grado_nombre,
-          sec."seccion",
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido
-        FROM "enrollment" e
-        LEFT JOIN "student" s ON e."studentID" = s."id"
-        LEFT JOIN "section" sec ON e."sectionID" = sec."id"
-        LEFT JOIN "grade" g ON sec."gradeID" = g."id"
-        LEFT JOIN "personal" per ON sec."teacherCI" = per."id"
-        WHERE sec."period" = $1
-        ORDER BY g."name", sec."seccion", s."lastName", s."name"
+        SELECT 
+          m.*,
+          e.nombre as estudiante_nombre,
+          e.apellido as estudiante_apellido,
+          e.cedula as estudiante_cedula,
+          s.seccion,
+          g.nombre as grado_nombre
+        FROM "matricula" m
+        LEFT JOIN "estudiante" e ON m.estudiante_id = e.id
+        LEFT JOIN "seccion" s ON m.seccion_id = s.id
+        LEFT JOIN "grado" g ON s.grado_id = g.id
+        WHERE s.periodo = $1
+        ORDER BY g.id, s.seccion, e.apellido, e.nombre
       `,
-      values: [periodo_escolar],
+      values: [periodo],
     }
 
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in findByPeriodoEscolar matricula:", error)
+    console.error("Error in findByPeriodo:", error)
     throw error
   }
 }
 
-const update = async (id, matriculaData) => {
-  try {
-    const {
-      section_id,
-      fecha_inscripcion,
-      repitiente,
-      talla_camisa,
-      talla_pantalon,
-      talla_zapatos,
-      peso,
-      estatura,
-      enfermedades,
-      observaciones,
-      acta_nacimiento_check,
-      tarjeta_vacunas_check,
-      fotos_estudiante_check,
-      fotos_representante_check,
-      copia_cedula_representante_check,
-      copia_cedula_autorizados_check,
-    } = matriculaData
-
-    const query = {
-      text: `
-        UPDATE "enrollment" SET
-          "sectionID" = COALESCE($1, "sectionID"),
-          "registrationDate" = COALESCE($2, "registrationDate"),
-          "repeater" = COALESCE($3, "repeater"),
-          "chemiseSize" = COALESCE($4, "chemiseSize"),
-          "pantsSize" = COALESCE($5, "pantsSize"),
-          "shoesSize" = COALESCE($6, "shoesSize"),
-          "weight" = COALESCE($7, "weight"),
-          "stature" = COALESCE($8, "stature"),
-          "diseases" = COALESCE($9, "diseases"),
-          "observation" = COALESCE($10, "observation"),
-          "birthCertificateCheck" = COALESCE($11, "birthCertificateCheck"),
-          "vaccinationCardCheck" = COALESCE($12, "vaccinationCardCheck"),
-          "studentPhotosCheck" = COALESCE($13, "studentPhotosCheck"),
-          "representativePhotosCheck" = COALESCE($14, "representativePhotosCheck"),
-          "representativeCopyIDCheck" = COALESCE($15, "representativeCopyIDCheck"),
-          "autorizedCopyIDCheck" = COALESCE($16, "autorizedCopyIDCheck"),
-          "updated_at" = CURRENT_TIMESTAMP
-        WHERE "id" = $17
-        RETURNING *
-      `,
-      values: [
-        section_id,
-        fecha_inscripcion,
-        repitiente,
-        talla_camisa,
-        talla_pantalon,
-        talla_zapatos,
-        peso,
-        estatura,
-        enfermedades,
-        observaciones,
-        acta_nacimiento_check,
-        tarjeta_vacunas_check,
-        fotos_estudiante_check,
-        fotos_representante_check,
-        copia_cedula_representante_check,
-        copia_cedula_autorizados_check,
-        id,
-      ],
-    }
-
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in update matricula:", error)
-    throw error
-  }
-}
-
-const remove = async (id) => {
-  try {
-    const query = {
-      text: 'DELETE FROM "enrollment" WHERE "id" = $1 RETURNING "id"',
-      values: [id],
-    }
-
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in remove matricula:", error)
-    throw error
-  }
-}
-
+/**
+ * Obtener grados disponibles
+ * @returns {Array} - Lista de grados
+ */
 const getGrados = async () => {
   try {
     const query = {
-      text: `
-        SELECT "id", "name"
-        FROM "grade"
-        ORDER BY "name"
-      `,
+      text: 'SELECT * FROM "grado" ORDER BY id',
     }
 
     const { rows } = await db.query(query)
@@ -306,46 +235,77 @@ const getGrados = async () => {
   }
 }
 
-const getDocenteGrados = async () => {
+/**
+ * Obtener secciones con información de docentes
+ * @returns {Array} - Lista de secciones
+ */
+const getSeccionesConDocentes = async () => {
   try {
     const query = {
       text: `
-        SELECT
-          sec."id",
-          sec."seccion",
-          g."name" as grado_nombre,
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido,
-          sec."period"
-        FROM "section" sec
-        LEFT JOIN "grade" g ON sec."gradeID" = g."id"
-        LEFT JOIN "personal" per ON sec."teacherCI" = per."id"
-        ORDER BY g."name", sec."seccion"
+        SELECT 
+          s.*,
+          g.nombre as grado_nombre,
+          p.nombre as docente_nombre,
+          p.apellido as docente_apellido,
+          p.cedula as docente_cedula
+        FROM "seccion" s
+        LEFT JOIN "grado" g ON s.grado_id = g.id
+        LEFT JOIN "personal" p ON s.docente_id = p.id
+        ORDER BY g.id, s.seccion
       `,
     }
 
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in getDocenteGrados (getSectionsWithTeachers):", error)
+    console.error("Error in getSeccionesConDocentes:", error)
     throw error
   }
 }
 
-const checkExistingMatricula = async (estudiante_id, section_id) => {
+/**
+ * Actualizar matrícula
+ * @param {number} id - ID de la matrícula
+ * @param {Object} updateData - Datos a actualizar
+ * @returns {Object} - Matrícula actualizada
+ */
+const update = async (id, updateData) => {
   try {
+    const fields = []
+    const values = []
+    let paramCount = 1
+
+    // Construir dinámicamente la consulta de actualización
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] !== undefined && updateData[key] !== null) {
+        fields.push(`${key} = $${paramCount}`)
+        values.push(updateData[key])
+        paramCount++
+      }
+    })
+
+    if (fields.length === 0) {
+      throw new Error("No hay campos para actualizar")
+    }
+
+    fields.push(`fecha_actualizacion = CURRENT_TIMESTAMP`)
+    values.push(id)
+
     const query = {
       text: `
-        SELECT "id" FROM "enrollment"
-        WHERE "studentID" = $1 AND "sectionID" = $2
+        UPDATE "matricula" 
+        SET ${fields.join(", ")}
+        WHERE id = $${paramCount}
+        RETURNING *
       `,
-      values: [estudiante_id, section_id],
+      values: values,
     }
 
     const { rows } = await db.query(query)
     return rows[0]
   } catch (error) {
-    console.error("Error in checkExistingMatricula:", error)
+    console.error("Error in update matricula:", error)
     throw error
   }
 }
@@ -354,11 +314,9 @@ export const MatriculaModel = {
   create,
   findAll,
   findById,
-  findByEstudianteId,
-  findByPeriodoEscolar,
-  update,
-  remove,
+  findByEstudiante,
+  findByPeriodo,
   getGrados,
-  getDocenteGrados,
-  checkExistingMatricula,
+  getSeccionesConDocentes,
+  update,
 }

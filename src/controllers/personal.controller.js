@@ -1,131 +1,61 @@
 import { PersonalModel } from "../models/personal.model.js"
 
-const createPersonal = async (req, res) => {
+/**
+ * Crear un nuevo miembro del personal
+ */
+const crearPersonal = async (req, res) => {
   try {
-    const { name, lastName, idrole, telephoneNumber, ci, email, birthday, direction, parishID } = req.body // Renombrado parishID
+    const { nombre, apellido, rol_id, telefono, cedula, email, fecha_nacimiento, direccion, parroquia_id } = req.body
 
-    if (!name || !lastName || !idrole || !ci) { // Usar name y lastName
+    // Validaciones básicas
+    if (!nombre || !apellido || !rol_id || !cedula) {
       return res.status(400).json({
         ok: false,
-        msg: "Missing required fields: name, lastName, idrole, and ci are mandatory", // Mensaje actualizado
+        msg: "Nombre, apellido, rol y cédula son obligatorios",
       })
     }
 
-    // Validaciones de longitud específicas (mantener estas validaciones a nivel de controlador es bueno para feedback inmediato)
-    if (name.length > 100) { // Actualizado a 100 según el modelo
+    // Validar formato de cédula venezolana
+    const cedulaRegex = /^[VE]\d{7,8}$/i
+    if (!cedulaRegex.test(cedula)) {
       return res.status(400).json({
         ok: false,
-        msg: `El nombre es demasiado largo. Máximo 100 caracteres, actual: ${name.length}`,
+        msg: "Formato de cédula inválido. Use formato: V12345678 o E12345678",
       })
     }
 
-    if (lastName.length > 100) { // Actualizado a 100 según el modelo
-      return res.status(400).json({
-        ok: false,
-        msg: `El apellido es demasiado largo. Máximo 100 caracteres, actual: ${lastName.length}`,
-      })
-    }
-
-    if (email && email.length > 100) { // Actualizado a 100 según el modelo
-      return res.status(400).json({
-        ok: false,
-        msg: `El email es demasiado largo. Máximo 100 caracteres, actual: ${email.length}`,
-      })
-    }
-
-    if (direction && direction.length > 30) { // Actualizado a 30 según el modelo
-      return res.status(400).json({
-        ok: false,
-        msg: `La dirección es demasiado larga. Máximo 30 caracteres, actual: ${direction.length}`,
-      })
-    }
-
-    if (telephoneNumber && telephoneNumber.length > 20) { // Actualizado a 20 según el modelo
-      return res.status(400).json({
-        ok: false,
-        msg: `El teléfono es demasiado largo. Máximo 20 caracteres, actual: ${telephoneNumber.length}`,
-      })
-    }
-    if (ci && ci.length > 20) { // Actualizado a 20 según el modelo
-      return res.status(400).json({
-        ok: false,
-        msg: `La cédula es demasiado larga. Máximo 20 caracteres, actual: ${ci.length}`,
-      })
-    }
-
-    // Validate cedula format (Venezuelan format)
-    const cedulaRegex = /^[VE]\d{7,8}$/
-    if (!cedulaRegex.test(ci)) { // Usar ci
-      return res.status(400).json({
-        ok: false,
-        msg: "Invalid cedula format. Use format: V12345678 or E12345678",
-      })
-    }
-
-    // Check if personal with same cedula already exists
-    const existingPersonalByCedula = await PersonalModel.findOneByCi(ci) // Usar findOneByCi
-    if (existingPersonalByCedula) {
-      return res.status(400).json({
-        ok: false,
-        msg: "A personal member with this cedula already exists",
-      })
-    }
-
-    // Check if personal with same email already exists (if email is provided)
-    if (email) {
-      const existingPersonalByEmail = await PersonalModel.findOneByEmail(email)
-      if (existingPersonalByEmail) {
-        return res.status(400).json({
-          ok: false,
-          msg: "A personal member with this email already exists",
-        })
-      }
-    }
-
-    // Validate email format if provided
+    // Validar email si se proporciona
     if (email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
         return res.status(400).json({
           ok: false,
-          msg: "Invalid email format",
+          msg: "Formato de email inválido",
         })
       }
     }
 
-    // Validate phone format if provided
-    if (telephoneNumber) { // Usar telephoneNumber
-      const phoneRegex = /^04\d{9}$/
-      if (!phoneRegex.test(telephoneNumber)) { // Usar telephoneNumber
-        return res.status(400).json({
-          ok: false,
-          msg: "Invalid phone format. Use format: 04123456789",
-        })
-      }
-    }
-
-    const newPersonal = await PersonalModel.create({
-      name, // Usar name
-      lastName, // Usar lastName
-      idrole,
-      telephoneNumber, // Usar telephoneNumber
-      ci, // Usar ci
+    const nuevoPersonal = await PersonalModel.create({
+      nombre,
+      apellido,
+      rol_id,
+      telefono,
+      cedula,
       email,
-      birthday,
-      direction,
-      parishID, // Usar parishID
+      fecha_nacimiento,
+      direccion,
+      parroquia_id,
     })
 
     return res.status(201).json({
       ok: true,
-      msg: "Personal created successfully",
-      personal: newPersonal,
+      msg: "Personal creado exitosamente",
+      personal: nuevoPersonal,
     })
   } catch (error) {
-    console.error("Error in createPersonal:", error)
+    console.error("Error in crearPersonal:", error)
 
-    // Manejar errores específicos de longitud
-    if (error.message.includes("demasiado largo")) {
+    if (error.message.includes("ya existe") || error.message.includes("already exists")) {
       return res.status(400).json({
         ok: false,
         msg: error.message,
@@ -134,21 +64,47 @@ const createPersonal = async (req, res) => {
 
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const getPersonalById = async (req, res) => {
+/**
+ * Obtener todo el personal
+ */
+const obtenerTodoPersonal = async (req, res) => {
+  try {
+    const personal = await PersonalModel.findAll()
+
+    return res.json({
+      ok: true,
+      personal,
+      total: personal.length,
+    })
+  } catch (error) {
+    console.error("Error in obtenerTodoPersonal:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * Obtener personal por ID
+ */
+const obtenerPersonalPorId = async (req, res) => {
   try {
     const { id } = req.params
-    const personal = await PersonalModel.findOneById(id)
+
+    const personal = await PersonalModel.findById(id)
 
     if (!personal) {
       return res.status(404).json({
         ok: false,
-        msg: "Personal member not found",
+        msg: "Personal no encontrado",
       })
     }
 
@@ -157,403 +113,269 @@ const getPersonalById = async (req, res) => {
       personal,
     })
   } catch (error) {
-    console.error("Error in getPersonalById:", error)
+    console.error("Error in obtenerPersonalPorId:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const getAllPersonal = async (req, res) => {
+/**
+ * Buscar personal por nombre
+ */
+const buscarPersonalPorNombre = async (req, res) => {
   try {
-    const personal = await PersonalModel.findAll()
+    const { nombre } = req.query
+
+    if (!nombre || nombre.trim() === "") {
+      return res.status(400).json({
+        ok: false,
+        msg: "El parámetro 'nombre' es obligatorio",
+      })
+    }
+
+    const personal = await PersonalModel.findByNombre(nombre.trim())
+
     return res.json({
       ok: true,
       personal,
       total: personal.length,
+      terminoBusqueda: nombre.trim(),
     })
   } catch (error) {
-    console.error("Error in getAllPersonal:", error)
+    console.error("Error in buscarPersonalPorNombre:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const getPersonalByRole = async (req, res) => {
+/**
+ * Buscar personal por cédula
+ */
+const buscarPersonalPorCedula = async (req, res) => {
   try {
-    const { idrole } = req.params
-    const personal = await PersonalModel.findByRole(idrole)
-    return res.json({
-      ok: true,
-      personal,
-      total: personal.length,
-    })
-  } catch (error) {
-    console.error("Error in getPersonalByRole:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
+    const { cedula } = req.query
 
-const getTeachers = async (req, res) => {
-  try {
-    const teachers = await PersonalModel.findTeachers()
-    return res.json({
-      ok: true,
-      teachers,
-      total: teachers.length,
-    })
-  } catch (error) {
-    console.error("Error in getTeachers:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
+    if (!cedula || cedula.trim() === "") {
+      return res.status(400).json({
+        ok: false,
+        msg: "El parámetro 'cedula' es obligatorio",
+      })
+    }
 
-const getAdministrators = async (req, res) => {
-  try {
-    const administrators = await PersonalModel.findAdministrators()
-    return res.json({
-      ok: true,
-      administrators,
-      total: administrators.length,
-    })
-  } catch (error) {
-    console.error("Error in getAdministrators:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
+    const personal = await PersonalModel.findByCedula(cedula.trim())
 
-const getMaintenanceStaff = async (req, res) => {
-  try {
-    const maintenance = await PersonalModel.findMaintenance()
-    return res.json({
-      ok: true,
-      maintenance,
-      total: maintenance.length,
-    })
-  } catch (error) {
-    console.error("Error in getMaintenanceStaff:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const getPersonalWithoutSystemAccess = async (req, res) => {
-  try {
-    const personal = await PersonalModel.findWithoutSystemAccess()
-    return res.json({
-      ok: true,
-      personal,
-      total: personal.length,
-      msg: "Personal without system access",
-    })
-  } catch (error) {
-    console.error("Error in getPersonalWithoutSystemAccess:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const getPersonalWithSystemAccess = async (req, res) => {
-  try {
-    const personal = await PersonalModel.findWithSystemAccess()
-    return res.json({
-      ok: true,
-      personal,
-      total: personal.length,
-      msg: "Personal with system access",
-    })
-  } catch (error) {
-    console.error("Error in getPersonalWithSystemAccess:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const updatePersonal = async (req, res) => {
-  try {
-    const { id } = req.params
-    const { name, lastName, idrole, telephoneNumber, email, birthday, direction, parishID } = req.body // Renombrado parishID, name, lastName, telephoneNumber
-
-    // Check if personal exists
-    const existingPersonal = await PersonalModel.findOneById(id)
-    if (!existingPersonal) {
+    if (!personal) {
       return res.status(404).json({
         ok: false,
-        msg: "Personal member not found",
+        msg: "Personal no encontrado con esa cédula",
       })
     }
 
-    // Validaciones de longitud específicas
-    if (name && name.length > 100) { // Actualizado a 100
-      return res.status(400).json({
+    return res.json({
+      ok: true,
+      personal,
+    })
+  } catch (error) {
+    console.error("Error in buscarPersonalPorCedula:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * Obtener solo docentes
+ */
+const obtenerTodosDocentes = async (req, res) => {
+  try {
+    const docentes = await PersonalModel.findDocentes()
+
+    return res.json({
+      ok: true,
+      docentes,
+      total: docentes.length,
+    })
+  } catch (error) {
+    console.error("Error in obtenerTodosDocentes:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * Obtener solo administradores
+ */
+const obtenerTodosAdministradores = async (req, res) => {
+  try {
+    const administradores = await PersonalModel.findAdministradores()
+
+    return res.json({
+      ok: true,
+      administradores,
+      total: administradores.length,
+    })
+  } catch (error) {
+    console.error("Error in obtenerTodosAdministradores:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * Actualizar personal
+ */
+const actualizarPersonal = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { nombre, apellido, rol_id, telefono, email, direccion, parroquia_id } = req.body
+
+    // Verificar que el personal existe
+    const personalExistente = await PersonalModel.findById(id)
+    if (!personalExistente) {
+      return res.status(404).json({
         ok: false,
-        msg: `El nombre es demasiado largo. Máximo 100 caracteres, actual: ${name.length}`,
+        msg: "Personal no encontrado",
       })
     }
 
-    if (lastName && lastName.length > 100) { // Actualizado a 100
-      return res.status(400).json({
-        ok: false,
-        msg: `El apellido es demasiado largo. Máximo 100 caracteres, actual: ${lastName.length}`,
-      })
-    }
-
-    if (email && email.length > 100) { // Actualizado a 100
-      return res.status(400).json({
-        ok: false,
-        msg: `El email es demasiado largo. Máximo 100 caracteres, actual: ${email.length}`,
-      })
-    }
-
-    if (direction && direction.length > 30) { // Actualizado a 30
-      return res.status(400).json({
-        ok: false,
-        msg: `La dirección es demasiado larga. Máximo 30 caracteres, actual: ${direction.length}`,
-      })
-    }
-
-    if (telephoneNumber && telephoneNumber.length > 20) { // Actualizado a 20
-      return res.status(400).json({
-        ok: false,
-        msg: `El teléfono es demasiado largo. Máximo 20 caracteres, actual: ${telephoneNumber.length}`,
-      })
-    }
-
-    // Check if email is being updated and if it already exists
-    if (email && email !== existingPersonal.email) {
-      const existingPersonalByEmail = await PersonalModel.findOneByEmail(email)
-      // La comparación debe ser con `existingPersonal.id` que viene del modelo, no con `Number.parseInt(id)`
-      if (existingPersonalByEmail && existingPersonalByEmail.id !== existingPersonal.id) {
-        return res.status(400).json({
-          ok: false,
-          msg: "A personal member with this email already exists",
-        })
-      }
-    }
-
-    // Validate email format if provided
+    // Validar email si se proporciona
     if (email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
         return res.status(400).json({
           ok: false,
-          msg: "Invalid email format",
+          msg: "Formato de email inválido",
         })
       }
     }
 
-    // Validate phone format if provided
-    if (telephoneNumber) { // Usar telephoneNumber
-      const phoneRegex = /^04\d{9}$/
-      if (!phoneRegex.test(telephoneNumber)) { // Usar telephoneNumber
-        return res.status(400).json({
-          ok: false,
-          msg: "Invalid phone format. Use format: 04123456789",
-        })
-      }
-    }
+    const datosActualizacion = {}
+    if (nombre !== undefined) datosActualizacion.nombre = nombre
+    if (apellido !== undefined) datosActualizacion.apellido = apellido
+    if (rol_id !== undefined) datosActualizacion.rol_id = rol_id
+    if (telefono !== undefined) datosActualizacion.telefono = telefono
+    if (email !== undefined) datosActualizacion.email = email
+    if (direccion !== undefined) datosActualizacion.direccion = direccion
+    if (parroquia_id !== undefined) datosActualizacion.parroquia_id = parroquia_id
 
-    const updatedPersonal = await PersonalModel.update(id, {
-      name, // Usar name
-      lastName, // Usar lastName
-      idrole,
-      telephoneNumber, // Usar telephoneNumber
-      email,
-      birthday,
-      direction,
-      parishID, // Usar parishID
-    })
+    const personalActualizado = await PersonalModel.update(id, datosActualizacion)
 
     return res.json({
       ok: true,
-      msg: "Personal updated successfully",
-      personal: updatedPersonal,
+      msg: "Personal actualizado exitosamente",
+      personal: personalActualizado,
     })
   } catch (error) {
-    console.error("Error in updatePersonal:", error)
-
-    // Manejar errores específicos de longitud
-    if (error.message.includes("demasiado largo")) {
-      return res.status(400).json({
-        ok: false,
-        msg: error.message,
-      })
-    }
-
+    console.error("Error in actualizarPersonal:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const deletePersonal = async (req, res) => {
+/**
+ * Eliminar personal
+ */
+const eliminarPersonal = async (req, res) => {
   try {
     const { id } = req.params
 
-    // Check if personal exists
-    const existingPersonal = await PersonalModel.findOneById(id)
-    if (!existingPersonal) {
+    // Verificar que el personal existe
+    const personalExistente = await PersonalModel.findById(id)
+    if (!personalExistente) {
       return res.status(404).json({
         ok: false,
-        msg: "Personal member not found",
+        msg: "Personal no encontrado",
       })
     }
 
-    const result = await PersonalModel.remove(id)
+    const personalEliminado = await PersonalModel.remove(id)
+
     return res.json({
       ok: true,
-      msg: "Personal member deleted successfully",
-      id: result.id,
+      msg: "Personal eliminado exitosamente",
+      personal: personalEliminado,
     })
   } catch (error) {
-    console.error("Error in deletePersonal:", error)
-
-    // Handle specific error for personal with user account
-    if (error.message.includes("Cannot delete personal who has a user account")) {
-      return res.status(400).json({
-        ok: false,
-        msg: error.message,
-      })
-    }
-
+    console.error("Error in eliminarPersonal:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const searchPersonalByName = async (req, res) => {
-  try {
-    const { name } = req.query // Usar name
-    if (!name) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Name parameter is required",
-      })
-    }
-
-    const personal = await PersonalModel.searchByName(name)
-    return res.json({
-      ok: true,
-      personal,
-      total: personal.length,
-    })
-  } catch (error) {
-    console.error("Error in searchPersonalByName:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const searchPersonalByCedula = async (req, res) => {
-  try {
-    const { cedula } = req.query // Usar cedula
-    if (!cedula) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Cedula parameter is required",
-      })
-    }
-
-    const personal = await PersonalModel.searchByCi(cedula) // Usar searchByCi
-    return res.json({
-      ok: true,
-      personal,
-      total: personal.length,
-    })
-  } catch (error) {
-    console.error("Error in searchPersonalByCedula:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
-
-const getRoles = async (req, res) => {
+/**
+ * Obtener roles disponibles
+ */
+const obtenerRoles = async (req, res) => {
   try {
     const roles = await PersonalModel.getRoles()
+
     return res.json({
       ok: true,
       roles,
       total: roles.length,
     })
   } catch (error) {
-    console.error("Error in getRoles:", error)
+    console.error("Error in obtenerRoles:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
-const getParroquias = async (req, res) => {
+/**
+ * Obtener parroquias disponibles
+ */
+const obtenerParroquias = async (req, res) => {
   try {
-    const parroquias = await PersonalModel.getParishes() // Corregido el nombre de la función
+    const parroquias = await PersonalModel.getParroquias()
+
     return res.json({
       ok: true,
       parroquias,
       total: parroquias.length,
     })
   } catch (error) {
-    console.error("Error in getParroquias:", error)
+    console.error("Error in obtenerParroquias:", error)
     return res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Error interno del servidor",
       error: error.message,
     })
   }
 }
 
 export const PersonalController = {
-  createPersonal,
-  getPersonalById,
-  getAllPersonal,
-  getPersonalByRole,
-  getTeachers,
-  getAdministrators,
-  getMaintenanceStaff,
-  getPersonalWithoutSystemAccess,
-  getPersonalWithSystemAccess,
-  updatePersonal,
-  deletePersonal,
-  searchPersonalByName,
-  searchPersonalByCedula,
-  getRoles,
-  getParroquias,
+  crearPersonal,
+  obtenerTodoPersonal,
+  obtenerPersonalPorId,
+  buscarPersonalPorNombre,
+  buscarPersonalPorCedula,
+  obtenerTodosDocentes,
+  obtenerTodosAdministradores,
+  actualizarPersonal,
+  eliminarPersonal,
+  obtenerRoles,
+  obtenerParroquias,
 }
