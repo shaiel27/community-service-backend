@@ -54,10 +54,10 @@ export const verifyAdmin = (req, res, next) => {
   // Convertir a número para asegurar la comparación correcta
   const permisoId = Number(req.user.permiso_id)
   console.log("permiso_id convertido a número:", permisoId)
-  console.log("¿Es igual a 1?:", permisoId === "1")
+  console.log("¿Es igual a 1?:", permisoId === 1)
 
   // Permiso ID 1 = Admin con acceso completo
-  if (permisoId === "1") {
+  if (permisoId === 1) {
     console.log("✅ Usuario tiene permisos de admin, continuando...")
     return next()
   }
@@ -80,7 +80,7 @@ export const verifyAdminOrReadOnly = (req, res, next) => {
   const permisoId = Number(req.user.permiso_id)
 
   // Permitir tanto admin (1) como solo lectura (2)
-  if (permisoId === "1" || permisoId === "2") {
+  if (permisoId === 1 || permisoId === 2) {
     return next()
   }
 
