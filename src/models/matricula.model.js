@@ -3,23 +3,23 @@ import { db } from "../db/connection.database.js"
 const create = async (matriculaData) => {
   try {
     const {
-      estudiante_id,
-      section_id,
-      fecha_inscripcion,
-      repitiente,
-      talla_camisa,
-      talla_pantalon,
-      talla_zapatos,
-      peso,
-      estatura,
-      enfermedades,
-      observaciones,
-      acta_nacimiento_check,
-      tarjeta_vacunas_check,
-      fotos_estudiante_check,
-      fotos_representante_check,
-      copia_cedula_representante_check,
-      copia_cedula_autorizados_check,
+      studentID,
+      sectionID,
+      registrationDate,
+      repeater,
+      chemiseSize,
+      pantsSize,
+      shoesSize,
+      weight,
+      stature,
+      diseases,
+      observation,
+      birthCertificateCheck,
+      vaccinationCardCheck,
+      studentPhotosCheck,
+      representativePhotosCheck,
+      representativeCopyIDCheck,
+      autorizedCopyIDCheck,
     } = matriculaData
 
     const query = {
@@ -34,23 +34,23 @@ const create = async (matriculaData) => {
         RETURNING *
       `,
       values: [
-        estudiante_id,
-        section_id,
-        fecha_inscripcion,
-        repitiente,
-        talla_camisa,
-        talla_pantalon,
-        talla_zapatos,
-        peso,
-        estatura,
-        enfermedades,
-        observaciones,
-        acta_nacimiento_check,
-        tarjeta_vacunas_check,
-        fotos_estudiante_check,
-        fotos_representante_check,
-        copia_cedula_representante_check,
-        copia_cedula_autorizados_check,
+        studentID,
+        sectionID,
+        registrationDate,
+        repeater,
+        chemiseSize,
+        pantsSize,
+        shoesSize,
+        weight,
+        stature,
+        diseases,
+        observation,
+        birthCertificateCheck,
+        vaccinationCardCheck,
+        studentPhotosCheck,
+        representativePhotosCheck,
+        representativeCopyIDCheck,
+        autorizedCopyIDCheck,
       ],
     }
 
@@ -68,17 +68,30 @@ const findAll = async () => {
       text: `
         SELECT
           e.*,
-          s."name" as estudiante_nombre,
-          s."lastName" as estudiante_apellido,
-          s."ci" as estudiante_cedula_escolar,
-          g."name" as grado_nombre,
-          sec."seccion",
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido,
-          rep."name" as representante_nombre,
-          rep."lastName" as representante_apellido,
-          rep."ci" as representante_cedula,
-          rep."telephoneNumber" as representante_telefono
+          s."name" as student_name,
+          s."lastName" as student_lastName,
+          s."ci" as student_school_id,
+          s."birthday" as student_birthday,
+          s."placeBirth" as student_birthplace_name,
+          s."sex" as student_sex,
+          s."quantityBrothers" as student_sibling_count,
+          s."livesMother" as lives_with_mother,
+          s."livesFather" as lives_with_father,
+          s."livesBoth" as lives_with_both,
+          s."livesRepresentative" as lives_with_representative,
+          g."name" as grade_name,
+          sec."seccion" as section_name,
+          sec."period",
+          per."name" as teacher_name,
+          per."lastName" as teacher_lastName,
+          rep."name" as representative_name,
+          rep."lastName" as representative_lastName,
+          rep."ci" as representative_ci,
+          rep."telephoneNumber" as representative_phoneNumber,
+          rep."email" as representative_email,
+          rep."roomAdress" as representative_address,
+          rep."workPlace" as representative_workplace,
+          rep."jobNumber" as representative_work_phone
         FROM "enrollment" e
         LEFT JOIN "student" s ON e."studentID" = s."id"
         LEFT JOIN "section" sec ON e."sectionID" = sec."id"
@@ -103,24 +116,30 @@ const findById = async (id) => {
       text: `
         SELECT
           e.*,
-          s."name" as estudiante_nombre,
-          s."lastName" as estudiante_apellido,
-          s."ci" as estudiante_cedula_escolar,
-          s."sex" as estudiante_sexo,
-          s."placeBirth" as estudiante_lugarnacimiento,
-          s."quantityBrothers" as estudiante_cant_hermanos,
-          g."name" as grado_nombre,
-          sec."seccion",
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido,
-          rep."name" as representante_nombre,
-          rep."lastName" as representante_apellido,
-          rep."ci" as representante_cedula,
-          rep."telephoneNumber" as representante_telefono,
-          rep."email" as representante_email,
-          rep."roomAdress" as representante_direccionhabitacion,
-          rep."workPlace" as representante_lugar_trabajo,
-          rep."jobNumber" as representante_telefono_trabajo
+          s."name" as student_name,
+          s."lastName" as student_lastName,
+          s."ci" as student_school_id,
+          s."sex" as student_sex,
+          s."birthday" as student_birthday,
+          s."placeBirth" as student_birthplace_name,
+          s."quantityBrothers" as student_sibling_count,
+          s."livesMother" as lives_with_mother,
+          s."livesFather" as lives_with_father,
+          s."livesBoth" as lives_with_both,
+          s."livesRepresentative" as lives_with_representative,
+          g."name" as grade_name,
+          sec."seccion" as section_name,
+          sec."period",
+          per."name" as teacher_name,
+          per."lastName" as teacher_lastName,
+          rep."name" as representative_name,
+          rep."lastName" as representative_lastName,
+          rep."ci" as representative_ci,
+          rep."telephoneNumber" as representative_phoneNumber,
+          rep."email" as representative_email,
+          rep."roomAdress" as representative_address,
+          rep."workPlace" as representative_workplace,
+          rep."jobNumber" as representative_work_phone
         FROM "enrollment" e
         LEFT JOIN "student" s ON e."studentID" = s."id"
         LEFT JOIN "section" sec ON e."sectionID" = sec."id"
@@ -140,16 +159,17 @@ const findById = async (id) => {
   }
 }
 
-const findByEstudianteId = async (estudiante_id) => {
+const findByEstudianteId = async (studentID) => {
   try {
     const query = {
       text: `
         SELECT
           e.*,
-          g."name" as grado_nombre,
-          sec."seccion",
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido
+          g."name" as grade_name,
+          sec."seccion" as section_name,
+          sec."period",
+          per."name" as teacher_name,
+          per."lastName" as teacher_lastName
         FROM "enrollment" e
         LEFT JOIN "section" sec ON e."sectionID" = sec."id"
         LEFT JOIN "grade" g ON sec."gradeID" = g."id"
@@ -157,7 +177,7 @@ const findByEstudianteId = async (estudiante_id) => {
         WHERE e."studentID" = $1
         ORDER BY e."created_at" DESC
       `,
-      values: [estudiante_id],
+      values: [studentID],
     }
 
     const { rows } = await db.query(query)
@@ -174,13 +194,13 @@ const findByPeriodoEscolar = async (periodo_escolar) => {
       text: `
         SELECT
           e.*,
-          s."name" as estudiante_nombre,
-          s."lastName" as estudiante_apellido,
-          s."ci" as estudiante_cedula_escolar,
-          g."name" as grado_nombre,
-          sec."seccion",
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido
+          s."name" as student_name,
+          s."lastName" as student_lastName,
+          s."ci" as student_school_id,
+          g."name" as grade_name,
+          sec."seccion" as section_name,
+          per."name" as teacher_name,
+          per."lastName" as teacher_lastName
         FROM "enrollment" e
         LEFT JOIN "student" s ON e."studentID" = s."id"
         LEFT JOIN "section" sec ON e."sectionID" = sec."id"
@@ -203,22 +223,22 @@ const findByPeriodoEscolar = async (periodo_escolar) => {
 const update = async (id, matriculaData) => {
   try {
     const {
-      section_id,
-      fecha_inscripcion,
-      repitiente,
-      talla_camisa,
-      talla_pantalon,
-      talla_zapatos,
-      peso,
-      estatura,
-      enfermedades,
-      observaciones,
-      acta_nacimiento_check,
-      tarjeta_vacunas_check,
-      fotos_estudiante_check,
-      fotos_representante_check,
-      copia_cedula_representante_check,
-      copia_cedula_autorizados_check,
+      sectionID,
+      registrationDate,
+      repeater,
+      chemiseSize,
+      pantsSize,
+      shoesSize,
+      weight,
+      stature,
+      diseases,
+      observation,
+      birthCertificateCheck,
+      vaccinationCardCheck,
+      studentPhotosCheck,
+      representativePhotosCheck,
+      representativeCopyIDCheck,
+      autorizedCopyIDCheck,
     } = matriculaData
 
     const query = {
@@ -245,22 +265,22 @@ const update = async (id, matriculaData) => {
         RETURNING *
       `,
       values: [
-        section_id,
-        fecha_inscripcion,
-        repitiente,
-        talla_camisa,
-        talla_pantalon,
-        talla_zapatos,
-        peso,
-        estatura,
-        enfermedades,
-        observaciones,
-        acta_nacimiento_check,
-        tarjeta_vacunas_check,
-        fotos_estudiante_check,
-        fotos_representante_check,
-        copia_cedula_representante_check,
-        copia_cedula_autorizados_check,
+        sectionID,
+        registrationDate,
+        repeater,
+        chemiseSize,
+        pantsSize,
+        shoesSize,
+        weight,
+        stature,
+        diseases,
+        observation,
+        birthCertificateCheck,
+        vaccinationCardCheck,
+        studentPhotosCheck,
+        representativePhotosCheck,
+        representativeCopyIDCheck,
+        autorizedCopyIDCheck,
         id,
       ],
     }
@@ -313,9 +333,9 @@ const getDocenteGrados = async () => {
         SELECT
           sec."id",
           sec."seccion",
-          g."name" as grado_nombre,
-          per."name" as docente_nombre,
-          per."lastName" as docente_apellido,
+          g."name" as grade_name,
+          per."name" as teacher_name,
+          per."lastName" as teacher_lastName,
           sec."period"
         FROM "section" sec
         LEFT JOIN "grade" g ON sec."gradeID" = g."id"
@@ -332,14 +352,14 @@ const getDocenteGrados = async () => {
   }
 }
 
-const checkExistingMatricula = async (estudiante_id, section_id) => {
+const checkExistingMatricula = async (studentID, sectionID) => {
   try {
     const query = {
       text: `
         SELECT "id" FROM "enrollment"
         WHERE "studentID" = $1 AND "sectionID" = $2
       `,
-      values: [estudiante_id, section_id],
+      values: [studentID, sectionID],
     }
 
     const { rows } = await db.query(query)
