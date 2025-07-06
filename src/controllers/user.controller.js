@@ -3,100 +3,15 @@ import jwt from "jsonwebtoken"
 import { UserModel } from "../models/user.model.js"
 import crypto from "crypto"
 
-const register = async (req, res) => {
-  try {
-    const { username, email, password, permiso_id, security_word, respuesta_de_seguridad, personal_id } = req.body
-
-    if (!username || !password || !permiso_id) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Missing required fields: username, password, and permiso_id are mandatory",
-      })
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Password must be at least 6 characters long",
-      })
-    }
-
-    // Check if username already exists
-    const existingUser = await UserModel.findOneByUsername(username)
-    if (existingUser) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Username already exists",
-      })
-    }
-
-    // Check if email already exists (if provided)
-    if (email) {
-      const existingUserByEmail = await UserModel.findOneByEmail(email)
-      if (existingUserByEmail) {
-        return res.status(400).json({
-          ok: false,
-          msg: "Email already exists",
-        })
-      }
-    }
-
-    // Check if personal already has a user account (if personal_id is provided)
-    if (personal_id) {
-      const existingPersonalUser = await UserModel.findByPersonalId(personal_id)
-      if (existingPersonalUser) {
-        return res.status(400).json({
-          ok: false,
-          msg: "This personal member already has a user account",
-        })
-      }
-    }
-
-    const newUser = await UserModel.create({
-      username,
-      email,
-      password,
-      permiso_id,
-      security_word,
-      respuesta_de_seguridad,
-      personal_id,
-    })
-
-    if (!newUser) {
-      return res.status(500).json({
-        ok: false,
-        msg: "Error creating user",
-      })
-    }
-
-    return res.status(201).json({
-      ok: true,
-      msg: "User created successfully",
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        permiso_id: newUser.permiso_id,
-        personal_id: newUser.personal_id,
-        is_active: newUser.is_active,
-        email_verified: newUser.email_verified,
-      },
-    })
-  } catch (error) {
-    console.error("Error in register:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Server error",
-      error: error.message,
-    })
-  }
-}
+// Claves por defecto para desarrollo
+const JWT_SECRET = process.env.JWT_SECRET || "escuela-jwt-secret-key-2024-development"
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "escuela-refresh-secret-key-2024-development"
 
 const login = async (req, res) => {
   try {
     const { email, password } = req.body
 
-    console.log("🔍 Intento de login:", { email, password: "***" })
+    console.log("🔍 LOGIN - Intento de login para:", email)
 
     if (!email || !password) {
       return res.status(400).json({
@@ -105,48 +20,45 @@ const login = async (req, res) => {
       })
     }
 
-    console.log("🔍 Buscando usuario con email:", email)
+    console.log("🔍 LOGIN - Buscando usuario en BD...")
     const user = await UserModel.findOneByEmail(email)
-    console.log("🔍 Usuario encontrado:", user)
 
     if (!user) {
-      console.log("❌ Usuario no encontrado")
+      console.log("❌ LOGIN - Usuario no encontrado")
       return res.status(400).json({
         ok: false,
         msg: "Invalid email",
       })
     }
 
-    console.log("✅ Usuario encontrado:", {
+    console.log("✅ LOGIN - Usuario encontrado:", {
       id: user.id,
       username: user.username,
       email: user.email,
       is_active: user.is_active,
       permiso_id: user.permiso_id,
-      permiso_nombre: user.permiso_nombre,
     })
 
     if (!user.is_active) {
-      console.log("❌ Usuario inactivo")
+      console.log("❌ LOGIN - Usuario inactivo")
       return res.status(403).json({
         ok: false,
         msg: "Account is inactive. Please contact an administrator",
       })
     }
 
-    console.log("🔑 Verificando password...")
+    console.log("🔑 LOGIN - Verificando contraseña...")
     const validPassword = await bcryptjs.compare(password, user.password)
-    console.log("🔑 Password válido:", validPassword)
 
     if (!validPassword) {
-      console.log("❌ Password incorrecto")
+      console.log("❌ LOGIN - Contraseña incorrecta")
       return res.status(400).json({
         ok: false,
         msg: "Invalid password",
       })
     }
 
-    console.log("🎉 Login exitoso, generando tokens...")
+    console.log("🎉 LOGIN - Credenciales válidas, generando tokens...")
 
     // Generate access token
     const accessToken = jwt.sign(
@@ -156,8 +68,8 @@ const login = async (req, res) => {
         permiso_id: user.permiso_id,
         personal_id: user.personal_id,
       },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" },
+      JWT_SECRET,
+      { expiresIn: "24h" },
     )
 
     // Generate refresh token
@@ -165,17 +77,19 @@ const login = async (req, res) => {
       {
         userId: user.id,
       },
-      process.env.JWT_REFRESH_SECRET,
+      JWT_REFRESH_SECRET,
       { expiresIn: "7d" },
     )
 
-    const now = new Date()
-    const tokenExpiry = new Date(now.getTime() + 60 * 60 * 1000)
+    console.log("✅ LOGIN - Tokens generados exitosamente")
+    console.log("🔑 LOGIN - Access token para userId:", user.id)
 
-    await UserModel.saveLoginToken(user.id, accessToken, refreshToken, tokenExpiry)
-
-    res.header("Access-Control-Allow-Origin", "http://localhost:3000")
-    res.header("Access-Control-Allow-Credentials", "true")
+    // Update last login (opcional, no fallar si hay error)
+    try {
+      await UserModel.updateLastLogin(user.id)
+    } catch (updateError) {
+      console.log("⚠️ LOGIN - Error actualizando last_login (no crítico):", updateError.message)
+    }
 
     res.json({
       ok: true,
@@ -195,7 +109,7 @@ const login = async (req, res) => {
       },
     })
   } catch (error) {
-    console.error("❌ Login error:", error)
+    console.error("❌ LOGIN - Error general:", error)
     res.status(500).json({
       ok: false,
       msg: "Server error",
@@ -217,8 +131,10 @@ const refreshToken = async (req, res) => {
 
     try {
       // Verify the refresh token
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
+      const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET)
       const userId = decoded.userId
+
+      console.log("🔄 REFRESH - Token válido para userId:", userId)
 
       // Get the user
       const user = await UserModel.findOneById(userId)
@@ -244,8 +160,8 @@ const refreshToken = async (req, res) => {
           permiso_id: user.permiso_id,
           personal_id: user.personal_id,
         },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" },
+        JWT_SECRET,
+        { expiresIn: "24h" },
       )
 
       // Generate new refresh token
@@ -253,14 +169,11 @@ const refreshToken = async (req, res) => {
         {
           userId: user.id,
         },
-        process.env.JWT_REFRESH_SECRET,
+        JWT_REFRESH_SECRET,
         { expiresIn: "7d" },
       )
 
-      const now = new Date()
-      const tokenExpiry = new Date(now.getTime() + 60 * 60 * 1000)
-
-      await UserModel.saveLoginToken(user.id, accessToken, newRefreshToken, tokenExpiry)
+      console.log("✅ REFRESH - Nuevos tokens generados")
 
       return res.json({
         ok: true,
@@ -268,6 +181,8 @@ const refreshToken = async (req, res) => {
         refreshToken: newRefreshToken,
       })
     } catch (error) {
+      console.error("❌ REFRESH - Error verificando token:", error.message)
+
       if (error.name === "TokenExpiredError") {
         return res.status(401).json({
           ok: false,
@@ -293,33 +208,8 @@ const refreshToken = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization
-    if (!authHeader) {
-      return res.status(401).json({
-        ok: false,
-        msg: "No token provided",
-      })
-    }
-
-    const [bearer, token] = authHeader.split(" ")
-    if (bearer !== "Bearer" || !token) {
-      return res.status(401).json({
-        ok: false,
-        msg: "Invalid token format",
-      })
-    }
-
-    const user = await UserModel.findUserByAccessToken(token)
-
-    if (!user) {
-      return res.status(403).json({
-        ok: false,
-        msg: "Invalid token",
-      })
-    }
-
-    await UserModel.clearLoginTokens(user.id)
-
+    // En este sistema simplificado, el logout solo confirma que el token es válido
+    // El cliente debe eliminar el token de su almacenamiento local
     return res.json({
       ok: true,
       msg: "Logged out successfully",
@@ -335,34 +225,42 @@ const logout = async (req, res) => {
 
 const profile = async (req, res) => {
   try {
-    const userId = req.user.userId
+    console.log("👤 PROFILE - Solicitado para userId:", req.user.userId)
 
+    const userId = req.user.userId
     const user = await UserModel.findOneById(userId)
 
     if (!user) {
+      console.log("❌ PROFILE - Usuario no encontrado")
       return res.status(404).json({
         ok: false,
         msg: "User not found",
       })
     }
 
+    console.log("✅ PROFILE - Usuario encontrado:", user.username)
+
+    // Remover campos sensibles
     const {
       password: _,
-      access_token: __,
-      refresh_token: ___,
-      security_word: ____,
-      respuesta_de_seguridad: _____,
+      security_word: __,
+      respuesta_de_seguridad: ___,
+      password_reset_token: ____,
+      password_reset_expires: _____,
+      email_verification_token: ______,
       ...userWithoutSensitiveInfo
     } = user
+
     return res.json({
       ok: true,
       user: userWithoutSensitiveInfo,
     })
   } catch (error) {
-    console.error("Error in profile:", error)
+    console.error("❌ PROFILE - Error:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
+      error: error.message,
     })
   }
 }
@@ -598,24 +496,18 @@ const forgotPassword = async (req, res) => {
 
     const user = await UserModel.findOneByUsername(username)
     if (!user) {
-      // For security reasons, don't reveal that the user doesn't exist
       return res.json({
         ok: true,
         msg: "If your username exists in our system, you will receive a password reset token",
       })
     }
 
-    // Generate a random token
     const resetToken = crypto.randomBytes(20).toString("hex")
-
     await UserModel.setPasswordResetToken(user.id, resetToken)
 
-    // In a real application, you would send an email with the reset token
-    // For this example, we'll just return it in the response
     return res.json({
       ok: true,
       msg: "If your username exists in our system, you will receive a password reset token",
-      // Only for development purposes:
       resetToken,
     })
   } catch (error) {
@@ -894,6 +786,94 @@ const getSecurityQuestion = async (req, res) => {
     })
   } catch (error) {
     console.error("Error in getSecurityQuestion:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+    })
+  }
+}
+
+const register = async (req, res) => {
+  try {
+    const { username, email, password, permiso_id, security_word, respuesta_de_seguridad, personal_id } = req.body
+
+    if (!username || !password || !permiso_id) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Missing required fields: username, password, and permiso_id are mandatory",
+      })
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Password must be at least 6 characters long",
+      })
+    }
+
+    // Check if username already exists
+    const existingUser = await UserModel.findOneByUsername(username)
+    if (existingUser) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Username already exists",
+      })
+    }
+
+    // Check if email already exists (if provided)
+    if (email) {
+      const existingUserByEmail = await UserModel.findOneByEmail(email)
+      if (existingUserByEmail) {
+        return res.status(400).json({
+          ok: false,
+          msg: "Email already exists",
+        })
+      }
+    }
+
+    // Check if personal already has a user account (if personal_id is provided)
+    if (personal_id) {
+      const existingPersonalUser = await UserModel.findByPersonalId(personal_id)
+      if (existingPersonalUser) {
+        return res.status(400).json({
+          ok: false,
+          msg: "This personal member already has a user account",
+        })
+      }
+    }
+
+    const newUser = await UserModel.create({
+      username,
+      email,
+      password,
+      permiso_id,
+      security_word,
+      respuesta_de_seguridad,
+      personal_id,
+    })
+
+    if (!newUser) {
+      return res.status(500).json({
+        ok: false,
+        msg: "Error creating user",
+      })
+    }
+
+    return res.status(201).json({
+      ok: true,
+      msg: "User created successfully",
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        permiso_id: newUser.permiso_id,
+        personal_id: newUser.personal_id,
+        is_active: newUser.is_active,
+        email_verified: newUser.email_verified,
+      },
+    })
+  } catch (error) {
+    console.error("Error in register:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",

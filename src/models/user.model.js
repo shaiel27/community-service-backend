@@ -18,23 +18,14 @@ const create = async ({
     const query = {
       text: `
         INSERT INTO "usuario" (
-          "username", "email", "password", "permiso_id", "security_word", "respuesta_de_seguridad", "personal_id",
-          "is_active", "email_verified", "created_at", "updated_at"
+          "username", "email", "password", "permiso_id", "security_word", 
+          "respuesta_de_seguridad", "personal_id", "is_active", "email_verified", 
+          "created_at", "updated_at"
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, true, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING "id", "username", "email", "permiso_id", "personal_id", "is_active", "email_verified", "created_at"
       `,
-      values: [
-        username,
-        email,
-        hashedPassword,
-        permiso_id,
-        security_word,
-        respuesta_de_seguridad,
-        personal_id,
-        true,
-        false,
-      ],
+      values: [username, email, hashedPassword, permiso_id, security_word, respuesta_de_seguridad, personal_id],
     }
     const { rows } = await db.query(query)
     return rows[0]
@@ -203,66 +194,12 @@ const updateProfile = async (id, { email, security_word, respuesta_de_seguridad 
   }
 }
 
-const saveLoginToken = async (id, access_token, refresh_token, expiration = null) => {
-  try {
-    const tokenExpiry = expiration || new Date(Date.now() + 60 * 60 * 1000) // 1 hora por defecto
-
-    const query = {
-      text: `
-        UPDATE "usuario"
-        SET "access_token" = $1,
-            "refresh_token" = $2,
-            "token_expiry" = $3,
-            "last_login" = CURRENT_TIMESTAMP,
-            "updated_at" = CURRENT_TIMESTAMP
-        WHERE "id" = $4
-      `,
-      values: [access_token, refresh_token, tokenExpiry, id],
-    }
-    await db.query(query)
-  } catch (error) {
-    console.error("Error in saveLoginToken:", error)
-    throw error
-  }
-}
-
-const findUserByAccessToken = async (token) => {
-  try {
-    const query = {
-      text: `
-        SELECT u.*,
-               p."nombre" as permiso_nombre,
-               p."descripcion" as permiso_descripcion,
-               per."name" as personal_nombre,
-               per."lastName" as personal_apellido,
-               per."email" as personal_email,
-               per."ci" as personal_ci,
-               r."name" as rol_nombre,
-               r."description" as rol_descripcion
-        FROM "usuario" u
-        LEFT JOIN "permisos" p ON u."permiso_id" = p."id"
-        LEFT JOIN "personal" per ON u."personal_id" = per."id"
-        LEFT JOIN "rol" r ON per."idRole" = r."id"
-        WHERE u."access_token" = $1 AND u."token_expiry" > CURRENT_TIMESTAMP
-      `,
-      values: [token],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findUserByAccessToken:", error)
-    throw error
-  }
-}
-
-const clearLoginTokens = async (id) => {
+const updateLastLogin = async (id) => {
   try {
     const query = {
       text: `
         UPDATE "usuario"
-        SET "access_token" = NULL,
-            "refresh_token" = NULL,
-            "token_expiry" = NULL,
+        SET "last_login" = CURRENT_TIMESTAMP,
             "updated_at" = CURRENT_TIMESTAMP
         WHERE "id" = $1
       `,
@@ -270,8 +207,8 @@ const clearLoginTokens = async (id) => {
     }
     await db.query(query)
   } catch (error) {
-    console.error("Error in clearLoginTokens:", error)
-    throw error
+    console.error("Error in updateLastLogin:", error)
+    // No lanzar error si falla, es opcional
   }
 }
 
@@ -428,47 +365,6 @@ const searchByUsername = async (username) => {
   }
 }
 
-const verifyEmail = async (token) => {
-  try {
-    const query = {
-      text: `
-        UPDATE "usuario"
-        SET "email_verified" = true,
-            "email_verification_token" = NULL,
-            "updated_at" = CURRENT_TIMESTAMP
-        WHERE "email_verification_token" = $1
-        RETURNING "id", "username", "email", "email_verified"
-      `,
-      values: [token],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in verifyEmail:", error)
-    throw error
-  }
-}
-
-const setEmailVerificationToken = async (id, token) => {
-  try {
-    const query = {
-      text: `
-        UPDATE "usuario"
-        SET "email_verification_token" = $1,
-            "updated_at" = CURRENT_TIMESTAMP
-        WHERE "id" = $2
-        RETURNING "id", "username", "email"
-      `,
-      values: [token, id],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in setEmailVerificationToken:", error)
-    throw error
-  }
-}
-
 const verifySecurityAnswer = async (username, respuesta_de_seguridad) => {
   try {
     const query = {
@@ -487,7 +383,6 @@ const verifySecurityAnswer = async (username, respuesta_de_seguridad) => {
   }
 }
 
-// Nueva función para actualizar perfil con validación de seguridad
 const updateProfileWithSecurity = async (
   id,
   { email, security_word, respuesta_de_seguridad, current_security_answer },
@@ -524,7 +419,6 @@ const updateProfileWithSecurity = async (
   }
 }
 
-// Nueva función para cambiar contraseña con palabra de seguridad
 const changePasswordWithSecurity = async (username, respuesta_de_seguridad, newPassword) => {
   try {
     // Verificar la respuesta de seguridad
@@ -556,6 +450,47 @@ const changePasswordWithSecurity = async (username, respuesta_de_seguridad, newP
   }
 }
 
+const setEmailVerificationToken = async (id, token) => {
+  try {
+    const query = {
+      text: `
+        UPDATE "usuario"
+        SET "email_verification_token" = $1,
+            "updated_at" = CURRENT_TIMESTAMP
+        WHERE "id" = $2
+        RETURNING "id", "username", "email"
+      `,
+      values: [token, id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in setEmailVerificationToken:", error)
+    throw error
+  }
+}
+
+const verifyEmail = async (token) => {
+  try {
+    const query = {
+      text: `
+        UPDATE "usuario"
+        SET "email_verified" = true,
+            "email_verification_token" = NULL,
+            "updated_at" = CURRENT_TIMESTAMP
+        WHERE "email_verification_token" = $1
+        RETURNING "id", "username", "email", "email_verified"
+      `,
+      values: [token],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in verifyEmail:", error)
+    throw error
+  }
+}
+
 export const UserModel = {
   create,
   findOneByUsername,
@@ -566,9 +501,7 @@ export const UserModel = {
   updateProfile,
   updateProfileWithSecurity,
   changePasswordWithSecurity,
-  saveLoginToken,
-  findUserByAccessToken,
-  clearLoginTokens,
+  updateLastLogin,
   setPasswordResetToken,
   findByPasswordResetToken,
   clearPasswordResetToken,
@@ -576,7 +509,7 @@ export const UserModel = {
   remove,
   findByPersonalId,
   searchByUsername,
-  verifyEmail,
-  setEmailVerificationToken,
   verifySecurityAnswer,
+  setEmailVerificationToken,
+  verifyEmail,
 }

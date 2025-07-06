@@ -5,6 +5,7 @@ import userRoutes from "./src/routes/user.route.js"
 import personalRoutes from "./src/routes/personal.route.js"
 import pdfRoutes from "./src/routes/pdf.route.js"
 import matriculaRoutes from "./src/routes/matricula.route.js"
+import brigadaRoutes from "./src/routes/brigada.route.js"
 import { db } from "./src/db/connection.database.js"
 
 const app = express()
@@ -27,6 +28,7 @@ app.use("/api/users", userRoutes)
 app.use("/api/personal", personalRoutes)
 app.use("/api/pdf", pdfRoutes)
 app.use("/api/matriculas", matriculaRoutes)
+app.use("/api/brigadas", brigadaRoutes)
 
 // Ruta de prueba para la base de datos
 app.get("/test-db-connection", async (req, res) => {
