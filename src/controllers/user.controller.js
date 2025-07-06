@@ -5,15 +5,7 @@ import crypto from "crypto"
 
 const register = async (req, res) => {
   try {
-    const {
-      username,
-      email,
-      password,
-      permiso_id,
-      security_word,
-      respuesta_de_seguridad,
-      personal_id,
-    } = req.body
+    const { username, email, password, permiso_id, security_word, respuesta_de_seguridad, personal_id } = req.body
 
     if (!username || !password || !permiso_id) {
       return res.status(400).json({
@@ -51,9 +43,7 @@ const register = async (req, res) => {
 
     // Check if personal already has a user account (if personal_id is provided)
     if (personal_id) {
-      const existingPersonalUser = await UserModel.findByPersonalId(
-        personal_id
-      )
+      const existingPersonalUser = await UserModel.findByPersonalId(personal_id)
       if (existingPersonalUser) {
         return res.status(400).json({
           ok: false,
@@ -89,7 +79,7 @@ const register = async (req, res) => {
         permiso_id: newUser.permiso_id,
         personal_id: newUser.personal_id,
         is_active: newUser.is_active,
-        email_verified: newUser.email_verified, // Añadido este campo
+        email_verified: newUser.email_verified,
       },
     })
   } catch (error) {
@@ -116,7 +106,6 @@ const login = async (req, res) => {
     }
 
     console.log("🔍 Buscando usuario con email:", email)
-    // El modelo findOneByEmail ya trae permiso_nombre y rol_nombre si personal_id está presente
     const user = await UserModel.findOneByEmail(email)
     console.log("🔍 Usuario encontrado:", user)
 
@@ -135,7 +124,6 @@ const login = async (req, res) => {
       is_active: user.is_active,
       permiso_id: user.permiso_id,
       permiso_nombre: user.permiso_nombre,
-      // rol_nombre: user.rol_nombre, // rol_nombre viene si personal_id está presente
     })
 
     if (!user.is_active) {
@@ -167,10 +155,9 @@ const login = async (req, res) => {
         username: user.username,
         permiso_id: user.permiso_id,
         personal_id: user.personal_id,
-        // Aquí puedes añadir rol_nombre si es necesario en el token
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1h" },
     )
 
     // Generate refresh token
@@ -179,17 +166,13 @@ const login = async (req, res) => {
         userId: user.id,
       },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     )
-    const now = new Date();
-    const tokenExpiry = new Date(now.getTime() + 60 * 60 * 1000);
-    // El modelo ya maneja la expiración y actualiza updated_at
-    await UserModel.saveLoginToken(
-      user.id,
-      accessToken,
-      refreshToken,
-      tokenExpiry
-    )
+
+    const now = new Date()
+    const tokenExpiry = new Date(now.getTime() + 60 * 60 * 1000)
+
+    await UserModel.saveLoginToken(user.id, accessToken, refreshToken, tokenExpiry)
 
     res.header("Access-Control-Allow-Origin", "http://localhost:3000")
     res.header("Access-Control-Allow-Credentials", "true")
@@ -262,7 +245,7 @@ const refreshToken = async (req, res) => {
           personal_id: user.personal_id,
         },
         process.env.JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "1h" },
       )
 
       // Generate new refresh token
@@ -271,15 +254,13 @@ const refreshToken = async (req, res) => {
           userId: user.id,
         },
         process.env.JWT_REFRESH_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       )
 
-      // El modelo ya maneja la expiración y actualiza updated_at
-      await UserModel.saveLoginToken(
-        user.id,
-        accessToken,
-        newRefreshToken
-      )
+      const now = new Date()
+      const tokenExpiry = new Date(now.getTime() + 60 * 60 * 1000)
+
+      await UserModel.saveLoginToken(user.id, accessToken, newRefreshToken, tokenExpiry)
 
       return res.json({
         ok: true,
@@ -356,7 +337,6 @@ const profile = async (req, res) => {
   try {
     const userId = req.user.userId
 
-    // El modelo findOneById ya trae la información completa con joins si personal_id está presente
     const user = await UserModel.findOneById(userId)
 
     if (!user) {
@@ -370,9 +350,8 @@ const profile = async (req, res) => {
       password: _,
       access_token: __,
       refresh_token: ___,
-      // Otros campos sensibles que no deberían ser expuestos directamente
-      security_word: ____, // Añadido
-      respuesta_de_seguridad: _____, // Añadido
+      security_word: ____,
+      respuesta_de_seguridad: _____,
       ...userWithoutSensitiveInfo
     } = user
     return res.json({
@@ -450,6 +429,60 @@ const updateProfile = async (req, res) => {
   }
 }
 
+// Nueva función para actualizar perfil con validación de seguridad
+const updateProfileWithSecurity = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const { email, security_word, respuesta_de_seguridad, current_security_answer } = req.body
+
+    if (!current_security_answer) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Current security answer is required",
+      })
+    }
+
+    // Check if email is being updated and if it already exists
+    if (email) {
+      const existingUserByEmail = await UserModel.findOneByEmail(email)
+      if (existingUserByEmail && existingUserByEmail.id !== userId) {
+        return res.status(400).json({
+          ok: false,
+          msg: "Email already exists",
+        })
+      }
+    }
+
+    const updatedUser = await UserModel.updateProfileWithSecurity(userId, {
+      email,
+      security_word,
+      respuesta_de_seguridad,
+      current_security_answer,
+    })
+
+    return res.json({
+      ok: true,
+      msg: "Profile updated successfully with security validation",
+      user: updatedUser,
+    })
+  } catch (error) {
+    console.error("Error in updateProfileWithSecurity:", error)
+
+    if (error.message === "Invalid security answer") {
+      return res.status(400).json({
+        ok: false,
+        msg: "Invalid security answer",
+      })
+    }
+
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+      error: error.message,
+    })
+  }
+}
+
 const changePassword = async (req, res) => {
   try {
     const userId = req.user.userId
@@ -477,10 +510,7 @@ const changePassword = async (req, res) => {
       })
     }
 
-    const validPassword = await bcryptjs.compare(
-      currentPassword,
-      user.password
-    )
+    const validPassword = await bcryptjs.compare(currentPassword, user.password)
     if (!validPassword) {
       return res.status(400).json({
         ok: false,
@@ -499,6 +529,54 @@ const changePassword = async (req, res) => {
     })
   } catch (error) {
     console.error("Error in changePassword:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+      error: error.message,
+    })
+  }
+}
+
+// Nueva función para cambiar contraseña con palabra de seguridad
+const changePasswordWithSecurity = async (req, res) => {
+  try {
+    const { username, respuesta_de_seguridad, newPassword } = req.body
+
+    if (!username || !respuesta_de_seguridad || !newPassword) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Username, security answer, and new password are required",
+      })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        ok: false,
+        msg: "New password must be at least 6 characters long",
+      })
+    }
+
+    const updatedUser = await UserModel.changePasswordWithSecurity(username, respuesta_de_seguridad, newPassword)
+
+    return res.json({
+      ok: true,
+      msg: "Password changed successfully using security question",
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+      },
+    })
+  } catch (error) {
+    console.error("Error in changePasswordWithSecurity:", error)
+
+    if (error.message === "Invalid username or security answer") {
+      return res.status(400).json({
+        ok: false,
+        msg: "Invalid username or security answer",
+      })
+    }
+
     return res.status(500).json({
       ok: false,
       msg: "Server error",
@@ -529,8 +607,8 @@ const forgotPassword = async (req, res) => {
 
     // Generate a random token
     const resetToken = crypto.randomBytes(20).toString("hex")
-    // No es necesario calcular expires aquí, el modelo lo manejará
-    await UserModel.setPasswordResetToken(user.id, resetToken) // Usar user.id
+
+    await UserModel.setPasswordResetToken(user.id, resetToken)
 
     // In a real application, you would send an email with the reset token
     // For this example, we'll just return it in the response
@@ -760,10 +838,7 @@ const recoverPasswordWithSecurity = async (req, res) => {
     }
 
     // Verify security answer
-    const user = await UserModel.verifySecurityAnswer(
-      username,
-      respuesta_de_seguridad
-    )
+    const user = await UserModel.verifySecurityAnswer(username, respuesta_de_seguridad)
     if (!user) {
       return res.status(400).json({
         ok: false,
@@ -835,7 +910,9 @@ export const UserController = {
   profile,
   listUsers,
   updateProfile,
+  updateProfileWithSecurity,
   changePassword,
+  changePasswordWithSecurity,
   forgotPassword,
   resetPassword,
   activateUser,

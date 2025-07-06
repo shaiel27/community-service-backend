@@ -22,7 +22,7 @@ const create = async ({
           "is_active", "email_verified", "created_at", "updated_at"
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING "id", "username", "email", "permiso_id", "personal_id", "is_active", "created_at"
+        RETURNING "id", "username", "email", "permiso_id", "personal_id", "is_active", "email_verified", "created_at"
       `,
       values: [
         username,
@@ -81,6 +81,7 @@ const findOneByUsername = async (username) => {
                p."nombre" as permiso_nombre,
                p."descripcion" as permiso_descripcion,
                per."name" as personal_nombre,
+               per."lastName" as personal_apellido,
                per."email" as personal_email,
                per."ci" as personal_ci,
                r."name" as rol_nombre,
@@ -190,7 +191,7 @@ const updateProfile = async (id, { email, security_word, respuesta_de_seguridad 
             "respuesta_de_seguridad" = COALESCE($3, "respuesta_de_seguridad"),
             "updated_at" = CURRENT_TIMESTAMP
         WHERE "id" = $4
-        RETURNING "id", "username", "email", "security_word", "respuesta_de_seguridad"
+        RETURNING "id", "username", "email", "security_word"
       `,
       values: [email, security_word, respuesta_de_seguridad, id],
     }
@@ -202,8 +203,10 @@ const updateProfile = async (id, { email, security_word, respuesta_de_seguridad 
   }
 }
 
-const saveLoginToken = async (id, access_token, refresh_token, expiration) => {
+const saveLoginToken = async (id, access_token, refresh_token, expiration = null) => {
   try {
+    const tokenExpiry = expiration || new Date(Date.now() + 60 * 60 * 1000) // 1 hora por defecto
+
     const query = {
       text: `
         UPDATE "usuario"
@@ -214,7 +217,7 @@ const saveLoginToken = async (id, access_token, refresh_token, expiration) => {
             "updated_at" = CURRENT_TIMESTAMP
         WHERE "id" = $4
       `,
-      values: [access_token, refresh_token, expiration, id],
+      values: [access_token, refresh_token, tokenExpiry, id],
     }
     await db.query(query)
   } catch (error) {
@@ -272,18 +275,20 @@ const clearLoginTokens = async (id) => {
   }
 }
 
-const setPasswordResetToken = async (username, token, expires) => {
+const setPasswordResetToken = async (userId, token) => {
   try {
+    const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hora
+
     const query = {
       text: `
         UPDATE "usuario"
         SET "password_reset_token" = $1,
             "password_reset_expires" = $2,
             "updated_at" = CURRENT_TIMESTAMP
-        WHERE "username" = $3
+        WHERE "id" = $3
         RETURNING "id", "username", "email"
       `,
-      values: [token, expires, username],
+      values: [token, expires, userId],
     }
     const { rows } = await db.query(query)
     return rows[0]
@@ -482,6 +487,75 @@ const verifySecurityAnswer = async (username, respuesta_de_seguridad) => {
   }
 }
 
+// Nueva función para actualizar perfil con validación de seguridad
+const updateProfileWithSecurity = async (
+  id,
+  { email, security_word, respuesta_de_seguridad, current_security_answer },
+) => {
+  try {
+    // Primero verificar la respuesta de seguridad actual
+    const userQuery = {
+      text: `SELECT "respuesta_de_seguridad" FROM "usuario" WHERE "id" = $1`,
+      values: [id],
+    }
+    const userResult = await db.query(userQuery)
+
+    if (!userResult.rows[0] || userResult.rows[0].respuesta_de_seguridad !== current_security_answer) {
+      throw new Error("Invalid security answer")
+    }
+
+    const query = {
+      text: `
+        UPDATE "usuario"
+        SET "email" = COALESCE($1, "email"),
+            "security_word" = COALESCE($2, "security_word"),
+            "respuesta_de_seguridad" = COALESCE($3, "respuesta_de_seguridad"),
+            "updated_at" = CURRENT_TIMESTAMP
+        WHERE "id" = $4
+        RETURNING "id", "username", "email", "security_word"
+      `,
+      values: [email, security_word, respuesta_de_seguridad, id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in updateProfileWithSecurity:", error)
+    throw error
+  }
+}
+
+// Nueva función para cambiar contraseña con palabra de seguridad
+const changePasswordWithSecurity = async (username, respuesta_de_seguridad, newPassword) => {
+  try {
+    // Verificar la respuesta de seguridad
+    const user = await verifySecurityAnswer(username, respuesta_de_seguridad)
+    if (!user) {
+      throw new Error("Invalid username or security answer")
+    }
+
+    // Hash de la nueva contraseña
+    const salt = await bcryptjs.genSalt(10)
+    const hashedPassword = await bcryptjs.hash(newPassword, salt)
+
+    // Actualizar la contraseña
+    const query = {
+      text: `
+        UPDATE "usuario"
+        SET "password" = $1,
+            "updated_at" = CURRENT_TIMESTAMP
+        WHERE "id" = $2
+        RETURNING "id", "username", "email"
+      `,
+      values: [hashedPassword, user.id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in changePasswordWithSecurity:", error)
+    throw error
+  }
+}
+
 export const UserModel = {
   create,
   findOneByUsername,
@@ -490,6 +564,8 @@ export const UserModel = {
   findAll,
   updatePassword,
   updateProfile,
+  updateProfileWithSecurity,
+  changePasswordWithSecurity,
   saveLoginToken,
   findUserByAccessToken,
   clearLoginTokens,
