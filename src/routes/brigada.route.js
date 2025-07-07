@@ -18,6 +18,13 @@ router.post("/", verifyToken, verifyAdmin, BrigadaController.createBrigade)
 router.get("/", verifyToken, verifyAdminOrReadOnly, BrigadaController.getAllBrigades)
 
 // Rutas con parámetros (deben ir AL FINAL)
+router.param('id', (req, res, next, id) => {
+    if (!Number.isInteger(Number(id)) || id <= 0) {
+        return res.status(400).json({ ok: false, msg: "ID inválido" });
+    }
+    next();
+});
+
 router.get("/:id", verifyToken, verifyAdminOrReadOnly, BrigadaController.getBrigadeById)
 
 router.put("/:id", verifyToken, verifyAdmin, BrigadaController.updateBrigade)
