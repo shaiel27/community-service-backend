@@ -125,7 +125,7 @@ export const verifyAdmin = async (req, res, next) => {
     }
 
     // Verificar si tiene permisos de administrador (permiso_id = 1 es "Acceso Total")
-    if (user.permiso_id !== 1) {
+    if (user.permiso_id !== "1") {
       return res.status(403).json({
         ok: false,
         msg: "Admin access required",
@@ -155,7 +155,7 @@ export const verifyAdminOrReadOnly = async (req, res, next) => {
 
     // Permitir acceso a administradores (permiso_id = 1) y usuarios con permisos de consulta (permiso_id = 4)
     // También permitir gestión académica (permiso_id = 2) y gestión personal (permiso_id = 3)
-    const allowedPermissions = [1, 2, 3, 4]
+    const allowedPermissions = ["1", "2", "3", "4"]
 
     if (!allowedPermissions.includes(user.permiso_id)) {
       return res.status(403).json({

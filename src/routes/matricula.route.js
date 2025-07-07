@@ -1,33 +1,81 @@
-import express from "express"
-import { MatriculaController } from "../controllers/matricula.controller.js"
-import { verifyToken, verifyAdmin, verifyAdminOrReadOnly } from "../middleware/jwt.middleware.js"
+import express from "express";
+import { MatriculaController } from "../controllers/matricula.controller.js";
+import { verifyToken, verifyAdmin, verifyAdminOrReadOnly } from "../middleware/jwt.middleware.js";
+import validate from "../middleware/validation.middleware.js";
+import {
+  createMatriculaSchema,
+  updateMatriculaSchema,
+  periodoEscolarSchema
+} from "../validators/matricula.validator.js";
 
-const router = express.Router()
+const router = express.Router();
 
-// Rutas de utilidad (deben ir ANTES de las rutas con parámetros)
-router.get("/utils/grados", verifyToken, verifyAdminOrReadOnly, MatriculaController.getGrados)
+// Middleware para validar IDs numéricos
+router.param('id', (req, res, next, id) => {
+  if (!Number.isInteger(Number(id)) || id <= 0) {
+    return res.status(400).json({ ok: false, msg: "ID inválido" });
+  }
+  next();
+});
 
-router.get("/utils/docente-grados", verifyToken, verifyAdminOrReadOnly, MatriculaController.getDocenteGrados)
+// Rutas de utilidad
+router.get("/utils/grados", 
+  verifyToken, 
+  verifyAdminOrReadOnly, 
+  MatriculaController.getGrados
+);
 
-// Rutas principales de matrícula
-router.post("/", verifyToken, verifyAdmin, MatriculaController.createMatricula)
+router.get("/utils/docente-grados", 
+  verifyToken, 
+  verifyAdminOrReadOnly, 
+  MatriculaController.getDocenteGrados
+);
 
-router.get("/", verifyToken, verifyAdminOrReadOnly, MatriculaController.getAllMatriculas)
+// Rutas principales
+router.post("/", 
+  verifyToken, 
+  verifyAdmin, 
+  validate(createMatriculaSchema),
+  MatriculaController.createMatricula
+);
 
-// Rutas con parámetros (deben ir AL FINAL)
-router.get("/periodo/:periodo_escolar", verifyToken, verifyAdminOrReadOnly, MatriculaController.getMatriculasByPeriodo)
+router.get("/", 
+  verifyToken, 
+  verifyAdminOrReadOnly, 
+  MatriculaController.getAllMatriculas
+);
 
-router.get(
-  "/estudiante/:estudiante_id",
-  verifyToken,
+// Rutas con parámetros
+router.get("/periodo/:periodo_escolar", 
+  verifyToken, 
   verifyAdminOrReadOnly,
-  MatriculaController.getMatriculasByEstudiante,
-)
+  validate(periodoEscolarSchema, { source: 'params' }),
+  MatriculaController.getMatriculasByPeriodo
+);
 
-router.get("/:id", verifyToken, verifyAdminOrReadOnly, MatriculaController.getMatriculaById)
+router.get("/estudiante/:estudiante_id", 
+  verifyToken, 
+  verifyAdminOrReadOnly, 
+  MatriculaController.getMatriculasByEstudiante
+);
 
-router.put("/:id", verifyToken, verifyAdmin, MatriculaController.updateMatricula)
+router.get("/:id", 
+  verifyToken, 
+  verifyAdminOrReadOnly, 
+  MatriculaController.getMatriculaById
+);
 
-router.delete("/:id", verifyToken, verifyAdmin, MatriculaController.deleteMatricula)
+router.put("/:id", 
+  verifyToken, 
+  verifyAdmin, 
+  validate(updateMatriculaSchema),
+  MatriculaController.updateMatricula
+);
 
-export default router
+router.delete("/:id", 
+  verifyToken, 
+  verifyAdmin, 
+  MatriculaController.deleteMatricula
+);
+
+export default router;

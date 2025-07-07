@@ -99,8 +99,7 @@ export const PdfController = {
 
   generateEnrollmentFormPdf: async (req, res) => {
     try {
-      const enrollmentId = req.params.id // Aquí debería ser el ID de la matrícula, no del estudiante.
-                                        // Asumo que se pasa el ID de la tabla "enrollment"
+      const enrollmentId = req.params.id
       if (!enrollmentId) {
         return res.status(400).json({
           ok: false,
