@@ -1,8 +1,9 @@
-import Joi from 'joi';
-
 export default (schema, options = {}) => {
   return (req, res, next) => {
-    const { error, value } = schema.validate(req[options.source || 'body'], {
+    const source = options.source || 'body';
+    const data = source === 'query' ? req.query : req.body;
+    
+    const { error, value } = schema.validate(data, {
       abortEarly: false,
       allowUnknown: options.allowUnknown || false,
       stripUnknown: options.stripUnknown || true
@@ -20,14 +21,8 @@ export default (schema, options = {}) => {
         errors: formattedErrors
       });
     }
-    
-    // Reemplazar datos validados (importante para valores transformados)
-    if (options.source) {
-      req[options.source] = value;
-    } else {
-      req.body = value;
-    }
-    
+    // Asignar los valores validados a una nueva propiedad
+    req.validated = value;
     next();
   };
 };

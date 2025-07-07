@@ -1,7 +1,7 @@
 import express from "express";
 import { MatriculaController } from "../controllers/matricula.controller.js";
-import { verifyToken, verifyAdmin, verifyAdminOrReadOnly } from "../middleware/jwt.middleware.js";
-import validate from "../middleware/validation.middleware.js";
+import { verifyToken, verifyAdmin, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js";
+import validate from "../middlewares/validation.middleware.js";
 import {
   createMatriculaSchema,
   updateMatriculaSchema,
