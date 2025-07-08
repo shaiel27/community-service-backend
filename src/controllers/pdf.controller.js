@@ -135,7 +135,6 @@ export const PdfController = {
 
       doc.pipe(res)
 
-      // Añadir la primera página y dibujar la cabecera
       doc.addPage()
       drawPageHeader(doc, "FICHA DE MATRÍCULA DEL ESTUDIANTE")
 
@@ -238,7 +237,7 @@ export const PdfController = {
       doc.addPage()
       drawPageHeader(doc, "LISTADO DE BRIGADAS Y DOCENTES ASIGNADOS")
 
-      const brigades = await BrigadaModel.findAll() // Usar el modelo de Brigada
+      const brigades = await BrigadaModel.findAll()
 
       if (brigades.length === 0) {
         doc.fontSize(12).text("No hay brigadas registradas.", { align: "center" })
@@ -248,10 +247,9 @@ export const PdfController = {
         doc.text("Nombre de Brigada", 50, yPos, { width: 150 })
         doc.text("Docente Encargado", 210, yPos, { width: 150 })
         doc.text("CI Docente", 370, yPos, { width: 80 })
-        // Eliminada la columna "Fecha Asignación"
-        doc.text("Cantidad Estudiantes", 460, yPos, { width: 100, align: "center" }) // Reposicionado
-        doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
-        yPos += 20
+        doc.text("Cantidad Estudiantes", 460, yPos, { width: 100, align: "center" })
+        doc.lineWidth(0.5).moveTo(50, yPos + 20).lineTo(doc.page.width - 50, yPos + 20).stroke()
+        yPos += 25
 
         doc.font("Helvetica").fontSize(10)
         brigades.forEach((brigade) => {
@@ -263,23 +261,34 @@ export const PdfController = {
             doc.text("Nombre de Brigada", 50, yPos, { width: 150 })
             doc.text("Docente Encargado", 210, yPos, { width: 150 })
             doc.text("CI Docente", 370, yPos, { width: 80 })
-            // Eliminada la columna "Fecha Asignación"
             doc.text("Cantidad Estudiantes", 460, yPos, { width: 100, align: "center" }) // Reposicionado
             doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
             yPos += 20
             doc.font("Helvetica").fontSize(10)
           }
 
-          const teacherName = brigade.encargado_name && brigade.encargado_lastName ? `${brigade.encargado_name} ${brigade.encargado_lastName}` : "N/A"
-          const teacherCi = brigade.encargado_ci || "N/A"
-          // Eliminada la variable assignmentDate
-          const studentCount = String(brigade.studentCount ?? 0) // Usar brigade.studentCount y asegurar que sea string
+          // === LÓGICA DE CONSTRUCCIÓN DE teacherName ===
+          const firstName = brigade.encargado_name || '';
+          console.log(brigade.encargado_lastName);
+          const lastName = brigade.encargado_lastName || '';
 
+          let teacherName = '';
+          if (firstName && lastName) {
+            teacherName = `${firstName} ${lastName}`;
+          } else if (firstName) {
+            teacherName = firstName;
+          } else if (lastName) {
+            teacherName = lastName;
+          } else {
+            teacherName = 'N/A'; 
+          }
+
+          const teacherCi = brigade.encargado_ci || "N/A"
+          const studentCount = String(brigade.studentCount ?? 0)
           doc.text(brigade.name || "N/A", 50, yPos, { width: 150 })
           doc.text(teacherName, 210, yPos, { width: 150 })
           doc.text(teacherCi, 370, yPos, { width: 80 })
-          // Eliminado doc.text(assignmentDate, ...)
-          doc.text(studentCount, 460, yPos, { width: 100, align: 'center' }) // Reposicionado
+          doc.text(studentCount, 460, yPos, { width: 100, align: 'center' })
           yPos += 20
         })
       }
