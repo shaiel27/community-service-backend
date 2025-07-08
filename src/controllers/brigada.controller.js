@@ -1,432 +1,190 @@
-import { BrigadaModel } from "../models/brigada.model.js"
+import { BrigadaService } from "../services/brigada.service.js";
 
-/**
- * Crear una nueva brigada
- */
-const createBrigade = async (req, res) => {
+const handleError = (error, res) => {
+  const status = 
+    error.message.includes('no encontrad') ? 404 :
+    error.message.includes('obligatorio') || 
+    error.message.includes('demasiado largo') || 
+    error.message.includes('inválido') ? 400 :
+    error.message.includes('ya asignado') ? 409 : 500;
+  
+  res.status(status).json({
+    ok: false,
+    msg: error.message
+  });
+};
+
+export const createBrigade = async (req, res) => {
   try {
-    const { name } = req.body
-
-    // Validación de campos obligatorios
-    if (!name || name.trim() === "") {
-      return res.status(400).json({
-        ok: false,
-        msg: "El nombre de la brigada es obligatorio",
-      })
-    }
-
-    // Validar longitud del nombre
-    if (name.length > 100) {
-      return res.status(400).json({
-        ok: false,
-        msg: `El nombre de la brigada es demasiado largo. Máximo 100 caracteres, actual: ${name.length}`,
-      })
-    }
-
-    const newBrigade = await BrigadaModel.create({ name: name.trim() })
-
-    return res.status(201).json({
+    const newBrigade = await BrigadaService.crearBrigada(req.validated);
+    res.status(201).json({
       ok: true,
-      msg: "Brigada creada exitosamente",
-      brigade: newBrigade,
-    })
+      brigade: newBrigade
+    });
   } catch (error) {
-    console.error("Error in createBrigade:", error)
-
-    if (error.message.includes("demasiado largo")) {
-      return res.status(400).json({
-        ok: false,
-        msg: error.message,
-      })
-    }
-
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Obtener todas las brigadas
- */
-const getAllBrigades = async (req, res) => {
+export const getAllBrigades = async (req, res) => {
   try {
-    const brigades = await BrigadaModel.findAll()
-
-    return res.json({
+    const brigades = await BrigadaService.obtenerTodasBrigadas();
+    res.json({
       ok: true,
       brigades,
-      total: brigades.length,
-    })
+      total: brigades.length
+    });
   } catch (error) {
-    console.error("Error in getAllBrigades:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Obtener una brigada por ID
- */
-const getBrigadeById = async (req, res) => {
+export const getBrigadeById = async (req, res) => {
   try {
-    const { id } = req.params
-
-    const brigade = await BrigadaModel.findById(id)
-
-    if (!brigade) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Brigada no encontrada",
-      })
-    }
-
-    return res.json({
+    const brigade = await BrigadaService.obtenerBrigadaPorId(req.params.id);
+    res.json({
       ok: true,
-      brigade,
-    })
+      brigade
+    });
   } catch (error) {
-    console.error("Error in getBrigadeById:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Actualizar una brigada
- */
-const updateBrigade = async (req, res) => {
+export const updateBrigade = async (req, res) => {
   try {
-    const { id } = req.params
-    const { name } = req.body
-
-    // Verificar que la brigada existe
-    const existingBrigade = await BrigadaModel.findById(id)
-    if (!existingBrigade) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Brigada no encontrada",
-      })
-    }
-
-    // Validar longitud del nombre si se proporciona
-    if (name && name.length > 100) {
-      return res.status(400).json({
-        ok: false,
-        msg: `El nombre de la brigada es demasiado largo. Máximo 100 caracteres, actual: ${name.length}`,
-      })
-    }
-
-    const updatedBrigade = await BrigadaModel.update(id, { name })
-
-    return res.json({
+    const updatedBrigade = await BrigadaService.actualizarBrigada(
+      req.params.id,
+      req.validated
+    );
+    res.json({
       ok: true,
       msg: "Brigada actualizada exitosamente",
-      brigade: updatedBrigade,
-    })
+      brigade: updatedBrigade
+    });
   } catch (error) {
-    console.error("Error in updateBrigade:", error)
-
-    if (error.message.includes("demasiado largo")) {
-      return res.status(400).json({
-        ok: false,
-        msg: error.message,
-      })
-    }
-
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Obtener estudiantes de una brigada
- */
-const getStudentsByBrigade = async (req, res) => {
+export const getStudentsByBrigade = async (req, res) => {
   try {
-    const { id } = req.params
-
-    // Verificar que la brigada existe
-    const brigade = await BrigadaModel.findById(id)
-    if (!brigade) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Brigada no encontrada",
-      })
-    }
-
-    const students = await BrigadaModel.getStudentsByBrigade(id)
-
-    return res.json({
+    const brigade = await BrigadaService.obtenerBrigadaPorId(req.params.id);
+    const students = await BrigadaService.obtenerEstudiantesPorBrigada(req.params.id);
+    res.json({
       ok: true,
       brigade: {
         id: brigade.id,
         name: brigade.name,
-        teacher: brigade.encargado_name ? `${brigade.encargado_name} ${brigade.encargado_lastName}` : "Sin encargado",
+        teacher: brigade.encargado_name 
+          ? `${brigade.encargado_name} ${brigade.encargado_lastName}` 
+          : "Sin encargado"
       },
       students,
-      total: students.length,
-    })
+      total: students.length
+    });
   } catch (error) {
-    console.error("Error in getStudentsByBrigade:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Asignar encargado a una brigada
- */
-const assignTeacher = async (req, res) => {
+export const assignTeacher = async (req, res) => {
   try {
-    const { id } = req.params
-    const { personalId, startDate } = req.body
-
-    // Validaciones
-    if (!personalId) {
-      return res.status(400).json({
-        ok: false,
-        msg: "El ID del personal es obligatorio",
-      })
-    }
-
-    // Verificar que la brigada existe
-    const brigade = await BrigadaModel.findById(id)
-    if (!brigade) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Brigada no encontrada",
-      })
-    }
-
-    // Verificar si ya tiene encargado
-    if (brigade.encargado_name) {
-      return res.status(400).json({
-        ok: false,
-        msg: "La brigada ya tiene un encargado asignado. Debe limpiar la brigada primero.",
-      })
-    }
-
-    const assignment = await BrigadaModel.assignTeacher(id, personalId, startDate)
-
-    return res.json({
+    const assignment = await BrigadaService.asignarDocente(
+      req.params.id,
+      req.validated.personalId,
+      req.validated.startDate
+    );
+    res.json({
       ok: true,
       msg: "Encargado asignado exitosamente",
-      assignment,
-    })
+      assignment
+    });
   } catch (error) {
-    console.error("Error in assignTeacher:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Inscribir estudiantes en una brigada
- */
-const enrollStudents = async (req, res) => {
+export const enrollStudents = async (req, res) => {
   try {
-    const { id } = req.params
-    const { studentIds } = req.body
-
-    // Validaciones
-    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Debe proporcionar al menos un ID de estudiante",
-      })
-    }
-
-    // Verificar que la brigada existe y tiene encargado
-    const brigade = await BrigadaModel.findById(id)
-    if (!brigade) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Brigada no encontrada",
-      })
-    }
-
-    if (!brigade.brigade_teacher_date_id) {
-      return res.status(400).json({
-        ok: false,
-        msg: "La brigada debe tener un encargado asignado antes de inscribir estudiantes",
-      })
-    }
-
-    const result = await BrigadaModel.enrollStudents(studentIds, brigade.brigade_teacher_date_id)
-
-    return res.json({
+    const result = await BrigadaService.inscribirEstudiantes(
+      req.params.id,
+      req.validated.studentIds
+    );
+    res.json({
       ok: true,
       msg: `${result.studentsEnrolled} estudiantes inscritos exitosamente`,
-      result,
-    })
+      result
+    });
   } catch (error) {
-    console.error("Error in enrollStudents:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Limpiar una brigada (quitar encargado y estudiantes)
- */
-const clearBrigade = async (req, res) => {
+export const clearBrigade = async (req, res) => {
   try {
-    const { id } = req.params
-
-    // Verificar que la brigada existe
-    const brigade = await BrigadaModel.findById(id)
-    if (!brigade) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Brigada no encontrada",
-      })
-    }
-
-    const result = await BrigadaModel.clearBrigade(id)
-
-    return res.json({
+    const result = await BrigadaService.limpiarBrigada(req.params.id);
+    res.json({
       ok: true,
       msg: "Brigada limpiada exitosamente",
-      result,
-    })
+      result
+    });
   } catch (error) {
-    console.error("Error in clearBrigade:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Eliminar una brigada
- */
-const deleteBrigade = async (req, res) => {
+export const deleteBrigade = async (req, res) => {
   try {
-    const { id } = req.params
-
-    // Verificar que la brigada existe
-    const existingBrigade = await BrigadaModel.findById(id)
-    if (!existingBrigade) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Brigada no encontrada",
-      })
-    }
-
-    const result = await BrigadaModel.remove(id)
-
-    return res.json({
+    const result = await BrigadaService.eliminarBrigada(req.params.id);
+    res.json({
       ok: true,
       msg: "Brigada eliminada exitosamente",
-      brigade: result,
-    })
+      brigade: result
+    });
   } catch (error) {
-    console.error("Error in deleteBrigade:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Obtener estudiantes disponibles para inscribir en brigadas
- */
-const getAvailableStudents = async (req, res) => {
+export const getAvailableStudents = async (req, res) => {
   try {
-    const students = await BrigadaModel.getAvailableStudents()
-
-    return res.json({
+    const students = await BrigadaService.obtenerEstudiantesDisponibles();
+    res.json({
       ok: true,
       students,
-      total: students.length,
-    })
+      total: students.length
+    });
   } catch (error) {
-    console.error("Error in getAvailableStudents:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Obtener personal disponible para ser encargado
- */
-const getAvailableTeachers = async (req, res) => {
+export const getAvailableTeachers = async (req, res) => {
   try {
-    const teachers = await BrigadaModel.getAvailableTeachers()
-
-    return res.json({
+    const teachers = await BrigadaService.obtenerDocentesDisponibles();
+    res.json({
       ok: true,
       teachers,
-      total: teachers.length,
-    })
+      total: teachers.length
+    });
   } catch (error) {
-    console.error("Error in getAvailableTeachers:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
-/**
- * Buscar brigadas por nombre
- */
-const searchBrigades = async (req, res) => {
+export const searchBrigades = async (req, res) => {
   try {
-    const { name } = req.query
-
-    if (!name) {
-      return res.status(400).json({
-        ok: false,
-        msg: "El parámetro 'name' es requerido",
-      })
-    }
-
-    const brigades = await BrigadaModel.searchByName(name)
-
-    return res.json({
+    const brigades = await BrigadaService.buscarBrigadasPorNombre(req.validated.name);
+    res.json({
       ok: true,
       brigades,
-      total: brigades.length,
-    })
+      total: brigades.length
+    });
   } catch (error) {
-    console.error("Error in searchBrigades:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(error, res);
   }
-}
+};
 
 export const BrigadaController = {
   createBrigade,
@@ -440,5 +198,5 @@ export const BrigadaController = {
   deleteBrigade,
   getAvailableStudents,
   getAvailableTeachers,
-  searchBrigades,
-}
+  searchBrigades
+};

@@ -37,7 +37,7 @@ export const assignTeacherSchema = Joi.object({
     }),
   startDate: Joi.date()
     .iso()
-    .default(() => new Date(), 'Fecha actual')
+    .default(new Date())
 });
 
 // Inscribir estudiantes
