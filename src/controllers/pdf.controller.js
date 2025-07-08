@@ -3,6 +3,7 @@ import PDFDocument from "pdfkit"
 import { drawPageHeader } from "../utils/pdfGenerator.js"
 // Importamos los modelos necesarios
 import { MatriculaModel } from "../models/matricula.model.js"
+import { BrigadaModel } from "../models/brigada.model.js" // Importar el modelo de brigadas
 // Ya no necesitamos 'db' directamente aquí porque usamos los modelos
 
 export const PdfController = {
@@ -205,6 +206,91 @@ export const PdfController = {
         res.status(500).json({
           ok: false,
           msg: "Error al generar el PDF de ficha de matrícula.",
+          error: error.message,
+        })
+      }
+    }
+  },
+
+  // Función para generar el PDF de listado de brigadas y sus docentes
+  generateBrigadesAndTeachersPdf: async (req, res) => {
+    try {
+      const doc = new PDFDocument({
+        margin: 50,
+        autoFirstPage: false,
+      })
+
+      res.setHeader("Content-Type", "application/pdf")
+      res.setHeader("Content-Disposition", 'attachment; filename="listado_brigadas_docentes.pdf"')
+
+      doc.on("error", (err) => {
+        console.error("Error en la stream del PDF (generateBrigadesAndTeachersPdf):", err)
+        if (!res.headersSent) {
+          res.status(500).json({ ok: false, msg: "Error interno al generar el PDF de listado de brigadas y docentes" })
+        }
+        if (!doc.ended) {
+          doc.end()
+        }
+      })
+
+      doc.pipe(res)
+
+      doc.addPage()
+      drawPageHeader(doc, "LISTADO DE BRIGADAS Y DOCENTES ASIGNADOS")
+
+      const brigades = await BrigadaModel.findAll() // Usar el modelo de Brigada
+
+      if (brigades.length === 0) {
+        doc.fontSize(12).text("No hay brigadas registradas.", { align: "center" })
+      } else {
+        doc.font("Helvetica-Bold").fontSize(10)
+        let yPos = doc.y + 10
+        doc.text("Nombre de Brigada", 50, yPos, { width: 150 })
+        doc.text("Docente Encargado", 210, yPos, { width: 150 })
+        doc.text("CI Docente", 370, yPos, { width: 80 })
+        // Eliminada la columna "Fecha Asignación"
+        doc.text("Cantidad Estudiantes", 460, yPos, { width: 100, align: "center" }) // Reposicionado
+        doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
+        yPos += 20
+
+        doc.font("Helvetica").fontSize(10)
+        brigades.forEach((brigade) => {
+          if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) {
+            doc.addPage()
+            drawPageHeader(doc, "LISTADO DE BRIGADAS Y DOCENTES ASIGNADOS (Continuación)")
+            yPos = doc.y + 10
+            doc.font("Helvetica-Bold").fontSize(10)
+            doc.text("Nombre de Brigada", 50, yPos, { width: 150 })
+            doc.text("Docente Encargado", 210, yPos, { width: 150 })
+            doc.text("CI Docente", 370, yPos, { width: 80 })
+            // Eliminada la columna "Fecha Asignación"
+            doc.text("Cantidad Estudiantes", 460, yPos, { width: 100, align: "center" }) // Reposicionado
+            doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
+            yPos += 20
+            doc.font("Helvetica").fontSize(10)
+          }
+
+          const teacherName = brigade.encargado_name && brigade.encargado_lastName ? `${brigade.encargado_name} ${brigade.encargado_lastName}` : "N/A"
+          const teacherCi = brigade.encargado_ci || "N/A"
+          // Eliminada la variable assignmentDate
+          const studentCount = String(brigade.studentCount ?? 0) // Usar brigade.studentCount y asegurar que sea string
+
+          doc.text(brigade.name || "N/A", 50, yPos, { width: 150 })
+          doc.text(teacherName, 210, yPos, { width: 150 })
+          doc.text(teacherCi, 370, yPos, { width: 80 })
+          // Eliminado doc.text(assignmentDate, ...)
+          doc.text(studentCount, 460, yPos, { width: 100, align: 'center' }) // Reposicionado
+          yPos += 20
+        })
+      }
+
+      doc.end()
+    } catch (error) {
+      console.error("Error al generar PDF de brigadas y docentes:", error)
+      if (!res.headersSent) {
+        res.status(500).json({
+          ok: false,
+          msg: "Error al generar el PDF de listado de brigadas y docentes.",
           error: error.message,
         })
       }

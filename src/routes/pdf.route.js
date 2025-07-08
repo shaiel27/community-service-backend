@@ -12,4 +12,7 @@ router.get("/students/list"/*, verifyToken, verifyAdminOrReadOnly*/, PdfControll
 // Se requiere el ID del estudiante como parámetro en la URL
 router.get("/enrollment/student/:id"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateEnrollmentFormPdf)
 
+// Nueva ruta para generar el PDF de listado de brigadas y docentes
+router.get("/brigades/list"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateBrigadesAndTeachersPdf)
+
 export default router
