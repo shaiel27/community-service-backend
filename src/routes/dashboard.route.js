@@ -1,11 +1,12 @@
 import { Router } from "express"
 import { DashboardController } from "../controllers/dashboard.controller.js"
-import { jwtMiddleware } from "../middlewares/jwt.middleware.js"
+import { verifyToken, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
 
 const router = Router()
 
 // Aplicar middleware de autenticación a todas las rutas
-router.use(jwtMiddleware)
+router.use(verifyToken)
+router.use(verifyAdminOrReadOnly)
 
 // Rutas principales del dashboard
 router.get("/summary", DashboardController.getDashboardSummary)
@@ -23,5 +24,6 @@ router.get("/stats/enrollment", DashboardController.getEnrollmentStats)
 
 // Rutas para registro de asistencia
 router.post("/attendance/weekly", DashboardController.saveWeeklyAttendance)
+router.post("/attendance", DashboardController.saveWeeklyAttendance) // Alias para compatibilidad
 
 export default router

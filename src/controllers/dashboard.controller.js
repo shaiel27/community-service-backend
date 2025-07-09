@@ -1,262 +1,291 @@
 import { DashboardModel } from "../models/dashboard.model.js"
 
-// Manejador centralizado de errores
-const handleError = (error, res) => {
-  console.error("Dashboard Controller Error:", error)
-  const status = error.message.includes("no encontrad") ? 404 : 500
-
-  res.status(status).json({
-    ok: false,
-    msg: error.message || "Error interno del servidor",
-  })
-}
-
-// Obtener estadísticas generales
-const getGeneralStats = async (req, res) => {
-  try {
-    const stats = await DashboardModel.getGeneralStats()
-    res.json({
-      ok: true,
-      stats,
-    })
-  } catch (error) {
-    handleError(error, res)
-  }
-}
-
-// Obtener distribución de estudiantes por grado
-const getStudentDistribution = async (req, res) => {
-  try {
-    const distribution = await DashboardModel.getStudentDistributionByGrade()
-    res.json({
-      ok: true,
-      distribution,
-    })
-  } catch (error) {
-    handleError(error, res)
-  }
-}
-
-// Obtener rendimiento académico por materia
-const getAcademicPerformance = async (req, res) => {
-  try {
-    const performance = await DashboardModel.getAcademicPerformanceBySubject()
-    res.json({
-      ok: true,
-      performance,
-    })
-  } catch (error) {
-    handleError(error, res)
-  }
-}
-
-// Obtener estadísticas de asistencia
-const getAttendanceStats = async (req, res) => {
-  try {
-    const attendance = await DashboardModel.getAttendanceStats()
-    res.json({
-      ok: true,
-      attendance,
-    })
-  } catch (error) {
-    handleError(error, res)
-  }
-}
-
-// Obtener estadísticas de brigadas
-const getBrigadeStats = async (req, res) => {
-  try {
-    const brigadeStats = await DashboardModel.getBrigadeStats()
-    res.json({
-      ok: true,
-      brigadeStats,
-    })
-  } catch (error) {
-    handleError(error, res)
-  }
-}
-
-// Obtener personal por rol
-const getStaffByRole = async (req, res) => {
-  try {
-    const staffStats = await DashboardModel.getStaffByRole()
-    res.json({
-      ok: true,
-      staffStats,
-    })
-  } catch (error) {
-    handleError(error, res)
-  }
-}
-
-// Obtener estudiantes por estado
-const getStudentsByStatus = async (req, res) => {
-  try {
-    const statusStats = await DashboardModel.getStudentsByStatus()
-    res.json({
-      ok: true,
-      statusStats,
-    })
-  } catch (error) {
-    handleError(error, res)
-  }
-}
-
-// Obtener estadísticas de matrícula
-const getEnrollmentStats = async (req, res) => {
-  try {
-    const enrollmentStats = await DashboardModel.getEnrollmentStats()
-    res.json({
-      ok: true,
-      enrollmentStats,
-    })
-  } catch (error) {
-    handleError(error, res)
-  }
-}
-
-// Obtener resumen completo del dashboard
 const getDashboardSummary = async (req, res) => {
   try {
-    const summary = await DashboardModel.getDashboardSummary()
-    res.json({
+    console.log("🔄 Obteniendo resumen del dashboard...")
+
+    const dashboardData = await DashboardModel.getDashboardSummary()
+
+    console.log("✅ Datos del dashboard obtenidos exitosamente")
+
+    return res.status(200).json({
       ok: true,
-      data: summary,
+      msg: "Datos del dashboard obtenidos exitosamente",
+      data: dashboardData,
     })
   } catch (error) {
-    handleError(error, res)
+    console.error("❌ Error en getDashboardSummary:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener datos del dashboard",
+      error: error.message,
+    })
   }
 }
 
-// Obtener datos para gráficas
 const getDashboardCharts = async (req, res) => {
   try {
-    const summary = await DashboardModel.getDashboardSummary()
+    console.log("📊 Obteniendo datos para gráficas...")
 
-    // Formatear datos para gráficas
+    const [gradeDistribution, academicPerformance, staffByRole, studentsByStatus, monthlyAttendance] =
+      await Promise.all([
+        DashboardModel.getStudentDistributionByGrade(),
+        DashboardModel.getAcademicPerformanceBySubject(),
+        DashboardModel.getStaffByRole(),
+        DashboardModel.getStudentsByStatus(),
+        DashboardModel.getMonthlyAttendance(),
+      ])
+
     const chartData = {
-      studentDistribution: formatStudentDistributionChart(summary.gradeDistribution),
-      monthlyAttendance: formatMonthlyAttendanceChart(summary.monthlyAttendance),
-      extracurricular: formatExtracurricularChart(summary.extracurricular),
-      academicPerformance: formatAcademicPerformanceChart(summary.academicPerformanceByGrade),
+      gradeDistribution,
+      academicPerformance,
+      staffByRole,
+      studentsByStatus,
+      monthlyAttendance,
     }
 
-    res.json({
+    console.log("✅ Datos de gráficas obtenidos exitosamente")
+
+    return res.status(200).json({
       ok: true,
+      msg: "Datos de gráficas obtenidos exitosamente",
       data: chartData,
     })
   } catch (error) {
-    handleError(error, res)
+    console.error("❌ Error en getDashboardCharts:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener datos de gráficas",
+      error: error.message,
+    })
   }
 }
 
-// Registrar asistencia semanal
+const getGeneralStats = async (req, res) => {
+  try {
+    console.log("📈 Obteniendo estadísticas generales...")
+
+    const stats = await DashboardModel.getGeneralStats()
+
+    console.log("✅ Estadísticas generales obtenidas exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Estadísticas generales obtenidas exitosamente",
+      data: stats,
+    })
+  } catch (error) {
+    console.error("❌ Error en getGeneralStats:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener estadísticas generales",
+      error: error.message,
+    })
+  }
+}
+
+const getStudentDistribution = async (req, res) => {
+  try {
+    console.log("👥 Obteniendo distribución de estudiantes...")
+
+    const distribution = await DashboardModel.getStudentDistributionByGrade()
+
+    console.log("✅ Distribución de estudiantes obtenida exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Distribución de estudiantes obtenida exitosamente",
+      data: distribution,
+    })
+  } catch (error) {
+    console.error("❌ Error en getStudentDistribution:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener distribución de estudiantes",
+      error: error.message,
+    })
+  }
+}
+
+const getAcademicPerformance = async (req, res) => {
+  try {
+    console.log("📚 Obteniendo rendimiento académico...")
+
+    const performance = await DashboardModel.getAcademicPerformanceBySubject()
+
+    console.log("✅ Rendimiento académico obtenido exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Rendimiento académico obtenido exitosamente",
+      data: performance,
+    })
+  } catch (error) {
+    console.error("❌ Error en getAcademicPerformance:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener rendimiento académico",
+      error: error.message,
+    })
+  }
+}
+
+const getAttendanceStats = async (req, res) => {
+  try {
+    console.log("📅 Obteniendo estadísticas de asistencia...")
+
+    const attendance = await DashboardModel.getAttendanceStats()
+
+    console.log("✅ Estadísticas de asistencia obtenidas exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Estadísticas de asistencia obtenidas exitosamente",
+      data: attendance,
+    })
+  } catch (error) {
+    console.error("❌ Error en getAttendanceStats:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener estadísticas de asistencia",
+      error: error.message,
+    })
+  }
+}
+
+const getBrigadeStats = async (req, res) => {
+  try {
+    console.log("🏆 Obteniendo estadísticas de brigadas...")
+
+    const brigades = await DashboardModel.getBrigadeStats()
+
+    console.log("✅ Estadísticas de brigadas obtenidas exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Estadísticas de brigadas obtenidas exitosamente",
+      data: brigades,
+    })
+  } catch (error) {
+    console.error("❌ Error en getBrigadeStats:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener estadísticas de brigadas",
+      error: error.message,
+    })
+  }
+}
+
+const getStaffByRole = async (req, res) => {
+  try {
+    console.log("👨‍💼 Obteniendo personal por rol...")
+
+    const staff = await DashboardModel.getStaffByRole()
+
+    console.log("✅ Personal por rol obtenido exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Personal por rol obtenido exitosamente",
+      data: staff,
+    })
+  } catch (error) {
+    console.error("❌ Error en getStaffByRole:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener personal por rol",
+      error: error.message,
+    })
+  }
+}
+
+const getStudentsByStatus = async (req, res) => {
+  try {
+    console.log("📊 Obteniendo estudiantes por estado...")
+
+    const students = await DashboardModel.getStudentsByStatus()
+
+    console.log("✅ Estudiantes por estado obtenidos exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Estudiantes por estado obtenidos exitosamente",
+      data: students,
+    })
+  } catch (error) {
+    console.error("❌ Error en getStudentsByStatus:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener estudiantes por estado",
+      error: error.message,
+    })
+  }
+}
+
+const getEnrollmentStats = async (req, res) => {
+  try {
+    console.log("📝 Obteniendo estadísticas de matrícula...")
+
+    const enrollment = await DashboardModel.getEnrollmentStats()
+
+    console.log("✅ Estadísticas de matrícula obtenidas exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Estadísticas de matrícula obtenidas exitosamente",
+      data: enrollment,
+    })
+  } catch (error) {
+    console.error("❌ Error en getEnrollmentStats:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener estadísticas de matrícula",
+      error: error.message,
+    })
+  }
+}
+
 const saveWeeklyAttendance = async (req, res) => {
   try {
-    const { attendanceData } = req.body
+    console.log("💾 Guardando asistencia semanal...")
 
-    if (!attendanceData) {
+    const { sectionId, date, observations, students } = req.body
+
+    // Validaciones básicas
+    if (!sectionId || !date) {
       return res.status(400).json({
         ok: false,
-        msg: "Datos de asistencia requeridos",
+        msg: "Sección y fecha son requeridos",
       })
     }
 
-    // Aquí implementarías la lógica para guardar en la base de datos
-    console.log("Datos de asistencia recibidos:", attendanceData)
+    // Aquí implementarías la lógica para guardar la asistencia
+    // Por ahora, simulamos una respuesta exitosa
+    console.log("✅ Asistencia semanal guardada exitosamente")
 
-    res.json({
+    return res.status(200).json({
       ok: true,
-      msg: "Asistencia registrada exitosamente",
-      data: { attendanceData },
+      msg: "Asistencia guardada exitosamente",
+      data: {
+        sectionId,
+        date,
+        observations,
+        studentsCount: students?.length || 0,
+      },
     })
   } catch (error) {
-    handleError(error, res)
+    console.error("❌ Error en saveWeeklyAttendance:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al guardar asistencia",
+      error: error.message,
+    })
   }
-}
-
-// Funciones auxiliares para formatear datos de gráficas
-const formatStudentDistributionChart = (distribution) => {
-  const labels = distribution.map((item) => item.grade_name)
-  const data = distribution.map((item) => Number.parseInt(item.student_count) || 0)
-
-  return {
-    labels,
-    datasets: [
-      {
-        data,
-        backgroundColor: [
-          "#FF6384",
-          "#36A2EB",
-          "#FFCE56",
-          "#4BC0C0",
-          "#9966FF",
-          "#FF9F40",
-          "#FF6384",
-          "#C9CBCF",
-          "#4BC0C0",
-        ],
-        hoverBackgroundColor: [
-          "#FF6384",
-          "#36A2EB",
-          "#FFCE56",
-          "#4BC0C0",
-          "#9966FF",
-          "#FF9F40",
-          "#FF6384",
-          "#C9CBCF",
-          "#4BC0C0",
-        ],
-      },
-    ],
-  }
-}
-
-const formatMonthlyAttendanceChart = (attendance) => {
-  const labels = attendance.map((item) => item.month.trim().substring(0, 3))
-  const data = attendance.map((item) => Number.parseFloat(item.percentage) || 0)
-
-  return {
-    labels,
-    datasets: [
-      {
-        label: "Asistencia (%)",
-        backgroundColor: "rgba(54, 162, 235, 0.2)",
-        borderColor: "rgba(54, 162, 235, 1)",
-        pointBackgroundColor: "rgba(54, 162, 235, 1)",
-        pointBorderColor: "#fff",
-        data,
-      },
-    ],
-  }
-}
-
-const formatExtracurricularChart = (activities) => {
-  const labels = activities.map((item) => item.name)
-  const data = activities.map((item) => Number.parseInt(item.participants) || 0)
-
-  return {
-    labels,
-    datasets: [
-      {
-        label: "Participación de estudiantes",
-        backgroundColor: "#4BC0C0",
-        data,
-      },
-    ],
-  }
-}
-
-const formatAcademicPerformanceChart = (performance) => {
-  return performance.map((item) => ({
-    title: item.grade_name,
-    percent: Number.parseFloat(item.avg_performance) || 0,
-    value: `${item.avg_performance}/20`,
-    students: Number.parseInt(item.total_students) || 0,
-  }))
 }
 
 export const DashboardController = {
+  getDashboardSummary,
+  getDashboardCharts,
   getGeneralStats,
   getStudentDistribution,
   getAcademicPerformance,
@@ -265,7 +294,5 @@ export const DashboardController = {
   getStaffByRole,
   getStudentsByStatus,
   getEnrollmentStats,
-  getDashboardSummary,
-  getDashboardCharts,
   saveWeeklyAttendance,
 }

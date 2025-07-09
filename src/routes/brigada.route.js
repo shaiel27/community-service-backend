@@ -1,30 +1,36 @@
 import { Router } from "express"
 import { BrigadaController } from "../controllers/brigada.controller.js"
-import { jwtMiddleware } from "../middlewares/jwt.middleware.js"
+import { verifyToken, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
+import {
+  validateBrigadeData,
+  validateTeacherAssignment,
+  validateStudentEnrollment,
+} from "../validators/brigada.validator.js"
 
 const router = Router()
 
 // Aplicar middleware de autenticación a todas las rutas
-router.use(jwtMiddleware)
+router.use(verifyToken)
+router.use(verifyAdminOrReadOnly)
 
-// Rutas principales de brigadas
+// Rutas principales CRUD
 router.get("/", BrigadaController.getAllBrigades)
 router.get("/search", BrigadaController.searchBrigades)
+router.get("/available-students", BrigadaController.getAvailableStudents)
+router.get("/available-teachers", BrigadaController.getAvailableTeachers)
 router.get("/:id", BrigadaController.getBrigadeById)
-router.post("/", BrigadaController.createBrigade)
-router.put("/:id", BrigadaController.updateBrigade)
+router.post("/", validateBrigadeData, BrigadaController.createBrigade)
+router.put("/:id", validateBrigadeData, BrigadaController.updateBrigade)
 router.delete("/:id", BrigadaController.deleteBrigade)
-
-// Rutas para gestión de docentes
-router.post("/:id/assign-teacher", BrigadaController.assignTeacher)
 
 // Rutas para gestión de estudiantes
 router.get("/:id/students", BrigadaController.getBrigadeStudents)
-router.post("/:id/enroll-students", BrigadaController.enrollStudents)
-router.post("/:id/clear", BrigadaController.clearBrigade)
+router.post("/:id/students", validateStudentEnrollment, BrigadaController.enrollStudents)
+router.delete("/:id/students", BrigadaController.clearBrigade)
+router.delete("/:id/students/:studentId", BrigadaController.removeStudentFromBrigade)
 
-// Rutas utilitarias
-router.get("/utils/available-students", BrigadaController.getAvailableStudents)
-router.get("/utils/available-teachers", BrigadaController.getAvailableTeachers)
+// Rutas para gestión de docentes
+router.post("/:id/teacher", validateTeacherAssignment, BrigadaController.assignTeacher)
+router.delete("/:id/teacher", BrigadaController.removeTeacherFromBrigade)
 
 export default router

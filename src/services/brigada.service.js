@@ -73,6 +73,7 @@ class BrigadaService {
       encargado_name: brigade.encargado_name || null,
       encargado_lastName: brigade.encargado_lastName || null,
       encargado_ci: brigade.encargado_ci || null,
+      encargado_id: brigade.encargado_id || null,
       fecha_inicio: brigade.fecha_inicio || null,
       studentCount: Number.parseInt(brigade.studentcount) || 0,
       created_at: brigade.created_at || null,
