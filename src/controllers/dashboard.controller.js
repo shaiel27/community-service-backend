@@ -2,7 +2,7 @@ import { DashboardModel } from "../models/dashboard.model.js"
 
 const getDashboardSummary = async (req, res) => {
   try {
-    console.log("🔄 Obteniendo resumen del dashboard...")
+    console.log("🔄 Obteniendo resumen completo del dashboard...")
 
     const dashboardData = await DashboardModel.getDashboardSummary()
 
@@ -61,14 +61,71 @@ const getDashboardCharts = async (req, res) => {
   }
 }
 
+const getAvailableSections = async (req, res) => {
+  try {
+    console.log("📚 Obteniendo secciones disponibles...")
+
+    const sections = await DashboardModel.getAvailableSections()
+
+    console.log("✅ Secciones obtenidas exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Secciones obtenidas exitosamente",
+      data: sections,
+    })
+  } catch (error) {
+    console.error("❌ Error en getAvailableSections:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al obtener secciones",
+      error: error.message,
+    })
+  }
+}
+
+const saveAttendance = async (req, res) => {
+  try {
+    console.log("💾 Guardando asistencia...")
+
+    const { sectionId, date, observations, students } = req.body
+
+    // Validaciones básicas
+    if (!sectionId || !date) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Sección y fecha son requeridos",
+      })
+    }
+
+    const result = await DashboardModel.saveAttendance({
+      sectionId: Number.parseInt(sectionId),
+      date,
+      observations: observations || "",
+      students: students || [],
+    })
+
+    console.log("✅ Asistencia guardada exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Asistencia guardada exitosamente",
+      data: result,
+    })
+  } catch (error) {
+    console.error("❌ Error en saveAttendance:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al guardar asistencia",
+      error: error.message,
+    })
+  }
+}
+
+// Mantener las funciones existentes para compatibilidad
 const getGeneralStats = async (req, res) => {
   try {
-    console.log("📈 Obteniendo estadísticas generales...")
-
     const stats = await DashboardModel.getGeneralStats()
-
-    console.log("✅ Estadísticas generales obtenidas exitosamente")
-
     return res.status(200).json({
       ok: true,
       msg: "Estadísticas generales obtenidas exitosamente",
@@ -86,12 +143,7 @@ const getGeneralStats = async (req, res) => {
 
 const getStudentDistribution = async (req, res) => {
   try {
-    console.log("👥 Obteniendo distribución de estudiantes...")
-
     const distribution = await DashboardModel.getStudentDistributionByGrade()
-
-    console.log("✅ Distribución de estudiantes obtenida exitosamente")
-
     return res.status(200).json({
       ok: true,
       msg: "Distribución de estudiantes obtenida exitosamente",
@@ -109,12 +161,7 @@ const getStudentDistribution = async (req, res) => {
 
 const getAcademicPerformance = async (req, res) => {
   try {
-    console.log("📚 Obteniendo rendimiento académico...")
-
     const performance = await DashboardModel.getAcademicPerformanceBySubject()
-
-    console.log("✅ Rendimiento académico obtenido exitosamente")
-
     return res.status(200).json({
       ok: true,
       msg: "Rendimiento académico obtenido exitosamente",
@@ -132,12 +179,7 @@ const getAcademicPerformance = async (req, res) => {
 
 const getAttendanceStats = async (req, res) => {
   try {
-    console.log("📅 Obteniendo estadísticas de asistencia...")
-
     const attendance = await DashboardModel.getAttendanceStats()
-
-    console.log("✅ Estadísticas de asistencia obtenidas exitosamente")
-
     return res.status(200).json({
       ok: true,
       msg: "Estadísticas de asistencia obtenidas exitosamente",
@@ -155,12 +197,7 @@ const getAttendanceStats = async (req, res) => {
 
 const getBrigadeStats = async (req, res) => {
   try {
-    console.log("🏆 Obteniendo estadísticas de brigadas...")
-
     const brigades = await DashboardModel.getBrigadeStats()
-
-    console.log("✅ Estadísticas de brigadas obtenidas exitosamente")
-
     return res.status(200).json({
       ok: true,
       msg: "Estadísticas de brigadas obtenidas exitosamente",
@@ -178,12 +215,7 @@ const getBrigadeStats = async (req, res) => {
 
 const getStaffByRole = async (req, res) => {
   try {
-    console.log("👨‍💼 Obteniendo personal por rol...")
-
     const staff = await DashboardModel.getStaffByRole()
-
-    console.log("✅ Personal por rol obtenido exitosamente")
-
     return res.status(200).json({
       ok: true,
       msg: "Personal por rol obtenido exitosamente",
@@ -201,12 +233,7 @@ const getStaffByRole = async (req, res) => {
 
 const getStudentsByStatus = async (req, res) => {
   try {
-    console.log("📊 Obteniendo estudiantes por estado...")
-
     const students = await DashboardModel.getStudentsByStatus()
-
-    console.log("✅ Estudiantes por estado obtenidos exitosamente")
-
     return res.status(200).json({
       ok: true,
       msg: "Estudiantes por estado obtenidos exitosamente",
@@ -224,12 +251,7 @@ const getStudentsByStatus = async (req, res) => {
 
 const getEnrollmentStats = async (req, res) => {
   try {
-    console.log("📝 Obteniendo estadísticas de matrícula...")
-
     const enrollment = await DashboardModel.getEnrollmentStats()
-
-    console.log("✅ Estadísticas de matrícula obtenidas exitosamente")
-
     return res.status(200).json({
       ok: true,
       msg: "Estadísticas de matrícula obtenidas exitosamente",
@@ -245,47 +267,11 @@ const getEnrollmentStats = async (req, res) => {
   }
 }
 
-const saveWeeklyAttendance = async (req, res) => {
-  try {
-    console.log("💾 Guardando asistencia semanal...")
-
-    const { sectionId, date, observations, students } = req.body
-
-    // Validaciones básicas
-    if (!sectionId || !date) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Sección y fecha son requeridos",
-      })
-    }
-
-    // Aquí implementarías la lógica para guardar la asistencia
-    // Por ahora, simulamos una respuesta exitosa
-    console.log("✅ Asistencia semanal guardada exitosamente")
-
-    return res.status(200).json({
-      ok: true,
-      msg: "Asistencia guardada exitosamente",
-      data: {
-        sectionId,
-        date,
-        observations,
-        studentsCount: students?.length || 0,
-      },
-    })
-  } catch (error) {
-    console.error("❌ Error en saveWeeklyAttendance:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor al guardar asistencia",
-      error: error.message,
-    })
-  }
-}
-
 export const DashboardController = {
   getDashboardSummary,
   getDashboardCharts,
+  getAvailableSections,
+  saveAttendance,
   getGeneralStats,
   getStudentDistribution,
   getAcademicPerformance,
@@ -294,5 +280,4 @@ export const DashboardController = {
   getStaffByRole,
   getStudentsByStatus,
   getEnrollmentStats,
-  saveWeeklyAttendance,
 }

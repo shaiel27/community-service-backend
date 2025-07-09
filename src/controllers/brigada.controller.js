@@ -319,6 +319,54 @@ const assignTeacher = async (req, res) => {
   }
 }
 
+const removeTeacher = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    if (!id || isNaN(Number.parseInt(id))) {
+      return res.status(400).json({
+        ok: false,
+        msg: "ID de brigada inválido",
+      })
+    }
+
+    console.log(`👨‍🏫 Removiendo docente de brigada ${id}`)
+
+    // Verificar que la brigada existe
+    const brigade = await BrigadaModel.findById(Number.parseInt(id))
+    if (!brigade) {
+      return res.status(404).json({
+        ok: false,
+        msg: "Brigada no encontrada",
+      })
+    }
+
+    const result = await BrigadaModel.removeTeacher(Number.parseInt(id))
+
+    if (!result.removed) {
+      return res.status(404).json({
+        ok: false,
+        msg: "No hay docente asignado a esta brigada",
+      })
+    }
+
+    console.log("✅ Docente removido exitosamente")
+
+    return res.status(200).json({
+      ok: true,
+      msg: "Docente removido de la brigada exitosamente",
+      result: result,
+    })
+  } catch (error) {
+    console.error("❌ Error en removeTeacher:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor al remover docente",
+      error: error.message,
+    })
+  }
+}
+
 const enrollStudents = async (req, res) => {
   try {
     const { id } = req.params
@@ -515,45 +563,6 @@ const removeStudentFromBrigade = async (req, res) => {
   }
 }
 
-const removeTeacherFromBrigade = async (req, res) => {
-  try {
-    const { id } = req.params
-
-    if (!id || isNaN(Number.parseInt(id))) {
-      return res.status(400).json({
-        ok: false,
-        msg: "ID de brigada inválido",
-      })
-    }
-
-    console.log(`👨‍🏫 Removiendo docente de brigada ${id}`)
-
-    const result = await BrigadaModel.removeTeacherFromBrigade(Number.parseInt(id))
-
-    if (!result.removed) {
-      return res.status(404).json({
-        ok: false,
-        msg: "No hay docente asignado a esta brigada",
-      })
-    }
-
-    console.log("✅ Docente removido exitosamente")
-
-    return res.status(200).json({
-      ok: true,
-      msg: "Docente removido de la brigada exitosamente",
-      result: result,
-    })
-  } catch (error) {
-    console.error("❌ Error en removeTeacherFromBrigade:", error)
-    return res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor al remover docente",
-      error: error.message,
-    })
-  }
-}
-
 export const BrigadaController = {
   getAllBrigades,
   getBrigadeById,
@@ -563,10 +572,10 @@ export const BrigadaController = {
   searchBrigades,
   getBrigadeStudents,
   assignTeacher,
+  removeTeacher,
   enrollStudents,
   clearBrigade,
   getAvailableStudents,
   getAvailableTeachers,
   removeStudentFromBrigade,
-  removeTeacherFromBrigade,
 }

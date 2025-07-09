@@ -1,76 +1,102 @@
 import { db } from "../db/connection.database.js"
 
 export class DashboardModel {
-  // Obtener resumen general del dashboard
+  // Obtener resumen completo del dashboard
   static async getDashboardSummary() {
     try {
-      console.log("📊 Obteniendo resumen del dashboard...")
+      console.log("📊 Obteniendo resumen completo del dashboard...")
 
-      // Consultas paralelas para obtener estadísticas
-      const [totalStudentsResult, activeStudentsResult, totalTeachersResult, totalSectionsResult, totalBrigadesResult] =
-        await Promise.all([
-          db.query("SELECT COUNT(*) as total FROM student"),
-          db.query("SELECT COUNT(*) as total FROM student WHERE status_id = 1"),
-          db.query('SELECT COUNT(*) as total FROM personal WHERE "idRole" = 1'),
-          db.query("SELECT COUNT(*) as total FROM section"),
-          db.query("SELECT COUNT(*) as total FROM brigade"),
-        ])
+      const [
+        generalStats,
+        gradeDistribution,
+        academicPerformance,
+        attendanceStats,
+        brigadeStats,
+        staffByRole,
+        studentsByStatus,
+        enrollmentStats,
+        monthlyTrends,
+      ] = await Promise.all([
+        this.getGeneralStats(),
+        this.getStudentDistributionByGrade(),
+        this.getAcademicPerformanceBySubject(),
+        this.getAttendanceStats(),
+        this.getBrigadeStats(),
+        this.getStaffByRole(),
+        this.getStudentsByStatus(),
+        this.getEnrollmentStats(),
+        this.getMonthlyAttendance(),
+      ])
 
-      // Calcular tasa de asistencia promedio
-      const attendanceResult = await db.query(`
-        SELECT 
-          ROUND(
-            (COUNT(CASE WHEN ad.assistant = true THEN 1 END) * 100.0 / 
-             NULLIF(COUNT(*), 0)), 2
-          ) as attendance_rate
-        FROM "attendanceDetails" ad
-        JOIN attendance a ON ad."attendanceID" = a.id
-        WHERE a.date_a >= CURRENT_DATE - INTERVAL '30 days'
-      `)
-
-      // Calcular rendimiento académico promedio
-      const performanceResult = await db.query(`
-        SELECT ROUND(AVG(notes), 2) as avg_performance
-        FROM notes
-        WHERE period = 'Primer Lapso'
-      `)
-
-      const summary = {
-        totalStudents: Number.parseInt(totalStudentsResult.rows[0].total),
-        activeStudents: Number.parseInt(activeStudentsResult.rows[0].total),
-        totalTeachers: Number.parseInt(totalTeachersResult.rows[0].total),
-        totalSections: Number.parseInt(totalSectionsResult.rows[0].total),
-        totalBrigades: Number.parseInt(totalBrigadesResult.rows[0].total),
-        attendanceRate: Number.parseFloat(attendanceResult.rows[0]?.attendance_rate || 0),
-        academicPerformance: Number.parseFloat(performanceResult.rows[0]?.avg_performance || 0),
+      return {
+        generalStats,
+        gradeDistribution,
+        academicPerformance,
+        attendanceStats,
+        brigadeStats,
+        staffByRole,
+        studentsByStatus,
+        enrollmentStats,
+        monthlyTrends,
         lastUpdated: new Date().toISOString(),
       }
-
-      return summary
     } catch (error) {
       console.error("❌ Error en getDashboardSummary:", error)
       throw error
     }
   }
 
-  // Obtener distribución de estudiantes por grado
-  static async getStudentDistributionByGrade() {
+  // Estadísticas generales mejoradas
+  static async getGeneralStats() {
     try {
-      console.log("📈 Obteniendo distribución por grado...")
-
       const result = await db.query(`
         SELECT 
-          g.name as grade,
-          COUNT(e."studentID") as count,
-          ROUND(
-            (COUNT(e."studentID") * 100.0 / 
-             (SELECT COUNT(*) FROM enrollment WHERE "registrationDate" >= '2024-09-01')
-            ), 1
-          ) as percentage
+          -- Estudiantes
+          (SELECT COUNT(*) FROM student WHERE status_id = 1) as total_students_active,
+          (SELECT COUNT(*) FROM student) as total_students,
+          (SELECT COUNT(*) FROM student WHERE sex = 'Masculino' AND status_id = 1) as male_students,
+          (SELECT COUNT(*) FROM student WHERE sex = 'Femenino' AND status_id = 1) as female_students,
+          
+          -- Personal
+          (SELECT COUNT(*) FROM personal WHERE "idRole" = 1) as total_teachers,
+          (SELECT COUNT(*) FROM personal) as total_staff,
+          
+          -- Estructura académica
+          (SELECT COUNT(*) FROM section) as total_sections,
+          (SELECT COUNT(*) FROM grade) as total_grades,
+          (SELECT COUNT(*) FROM brigade) as total_brigades,
+          
+          -- Matrículas
+          (SELECT COUNT(*) FROM enrollment WHERE repeater = true AND "registrationDate" >= '2024-09-01') as repeating_students,
+          (SELECT COUNT(*) FROM enrollment WHERE repeater = false AND "registrationDate" >= '2024-09-01') as new_students,
+          
+          -- Representantes
+          (SELECT COUNT(DISTINCT "representativeID") FROM student WHERE status_id = 1) as total_representatives
+      `)
+
+      return result.rows[0]
+    } catch (error) {
+      console.error("❌ Error en getGeneralStats:", error)
+      throw error
+    }
+  }
+
+  // Distribución por grado con detalles
+  static async getStudentDistributionByGrade() {
+    try {
+      const result = await db.query(`
+        SELECT 
+          g.name as grade_name,
+          COUNT(e."studentID") as student_count,
+          COUNT(CASE WHEN s.sex = 'Masculino' THEN 1 END) as male_count,
+          COUNT(CASE WHEN s.sex = 'Femenino' THEN 1 END) as female_count,
+          COUNT(CASE WHEN e.repeater = true THEN 1 END) as repeater_count,
+          COUNT(DISTINCT sec.id) as section_count,
+          ROUND(AVG(EXTRACT(YEAR FROM AGE(s.birthday))), 1) as average_age
         FROM grade g
-        LEFT JOIN section s ON g.id = s."gradeID"
-        LEFT JOIN enrollment e ON s.id = e."sectionID"
-        WHERE e."registrationDate" >= '2024-09-01'
+        LEFT JOIN section sec ON g.id = sec."gradeID"
+        LEFT JOIN enrollment e ON sec.id = e."sectionID" AND e."registrationDate" >= '2024-09-01'
+        LEFT JOIN student s ON e."studentID" = s.id AND s.status_id = 1
         GROUP BY g.id, g.name
         ORDER BY g.id
       `)
@@ -82,20 +108,23 @@ export class DashboardModel {
     }
   }
 
-  // Obtener rendimiento académico por materia
+  // Rendimiento académico por materia
   static async getAcademicPerformanceBySubject() {
     try {
-      console.log("📚 Obteniendo rendimiento académico...")
-
       const result = await db.query(`
         SELECT 
-          subject,
-          ROUND(AVG(notes), 2) as average,
-          COUNT(*) as students
-        FROM notes
-        WHERE period = 'Primer Lapso'
-        GROUP BY subject
-        ORDER BY average DESC
+          n.subject,
+          COUNT(*) as total_notes,
+          ROUND(AVG(n.notes), 2) as average_grade,
+          COUNT(CASE WHEN n.notes >= 10 THEN 1 END) as passing_grades,
+          COUNT(CASE WHEN n.notes < 10 THEN 1 END) as failing_grades,
+          MAX(n.notes) as highest_grade,
+          MIN(n.notes) as lowest_grade
+        FROM notes n
+        JOIN enrollment e ON n."enrollmentID" = e.id
+        WHERE n.period = 'Primer Lapso' AND e."registrationDate" >= '2024-09-01'
+        GROUP BY n.subject
+        ORDER BY average_grade DESC
       `)
 
       return result.rows
@@ -105,19 +134,79 @@ export class DashboardModel {
     }
   }
 
-  // Obtener personal por rol
-  static async getStaffByRole() {
+  // Estadísticas de asistencia detalladas
+  static async getAttendanceStats() {
     try {
-      console.log("👥 Obteniendo personal por rol...")
-
       const result = await db.query(`
         SELECT 
-          r.name as role,
-          COUNT(p.id) as count
+          a.date_a,
+          g.name as grade_name,
+          sec.seccion,
+          COUNT(ad."studentID") as total_registered,
+          COUNT(CASE WHEN ad.assistant = true THEN 1 END) as present_students,
+          COUNT(CASE WHEN ad.assistant = false THEN 1 END) as absent_students,
+          ROUND(
+            (COUNT(CASE WHEN ad.assistant = true THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(ad."studentID"), 0)), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN section sec ON a."sectionID" = sec.id
+        JOIN grade g ON sec."gradeID" = g.id
+        JOIN "attendanceDetails" ad ON a.id = ad."attendanceID"
+        WHERE a.date_a >= CURRENT_DATE - INTERVAL '30 days'
+        GROUP BY a.id, a.date_a, g.name, sec.seccion, g.id
+        ORDER BY a.date_a DESC, g.id, sec.seccion
+        LIMIT 20
+      `)
+
+      return result.rows
+    } catch (error) {
+      console.error("❌ Error en getAttendanceStats:", error)
+      throw error
+    }
+  }
+
+  // Estadísticas de brigadas con docentes
+  static async getBrigadeStats() {
+    try {
+      const result = await db.query(`
+        SELECT 
+          b.name as brigade_name,
+          COUNT(sb."studentID") as student_count,
+          p.name as teacher_name,
+          p."lastName" as teacher_lastName,
+          btd."dateI" as assignment_date,
+          COUNT(CASE WHEN s.sex = 'Masculino' THEN 1 END) as male_students,
+          COUNT(CASE WHEN s.sex = 'Femenino' THEN 1 END) as female_students
+        FROM brigade b
+        LEFT JOIN "studentBrigade" sb ON b.id = sb."brigadeID"
+        LEFT JOIN student s ON sb."studentID" = s.id AND s.status_id = 1
+        LEFT JOIN "brigadeTeacherDate" btd ON b.id = btd."brigadeID"
+        LEFT JOIN personal p ON btd."personalID" = p.id
+        GROUP BY b.id, b.name, p.name, p."lastName", btd."dateI"
+        ORDER BY student_count DESC
+      `)
+
+      return result.rows
+    } catch (error) {
+      console.error("❌ Error en getBrigadeStats:", error)
+      throw error
+    }
+  }
+
+  // Personal por rol
+  static async getStaffByRole() {
+    try {
+      const result = await db.query(`
+        SELECT 
+          r.name as role_name,
+          r.description as role_description,
+          COUNT(p.id) as staff_count,
+          ROUND(AVG(EXTRACT(YEAR FROM AGE(p.birthday))), 1) as average_age
         FROM rol r
         LEFT JOIN personal p ON r.id = p."idRole"
-        GROUP BY r.id, r.name
-        ORDER BY count DESC
+        GROUP BY r.id, r.name, r.description
+        ORDER BY staff_count DESC
       `)
 
       return result.rows
@@ -127,19 +216,19 @@ export class DashboardModel {
     }
   }
 
-  // Obtener estudiantes por estado
+  // Estudiantes por estado
   static async getStudentsByStatus() {
     try {
-      console.log("📊 Obteniendo estudiantes por estado...")
-
       const result = await db.query(`
         SELECT 
-          ss.descripcion as status,
-          COUNT(s.id) as count
+          ss.descripcion as status_description,
+          COUNT(s.id) as student_count,
+          COUNT(CASE WHEN s.sex = 'Masculino' THEN 1 END) as male_count,
+          COUNT(CASE WHEN s.sex = 'Femenino' THEN 1 END) as female_count
         FROM status_student ss
         LEFT JOIN student s ON ss.id = s.status_id
         GROUP BY ss.id, ss.descripcion
-        ORDER BY count DESC
+        ORDER BY student_count DESC
       `)
 
       return result.rows
@@ -149,227 +238,120 @@ export class DashboardModel {
     }
   }
 
-  // Obtener estadísticas de brigadas
-  static async getBrigadeStats() {
-    try {
-      console.log("🏆 Obteniendo estadísticas de brigadas...")
-
-      const [totalResult, distributionResult] = await Promise.all([
-        db.query(`
-          SELECT 
-            COUNT(DISTINCT b.id) as total,
-            COUNT(DISTINCT sb."studentID") as students_enrolled,
-            ROUND(AVG(student_count.count), 0) as average_size
-          FROM brigade b
-          LEFT JOIN "studentBrigade" sb ON b.id = sb."brigadeID"
-          LEFT JOIN (
-            SELECT "brigadeID", COUNT(*) as count
-            FROM "studentBrigade"
-            GROUP BY "brigadeID"
-          ) student_count ON b.id = student_count."brigadeID"
-        `),
-        db.query(`
-          SELECT 
-            b.name,
-            COUNT(sb."studentID") as students
-          FROM brigade b
-          LEFT JOIN "studentBrigade" sb ON b.id = sb."brigadeID"
-          GROUP BY b.id, b.name
-          ORDER BY students DESC
-        `),
-      ])
-
-      const stats = totalResult.rows[0]
-      const distribution = distributionResult.rows
-
-      return {
-        total: Number.parseInt(stats.total),
-        active: Number.parseInt(stats.total), // Asumimos que todas están activas
-        studentsEnrolled: Number.parseInt(stats.students_enrolled || 0),
-        averageSize: Number.parseInt(stats.average_size || 0),
-        distribution: distribution,
-      }
-    } catch (error) {
-      console.error("❌ Error en getBrigadeStats:", error)
-      throw error
-    }
-  }
-
-  // Obtener estadísticas de asistencia
-  static async getAttendanceStats() {
-    try {
-      console.log("📅 Obteniendo estadísticas de asistencia...")
-
-      const [overallResult, byGradeResult, trendResult] = await Promise.all([
-        db.query(`
-          SELECT 
-            ROUND(
-              (COUNT(CASE WHEN ad.assistant = true THEN 1 END) * 100.0 / 
-               NULLIF(COUNT(*), 0)), 2
-            ) as overall_rate
-          FROM "attendanceDetails" ad
-          JOIN attendance a ON ad."attendanceID" = a.id
-          WHERE a.date_a >= CURRENT_DATE - INTERVAL '30 days'
-        `),
-        db.query(`
-          SELECT 
-            g.name as grade,
-            ROUND(
-              (COUNT(CASE WHEN ad.assistant = true THEN 1 END) * 100.0 / 
-               NULLIF(COUNT(*), 0)), 2
-            ) as rate
-          FROM grade g
-          JOIN section s ON g.id = s."gradeID"
-          JOIN enrollment e ON s.id = e."sectionID"
-          JOIN student st ON e."studentID" = st.id
-          JOIN "attendanceDetails" ad ON st.id = ad."studentID"
-          JOIN attendance a ON ad."attendanceID" = a.id
-          WHERE a.date_a >= CURRENT_DATE - INTERVAL '30 days'
-          GROUP BY g.id, g.name
-          ORDER BY g.id
-        `),
-        db.query(`
-          SELECT 
-            TO_CHAR(a.date_a, 'Month') as month,
-            ROUND(
-              (COUNT(CASE WHEN ad.assistant = true THEN 1 END) * 100.0 / 
-               NULLIF(COUNT(*), 0)), 2
-            ) as rate
-          FROM attendance a
-          JOIN "attendanceDetails" ad ON a.id = ad."attendanceID"
-          WHERE a.date_a >= CURRENT_DATE - INTERVAL '90 days'
-          GROUP BY TO_CHAR(a.date_a, 'Month'), EXTRACT(MONTH FROM a.date_a)
-          ORDER BY EXTRACT(MONTH FROM a.date_a)
-        `),
-      ])
-
-      return {
-        overall: Number.parseFloat(overallResult.rows[0]?.overall_rate || 0),
-        byGrade: byGradeResult.rows,
-        trend: trendResult.rows,
-      }
-    } catch (error) {
-      console.error("❌ Error en getAttendanceStats:", error)
-      throw error
-    }
-  }
-
-  // Obtener estadísticas generales
-  static async getGeneralStats() {
-    try {
-      console.log("📈 Obteniendo estadísticas generales...")
-
-      const [enrollmentResult, monthlyResult] = await Promise.all([
-        db.query(`
-          SELECT COUNT(*) as total_enrollment
-          FROM enrollment
-          WHERE "registrationDate" >= '2024-09-01'
-        `),
-        db.query(`
-          SELECT 
-            COUNT(CASE WHEN "registrationDate" >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as new_enrollments,
-            COUNT(CASE WHEN repeater = false THEN 1 END) as new_students
-          FROM enrollment
-          WHERE "registrationDate" >= '2024-09-01'
-        `),
-      ])
-
-      return {
-        totalEnrollment: Number.parseInt(enrollmentResult.rows[0].total_enrollment),
-        currentMonth: {
-          newEnrollments: Number.parseInt(monthlyResult.rows[0].new_enrollments),
-          newStudents: Number.parseInt(monthlyResult.rows[0].new_students),
-        },
-        academicYear: "2024-2025",
-        currentPeriod: "Primer Período",
-      }
-    } catch (error) {
-      console.error("❌ Error en getGeneralStats:", error)
-      throw error
-    }
-  }
-
-  // Obtener estadísticas de matrícula
+  // Estadísticas de matrícula por grado y sección
   static async getEnrollmentStats() {
     try {
-      console.log("📝 Obteniendo estadísticas de matrícula...")
-
       const result = await db.query(`
         SELECT 
-          COUNT(*) as total,
-          COUNT(CASE WHEN repeater = false THEN 1 END) as new_this_year,
-          COUNT(CASE WHEN repeater = true THEN 1 END) as renewals,
-          EXTRACT(MONTH FROM "registrationDate") as month,
-          COUNT(*) as monthly_enrollments
-        FROM enrollment
-        WHERE "registrationDate" >= '2024-09-01'
-        GROUP BY EXTRACT(MONTH FROM "registrationDate")
-        ORDER BY month
+          g.name as grade_name,
+          sec.seccion as section_name,
+          COUNT(e."studentID") as total_enrolled,
+          COUNT(CASE WHEN e.repeater = true THEN 1 END) as repeaters,
+          COUNT(CASE WHEN e.repeater = false THEN 1 END) as new_students,
+          p.name as teacher_name,
+          p."lastName" as teacher_lastName,
+          e."registrationDate"
+        FROM enrollment e
+        JOIN section sec ON e."sectionID" = sec.id
+        JOIN grade g ON sec."gradeID" = g.id
+        LEFT JOIN personal p ON sec."teacherCI" = p.id
+        WHERE e."registrationDate" >= '2024-09-01'
+        GROUP BY g.id, g.name, sec.id, sec.seccion, p.name, p."lastName", e."registrationDate"
+        ORDER BY g.id, sec.seccion
       `)
 
-      const totalStats = await db.query(`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(CASE WHEN repeater = false THEN 1 END) as new_this_year,
-          COUNT(CASE WHEN repeater = true THEN 1 END) as renewals
-        FROM enrollment
-        WHERE "registrationDate" >= '2024-09-01'
-      `)
-
-      const monthNames = [
-        "Enero",
-        "Febrero",
-        "Marzo",
-        "Abril",
-        "Mayo",
-        "Junio",
-        "Julio",
-        "Agosto",
-        "Septiembre",
-        "Octubre",
-        "Noviembre",
-        "Diciembre",
-      ]
-
-      return {
-        total: Number.parseInt(totalStats.rows[0].total),
-        newThisYear: Number.parseInt(totalStats.rows[0].new_this_year),
-        renewals: Number.parseInt(totalStats.rows[0].renewals),
-        byMonth: result.rows.map((row) => ({
-          month: monthNames[row.month - 1],
-          enrollments: Number.parseInt(row.monthly_enrollments),
-        })),
-      }
+      return result.rows
     } catch (error) {
       console.error("❌ Error en getEnrollmentStats:", error)
       throw error
     }
   }
 
-  // Obtener asistencia mensual
+  // Tendencias mensuales de asistencia
   static async getMonthlyAttendance() {
     try {
-      console.log("📊 Obteniendo asistencia mensual...")
-
       const result = await db.query(`
         SELECT 
-          TO_CHAR(a.date_a, 'Month') as month,
+          TO_CHAR(a.date_a, 'YYYY-MM') as month,
+          TO_CHAR(a.date_a, 'Month') as month_name,
           COUNT(CASE WHEN ad.assistant = true THEN 1 END) as present,
           COUNT(CASE WHEN ad.assistant = false THEN 1 END) as absent,
+          COUNT(ad."studentID") as total,
           ROUND(
             (COUNT(CASE WHEN ad.assistant = true THEN 1 END) * 100.0 / 
-             NULLIF(COUNT(*), 0)), 2
-          ) as rate
+             NULLIF(COUNT(ad."studentID"), 0)), 2
+          ) as attendance_rate
         FROM attendance a
         JOIN "attendanceDetails" ad ON a.id = ad."attendanceID"
-        WHERE a.date_a >= CURRENT_DATE - INTERVAL '90 days'
-        GROUP BY TO_CHAR(a.date_a, 'Month'), EXTRACT(MONTH FROM a.date_a)
-        ORDER BY EXTRACT(MONTH FROM a.date_a)
+        WHERE a.date_a >= CURRENT_DATE - INTERVAL '6 months'
+        GROUP BY TO_CHAR(a.date_a, 'YYYY-MM'), TO_CHAR(a.date_a, 'Month'), EXTRACT(MONTH FROM a.date_a)
+        ORDER BY TO_CHAR(a.date_a, 'YYYY-MM')
       `)
 
       return result.rows
     } catch (error) {
       console.error("❌ Error en getMonthlyAttendance:", error)
+      throw error
+    }
+  }
+
+  // Obtener secciones disponibles para asistencia
+  static async getAvailableSections() {
+    try {
+      const result = await db.query(`
+        SELECT 
+          sec.id,
+          g.name as grade_name,
+          sec.seccion,
+          p.name as teacher_name,
+          p."lastName" as teacher_lastName,
+          COUNT(e."studentID") as student_count
+        FROM section sec
+        JOIN grade g ON sec."gradeID" = g.id
+        LEFT JOIN personal p ON sec."teacherCI" = p.id
+        LEFT JOIN enrollment e ON sec.id = e."sectionID" AND e."registrationDate" >= '2024-09-01'
+        GROUP BY sec.id, g.name, sec.seccion, p.name, p."lastName", g.id
+        ORDER BY g.id, sec.seccion
+      `)
+
+      return result.rows
+    } catch (error) {
+      console.error("❌ Error en getAvailableSections:", error)
+      throw error
+    }
+  }
+
+  // Guardar asistencia
+  static async saveAttendance(attendanceData) {
+    try {
+      const { sectionId, date, observations, students } = attendanceData
+
+      // Insertar registro de asistencia
+      const attendanceResult = await db.query({
+        text: `INSERT INTO attendance (date_a, "sectionID", observaciones, created_at, updated_at) 
+               VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id`,
+        values: [date, sectionId, observations],
+      })
+
+      const attendanceId = attendanceResult.rows[0].id
+
+      // Insertar detalles de asistencia para cada estudiante
+      if (students && students.length > 0) {
+        for (const student of students) {
+          await db.query({
+            text: `INSERT INTO "attendanceDetails" ("attendanceID", "studentID", assistant) 
+                   VALUES ($1, $2, $3)`,
+            values: [attendanceId, student.studentId, student.present],
+          })
+        }
+      }
+
+      return {
+        attendanceId,
+        studentsProcessed: students?.length || 0,
+      }
+    } catch (error) {
+      console.error("❌ Error en saveAttendance:", error)
       throw error
     }
   }
