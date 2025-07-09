@@ -128,34 +128,132 @@ const getDashboardSummary = async (req, res) => {
   }
 }
 
-// Registrar asistencia diaria
-const saveAttendance = async (req, res) => {
+// Obtener datos para gráficas
+const getDashboardCharts = async (req, res) => {
   try {
-    const { sectionId, date, attendanceData, observations } = req.body
+    const summary = await DashboardModel.getDashboardSummary()
 
-    if (!sectionId || !date || !attendanceData) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Datos de asistencia incompletos",
-      })
+    // Formatear datos para gráficas
+    const chartData = {
+      studentDistribution: formatStudentDistributionChart(summary.gradeDistribution),
+      monthlyAttendance: formatMonthlyAttendanceChart(summary.monthlyAttendance),
+      extracurricular: formatExtracurricularChart(summary.extracurricular),
+      academicPerformance: formatAcademicPerformanceChart(summary.academicPerformanceByGrade),
     }
-
-    // Aquí implementarías la lógica para guardar en la base de datos
-    console.log("Datos de asistencia recibidos:", {
-      sectionId,
-      date,
-      attendanceData,
-      observations,
-    })
 
     res.json({
       ok: true,
-      msg: "Asistencia registrada exitosamente",
-      data: { sectionId, date, attendanceData, observations },
+      data: chartData,
     })
   } catch (error) {
     handleError(error, res)
   }
+}
+
+// Registrar asistencia semanal
+const saveWeeklyAttendance = async (req, res) => {
+  try {
+    const { attendanceData } = req.body
+
+    if (!attendanceData) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Datos de asistencia requeridos",
+      })
+    }
+
+    // Aquí implementarías la lógica para guardar en la base de datos
+    console.log("Datos de asistencia recibidos:", attendanceData)
+
+    res.json({
+      ok: true,
+      msg: "Asistencia registrada exitosamente",
+      data: { attendanceData },
+    })
+  } catch (error) {
+    handleError(error, res)
+  }
+}
+
+// Funciones auxiliares para formatear datos de gráficas
+const formatStudentDistributionChart = (distribution) => {
+  const labels = distribution.map((item) => item.grade_name)
+  const data = distribution.map((item) => Number.parseInt(item.student_count) || 0)
+
+  return {
+    labels,
+    datasets: [
+      {
+        data,
+        backgroundColor: [
+          "#FF6384",
+          "#36A2EB",
+          "#FFCE56",
+          "#4BC0C0",
+          "#9966FF",
+          "#FF9F40",
+          "#FF6384",
+          "#C9CBCF",
+          "#4BC0C0",
+        ],
+        hoverBackgroundColor: [
+          "#FF6384",
+          "#36A2EB",
+          "#FFCE56",
+          "#4BC0C0",
+          "#9966FF",
+          "#FF9F40",
+          "#FF6384",
+          "#C9CBCF",
+          "#4BC0C0",
+        ],
+      },
+    ],
+  }
+}
+
+const formatMonthlyAttendanceChart = (attendance) => {
+  const labels = attendance.map((item) => item.month.trim().substring(0, 3))
+  const data = attendance.map((item) => Number.parseFloat(item.percentage) || 0)
+
+  return {
+    labels,
+    datasets: [
+      {
+        label: "Asistencia (%)",
+        backgroundColor: "rgba(54, 162, 235, 0.2)",
+        borderColor: "rgba(54, 162, 235, 1)",
+        pointBackgroundColor: "rgba(54, 162, 235, 1)",
+        pointBorderColor: "#fff",
+        data,
+      },
+    ],
+  }
+}
+
+const formatExtracurricularChart = (activities) => {
+  const labels = activities.map((item) => item.name)
+  const data = activities.map((item) => Number.parseInt(item.participants) || 0)
+
+  return {
+    labels,
+    datasets: [
+      {
+        label: "Participación de estudiantes",
+        backgroundColor: "#4BC0C0",
+        data,
+      },
+    ],
+  }
+}
+
+const formatAcademicPerformanceChart = (performance) => {
+  return performance.map((item) => ({
+    title: item.grade_name,
+    percent: Number.parseFloat(item.avg_performance) || 0,
+    value: `${item.avg_performance}/20`,
+    students: Number.parseInt(item.total_students) || 0,
+  }))
 }
 
 export const DashboardController = {
@@ -168,5 +266,6 @@ export const DashboardController = {
   getStudentsByStatus,
   getEnrollmentStats,
   getDashboardSummary,
-  saveAttendance,
+  getDashboardCharts,
+  saveWeeklyAttendance,
 }

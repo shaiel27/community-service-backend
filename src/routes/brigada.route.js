@@ -1,12 +1,11 @@
 import { Router } from "express"
 import { BrigadaController } from "../controllers/brigada.controller.js"
-import { verifyToken, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
+import { jwtMiddleware } from "../middlewares/jwt.middleware.js"
 
 const router = Router()
 
 // Aplicar middleware de autenticación a todas las rutas
-router.use(verifyToken)
-router.use(verifyAdminOrReadOnly)
+router.use(jwtMiddleware)
 
 // Rutas principales de brigadas
 router.get("/", BrigadaController.getAllBrigades)
@@ -16,9 +15,11 @@ router.post("/", BrigadaController.createBrigade)
 router.put("/:id", BrigadaController.updateBrigade)
 router.delete("/:id", BrigadaController.deleteBrigade)
 
-// Rutas para gestión de estudiantes y docentes
-router.get("/:id/students", BrigadaController.getBrigadeStudents)
+// Rutas para gestión de docentes
 router.post("/:id/assign-teacher", BrigadaController.assignTeacher)
+
+// Rutas para gestión de estudiantes
+router.get("/:id/students", BrigadaController.getBrigadeStudents)
 router.post("/:id/enroll-students", BrigadaController.enrollStudents)
 router.post("/:id/clear", BrigadaController.clearBrigade)
 

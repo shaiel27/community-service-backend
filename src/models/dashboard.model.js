@@ -117,21 +117,21 @@ const getAttendanceStats = async () => {
   }
 }
 
-// Obtener estadísticas de brigadas
+// Obtener estadísticas de brigadas (actualizado para nueva estructura)
 const getBrigadeStats = async () => {
   try {
     const query = {
       text: `
         SELECT 
           b."name" as brigade_name,
-          COUNT(s."id") as student_count,
+          COUNT(sb."studentID") as student_count,
           p."name" as teacher_name,
           p."lastName" as teacher_lastName,
           btd."dateI" as start_date
         FROM "brigade" b
         LEFT JOIN "brigadeTeacherDate" btd ON b."id" = btd."brigadeID"
         LEFT JOIN "personal" p ON btd."personalID" = p."id"
-        LEFT JOIN "student" s ON s."brigadeTeacherDateID" = btd."id"
+        LEFT JOIN "studentBrigade" sb ON b."id" = sb."brigadeID"
         GROUP BY b."id", b."name", p."name", p."lastName", btd."dateI"
         ORDER BY student_count DESC
       `,
@@ -222,6 +222,87 @@ const getEnrollmentStats = async () => {
   }
 }
 
+// Obtener datos para gráficas mensuales de asistencia
+const getMonthlyAttendance = async () => {
+  try {
+    const query = {
+      text: `
+        SELECT 
+          TO_CHAR(a."date_a", 'Month') as month,
+          ROUND(AVG(
+            CASE 
+              WHEN COUNT(ad."studentID") > 0 THEN
+                (COUNT(CASE WHEN ad."assistant" = true THEN 1 END) * 100.0 / COUNT(ad."studentID"))
+              ELSE 0 
+            END
+          ), 2) as percentage
+        FROM "attendance" a
+        LEFT JOIN "attendanceDetails" ad ON a."id" = ad."attendanceID"
+        WHERE a."date_a" >= CURRENT_DATE - INTERVAL '6 months'
+        GROUP BY TO_CHAR(a."date_a", 'Month'), EXTRACT(MONTH FROM a."date_a")
+        ORDER BY EXTRACT(MONTH FROM a."date_a")
+      `,
+    }
+
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in getMonthlyAttendance:", error)
+    throw error
+  }
+}
+
+// Obtener actividades extracurriculares (simulado con brigadas)
+const getExtracurricularActivities = async () => {
+  try {
+    const query = {
+      text: `
+        SELECT 
+          b."name",
+          COUNT(sb."studentID") as participants
+        FROM "brigade" b
+        LEFT JOIN "studentBrigade" sb ON b."id" = sb."brigadeID"
+        GROUP BY b."id", b."name"
+        ORDER BY participants DESC
+        LIMIT 5
+      `,
+    }
+
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in getExtracurricularActivities:", error)
+    throw error
+  }
+}
+
+// Obtener rendimiento académico por grado
+const getAcademicPerformanceByGrade = async () => {
+  try {
+    const query = {
+      text: `
+        SELECT 
+          g."name" as grade_name,
+          ROUND(AVG(n."notes"), 2) as avg_performance,
+          COUNT(DISTINCT e."studentID") as total_students
+        FROM "grade" g
+        LEFT JOIN "section" sec ON g."id" = sec."gradeID"
+        LEFT JOIN "enrollment" e ON sec."id" = e."sectionID"
+        LEFT JOIN "notes" n ON e."id" = n."enrollmentID"
+        GROUP BY g."id", g."name"
+        HAVING COUNT(n."id") > 0
+        ORDER BY g."name"
+      `,
+    }
+
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in getAcademicPerformanceByGrade:", error)
+    throw error
+  }
+}
+
 // Obtener resumen completo del dashboard
 const getDashboardSummary = async () => {
   try {
@@ -234,6 +315,9 @@ const getDashboardSummary = async () => {
       staffByRole,
       studentsByStatus,
       enrollmentStats,
+      monthlyAttendance,
+      extracurricular,
+      academicPerformanceByGrade,
     ] = await Promise.all([
       getGeneralStats(),
       getStudentDistributionByGrade(),
@@ -243,6 +327,9 @@ const getDashboardSummary = async () => {
       getStaffByRole(),
       getStudentsByStatus(),
       getEnrollmentStats(),
+      getMonthlyAttendance(),
+      getExtracurricularActivities(),
+      getAcademicPerformanceByGrade(),
     ])
 
     return {
@@ -254,6 +341,9 @@ const getDashboardSummary = async () => {
       staffByRole,
       studentsByStatus,
       enrollmentStats,
+      monthlyAttendance,
+      extracurricular,
+      academicPerformanceByGrade,
     }
   } catch (error) {
     console.error("Error in getDashboardSummary:", error)
@@ -270,5 +360,8 @@ export const DashboardModel = {
   getStaffByRole,
   getStudentsByStatus,
   getEnrollmentStats,
+  getMonthlyAttendance,
+  getExtracurricularActivities,
+  getAcademicPerformanceByGrade,
   getDashboardSummary,
 }

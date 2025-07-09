@@ -85,42 +85,6 @@ class BrigadaService {
     return brigades.map(this.formatBrigadeData)
   }
 
-  // Verificar disponibilidad de estudiantes
-  static async verifyStudentAvailability(studentIds) {
-    try {
-      const availableStudents = await BrigadaModel.getAvailableStudents()
-      const availableIds = availableStudents.map((s) => s.id)
-
-      const unavailableStudents = studentIds.filter((id) => !availableIds.includes(Number.parseInt(id)))
-
-      if (unavailableStudents.length > 0) {
-        throw new Error(`Los siguientes estudiantes no están disponibles: ${unavailableStudents.join(", ")}`)
-      }
-
-      return true
-    } catch (error) {
-      console.error("Error verificando disponibilidad de estudiantes:", error)
-      throw error
-    }
-  }
-
-  // Verificar disponibilidad de docente
-  static async verifyTeacherAvailability(personalId) {
-    try {
-      const availableTeachers = await BrigadaModel.getAvailableTeachers()
-      const isAvailable = availableTeachers.some((t) => t.id === Number.parseInt(personalId))
-
-      if (!isAvailable) {
-        throw new Error("El docente seleccionado no está disponible")
-      }
-
-      return true
-    } catch (error) {
-      console.error("Error verificando disponibilidad de docente:", error)
-      throw error
-    }
-  }
-
   // Obtener estadísticas de brigada
   static async getBrigadeStatistics(brigadeId) {
     try {
