@@ -1,11 +1,12 @@
 import { Router } from "express"
 import { BrigadaController } from "../controllers/brigada.controller.js"
-import { jwtMiddleware } from "../middlewares/jwt.middleware.js"
+import { verifyToken, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
 
 const router = Router()
 
 // Aplicar middleware de autenticación a todas las rutas
-router.use(jwtMiddleware)
+router.use(verifyToken)
+router.use(verifyAdminOrReadOnly)
 
 // Rutas principales de brigadas
 router.get("/", BrigadaController.getAllBrigades)

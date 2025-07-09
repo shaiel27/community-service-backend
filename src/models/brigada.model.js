@@ -22,13 +22,13 @@ const findAll = async () => {
     const query = {
       text: `
         SELECT 
-          b.id,
-          b.name,
-          p.name as encargado_name,
-          p."lastName" as encargado_lastName,
-          p.ci as encargado_ci,
-          btd."dateI" as fecha_inicio,
-          COUNT(sb."studentID") as studentCount
+          b."id",
+          b."name",
+          p.name as "encargado_name",
+          p."lastName" as "encargado_lastName",
+          p.ci as "encargado_ci",
+          btd."dateI" as "fecha_inicio",
+          COUNT(sb."studentID") as "studentCount"
         FROM "brigade" b
         LEFT JOIN "brigadeTeacherDate" btd ON b.id = btd."brigadeID"
         LEFT JOIN "personal" p ON btd."personalID" = p.id
@@ -344,6 +344,31 @@ const removeStudentFromBrigade = async (brigadeId, studentId) => {
   }
 }
 
+const getStudentsInBrigade = async (brigadeId) => {
+  try {
+    const query = {
+      text: `
+        SELECT
+          s.id,
+          s.name as student_name,
+          s."lastName" as "student_lastName",
+          s.ci as student_ci,
+          s.birthday as "student_birthday"
+        FROM "studentBrigade" sb
+        JOIN "student" s ON sb."studentID" = s.id
+        WHERE sb."brigadeID" = $1
+        ORDER BY s.name, s."lastName"
+      `,
+      values: [brigadeId],
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in BrigadaModel.getStudentsInBrigade:", error)
+    throw error
+  }
+}
+
 export const BrigadaModel = {
   create,
   findAll,
@@ -358,4 +383,5 @@ export const BrigadaModel = {
   enrollStudents,
   clearBrigade,
   removeStudentFromBrigade,
+  getStudentsInBrigade
 }
