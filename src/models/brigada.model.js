@@ -27,16 +27,16 @@ const findAll = async () => {
   try {
     const query = {
       text: `SELECT b.*, 
-                p.name as encargado_name,
-                p."lastName" as encargado_lastName,
-                p.ci as encargado_ci,
-                COUNT(DISTINCT s.id) as studentCount -- Alias corregido a camelCase
+                p."name" as "encargado_name",
+                p."lastName" as "encargado_lastName",
+                p.ci as "encargado_ci",
+                COUNT(DISTINCT s.id) as "studentCount"
              FROM "brigade" b
-             LEFT JOIN "brigadeTeacherDate" bdf ON b.id = bdf."brigadeID" -- Eliminado AND bdf."endDate" IS NULL
+             LEFT JOIN "brigadeTeacherDate" bdf ON b.id = bdf."brigadeID"
              LEFT JOIN "personal" p ON bdf."personalID" = p.id
              LEFT JOIN "student" s ON s."brigadeTeacherDateID" = bdf.id 
              GROUP BY b.id, b.name, b.created_at, b.updated_at, 
-                      p.name, p."lastName", p.ci -- Eliminado bdf."startDate"
+                      p.name, p."lastName", p.ci
              ORDER BY b.name`,
     };
 
