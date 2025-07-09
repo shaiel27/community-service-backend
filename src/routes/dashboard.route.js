@@ -8,17 +8,18 @@ const router = Router()
 router.use(verifyToken)
 router.use(verifyAdminOrReadOnly)
 
-// Rutas del dashboard
+// Rutas del dashboard escolar
 router.get("/summary", DashboardController.getDashboardSummary)
 router.get("/stats/general", DashboardController.getGeneralStats)
 router.get("/stats/distribution", DashboardController.getStudentDistribution)
-router.get("/stats/attendance/monthly", DashboardController.getMonthlyAttendance)
-router.get("/stats/attendance/weekly", DashboardController.getWeeklyAttendance)
 router.get("/stats/academic-performance", DashboardController.getAcademicPerformance)
+router.get("/stats/attendance", DashboardController.getAttendanceStats)
 router.get("/stats/brigades", DashboardController.getBrigadeStats)
-router.get("/stats/extracurricular", DashboardController.getExtracurricularActivities)
+router.get("/stats/staff", DashboardController.getStaffByRole)
+router.get("/stats/student-status", DashboardController.getStudentsByStatus)
+router.get("/stats/enrollment", DashboardController.getEnrollmentStats)
 
-// Ruta para guardar asistencia
-router.post("/attendance/weekly", DashboardController.saveWeeklyAttendance)
+// Ruta para registrar asistencia
+router.post("/attendance", DashboardController.saveAttendance)
 
 export default router

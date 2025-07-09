@@ -37,26 +37,26 @@ const getStudentDistribution = async (req, res) => {
   }
 }
 
-// Obtener asistencia mensual
-const getMonthlyAttendance = async (req, res) => {
+// Obtener rendimiento académico por materia
+const getAcademicPerformance = async (req, res) => {
   try {
-    const attendance = await DashboardModel.getMonthlyAttendance()
+    const performance = await DashboardModel.getAcademicPerformanceBySubject()
     res.json({
       ok: true,
-      attendance,
+      performance,
     })
   } catch (error) {
     handleError(error, res)
   }
 }
 
-// Obtener rendimiento académico por grado
-const getAcademicPerformance = async (req, res) => {
+// Obtener estadísticas de asistencia
+const getAttendanceStats = async (req, res) => {
   try {
-    const performance = await DashboardModel.getAcademicPerformanceByGrade()
+    const attendance = await DashboardModel.getAttendanceStats()
     res.json({
       ok: true,
-      performance,
+      attendance,
     })
   } catch (error) {
     handleError(error, res)
@@ -76,26 +76,39 @@ const getBrigadeStats = async (req, res) => {
   }
 }
 
-// Obtener asistencia semanal por grado
-const getWeeklyAttendance = async (req, res) => {
+// Obtener personal por rol
+const getStaffByRole = async (req, res) => {
   try {
-    const weeklyAttendance = await DashboardModel.getWeeklyAttendanceByGrade()
+    const staffStats = await DashboardModel.getStaffByRole()
     res.json({
       ok: true,
-      weeklyAttendance,
+      staffStats,
     })
   } catch (error) {
     handleError(error, res)
   }
 }
 
-// Obtener actividades extracurriculares
-const getExtracurricularActivities = async (req, res) => {
+// Obtener estudiantes por estado
+const getStudentsByStatus = async (req, res) => {
   try {
-    const activities = await DashboardModel.getExtracurricularActivities()
+    const statusStats = await DashboardModel.getStudentsByStatus()
     res.json({
       ok: true,
-      activities,
+      statusStats,
+    })
+  } catch (error) {
+    handleError(error, res)
+  }
+}
+
+// Obtener estadísticas de matrícula
+const getEnrollmentStats = async (req, res) => {
+  try {
+    const enrollmentStats = await DashboardModel.getEnrollmentStats()
+    res.json({
+      ok: true,
+      enrollmentStats,
     })
   } catch (error) {
     handleError(error, res)
@@ -115,26 +128,30 @@ const getDashboardSummary = async (req, res) => {
   }
 }
 
-// Guardar asistencia semanal
-const saveWeeklyAttendance = async (req, res) => {
+// Registrar asistencia diaria
+const saveAttendance = async (req, res) => {
   try {
-    const { attendanceData } = req.body
+    const { sectionId, date, attendanceData, observations } = req.body
 
-    if (!attendanceData) {
+    if (!sectionId || !date || !attendanceData) {
       return res.status(400).json({
         ok: false,
-        msg: "Los datos de asistencia son requeridos",
+        msg: "Datos de asistencia incompletos",
       })
     }
 
-    // Aquí se implementaría la lógica para guardar en base de datos
-    // Por ahora solo simulamos la respuesta
-    console.log("Datos de asistencia recibidos:", attendanceData)
+    // Aquí implementarías la lógica para guardar en la base de datos
+    console.log("Datos de asistencia recibidos:", {
+      sectionId,
+      date,
+      attendanceData,
+      observations,
+    })
 
     res.json({
       ok: true,
-      msg: "Asistencia guardada exitosamente",
-      data: attendanceData,
+      msg: "Asistencia registrada exitosamente",
+      data: { sectionId, date, attendanceData, observations },
     })
   } catch (error) {
     handleError(error, res)
@@ -144,11 +161,12 @@ const saveWeeklyAttendance = async (req, res) => {
 export const DashboardController = {
   getGeneralStats,
   getStudentDistribution,
-  getMonthlyAttendance,
   getAcademicPerformance,
+  getAttendanceStats,
   getBrigadeStats,
-  getWeeklyAttendance,
-  getExtracurricularActivities,
+  getStaffByRole,
+  getStudentsByStatus,
+  getEnrollmentStats,
   getDashboardSummary,
-  saveWeeklyAttendance,
+  saveAttendance,
 }
