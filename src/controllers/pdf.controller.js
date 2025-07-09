@@ -1,12 +1,349 @@
-// src/controllers/pdf.controller.js
 import PDFDocument from "pdfkit"
-import { drawPageHeader } from "../utils/pdfGenerator.js"
-// Importamos los modelos necesarios
-import { MatriculaModel } from "../models/matricula.model.js"
 import { BrigadaModel } from "../models/brigada.model.js"
-import { PersonalModel } from '../models/personal.model.js'
+import { MatriculaModel } from "../models/matricula.model.js"
+import { PersonalModel } from "../models/personal.model.js"
+import { drawPageHeader } from "../utils/pdfGenerator.js"
 
-export const PdfController = {
+const PdfController = {
+  // Generar PDF con listado general de brigadas y docentes
+  generateBrigadeListPdf: async (req, res) => {
+    try {
+      console.log("📄 Generando PDF de listado de brigadas...")
+
+      const brigades = await BrigadaModel.findAll()
+
+      if (!brigades || brigades.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          msg: "No hay brigadas registradas para generar el reporte",
+        })
+      }
+
+      const doc = new PDFDocument({ margin: 50 })
+
+      // Headers para descarga
+      res.setHeader("Content-Type", "application/pdf")
+      res.setHeader("Content-Disposition", 'attachment; filename="listado_brigadas_docentes.pdf"')
+
+      doc.pipe(res)
+
+      // Cabecera del documento
+      drawPageHeader(doc, "LISTADO DE BRIGADAS Y DOCENTES ENCARGADOS")
+
+      doc.moveDown(2)
+      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`)
+      doc.text(`Total de brigadas: ${brigades.length}`)
+      doc.moveDown()
+
+      // Tabla de brigadas
+      let yPosition = doc.y
+      const tableTop = yPosition
+      const itemHeight = 25
+
+      // Headers de tabla
+      doc.fontSize(10).font("Helvetica-Bold")
+      doc.text("BRIGADA", 50, yPosition, { width: 150 })
+      doc.text("DOCENTE ENCARGADO", 200, yPosition, { width: 150 })
+      doc.text("CÉDULA", 350, yPosition, { width: 80 })
+      doc.text("ESTUDIANTES", 430, yPosition, { width: 80 })
+      doc.text("FECHA INICIO", 510, yPosition, { width: 80 })
+
+      yPosition += itemHeight
+
+      // Línea separadora
+      doc
+        .moveTo(50, yPosition - 5)
+        .lineTo(590, yPosition - 5)
+        .stroke()
+
+      // Datos de brigadas
+      doc.font("Helvetica").fontSize(9)
+
+      brigades.forEach((brigade, index) => {
+        // Verificar si necesitamos nueva página
+        if (yPosition > 700) {
+          doc.addPage()
+          drawPageHeader(doc, "LISTADO DE BRIGADAS Y DOCENTES ENCARGADOS")
+          yPosition = doc.y + 50
+
+          // Repetir headers
+          doc.fontSize(10).font("Helvetica-Bold")
+          doc.text("BRIGADA", 50, yPosition, { width: 150 })
+          doc.text("DOCENTE ENCARGADO", 200, yPosition, { width: 150 })
+          doc.text("CÉDULA", 350, yPosition, { width: 80 })
+          doc.text("ESTUDIANTES", 430, yPosition, { width: 80 })
+          doc.text("FECHA INICIO", 510, yPosition, { width: 80 })
+          yPosition += itemHeight
+          doc
+            .moveTo(50, yPosition - 5)
+            .lineTo(590, yPosition - 5)
+            .stroke()
+          doc.font("Helvetica").fontSize(9)
+        }
+
+        const brigadeName = brigade.name || "Sin nombre"
+        const teacherName =
+          brigade.encargado_name && brigade.encargado_lastName
+            ? `${brigade.encargado_name} ${brigade.encargado_lastName}`
+            : "Sin asignar"
+        const teacherCI = brigade.encargado_ci || "N/A"
+        const studentCount = brigade.studentCount || 0
+        const startDate = brigade.fecha_inicio ? new Date(brigade.fecha_inicio).toLocaleDateString("es-ES") : "N/A"
+
+        doc.text(brigadeName, 50, yPosition, { width: 150 })
+        doc.text(teacherName, 200, yPosition, { width: 150 })
+        doc.text(teacherCI, 350, yPosition, { width: 80 })
+        doc.text(studentCount.toString(), 430, yPosition, { width: 80 })
+        doc.text(startDate, 510, yPosition, { width: 80 })
+
+        yPosition += itemHeight
+
+        // Línea separadora cada 5 filas
+        if ((index + 1) % 5 === 0) {
+          doc
+            .moveTo(50, yPosition - 5)
+            .lineTo(590, yPosition - 5)
+            .stroke()
+        }
+      })
+
+      // Resumen final
+      doc.moveDown(2)
+      doc.fontSize(10).font("Helvetica-Bold")
+      doc.text("RESUMEN:", 50)
+      doc.font("Helvetica").fontSize(9)
+      doc.text(`• Total de brigadas: ${brigades.length}`)
+      doc.text(`• Brigadas con docente asignado: ${brigades.filter((b) => b.encargado_name).length}`)
+      doc.text(`• Brigadas sin docente: ${brigades.filter((b) => !b.encargado_name).length}`)
+      doc.text(`• Total de estudiantes en brigadas: ${brigades.reduce((sum, b) => sum + (b.studentCount || 0), 0)}`)
+
+      doc.end()
+      console.log("✅ PDF de listado de brigadas generado exitosamente")
+    } catch (error) {
+      console.error("❌ Error generando PDF de listado de brigadas:", error)
+      res.status(500).json({
+        ok: false,
+        msg: "Error interno del servidor al generar PDF",
+        error: error.message,
+      })
+    }
+  },
+
+  // Generar PDF con detalles específicos de una brigada
+  generateBrigadeDetailsPdf: async (req, res) => {
+    try {
+      const brigadeId = req.params.id
+      console.log(`🔍 Iniciando generación de PDF para brigada ID: ${brigadeId}`)
+
+      // Validación mejorada del ID
+      if (!brigadeId) {
+        console.log("❌ ID de brigada no proporcionado")
+        return res.status(400).json({
+          ok: false,
+          msg: "ID de brigada es requerido para generar el PDF.",
+        })
+      }
+
+      // Validar que el ID sea un número válido
+      const numericBrigadeId = Number.parseInt(brigadeId, 10)
+      if (isNaN(numericBrigadeId) || numericBrigadeId <= 0) {
+        console.log(`❌ ID de brigada inválido: ${brigadeId}`)
+        return res.status(400).json({
+          ok: false,
+          msg: "ID de brigada debe ser un número válido y mayor a 0.",
+        })
+      }
+
+      console.log(`🔄 Obteniendo detalles de brigada...`)
+      const brigadeDetails = await BrigadaModel.findById(numericBrigadeId)
+
+      if (!brigadeDetails) {
+        console.log(`❌ Brigada no encontrada para ID: ${brigadeId}`)
+        return res.status(404).json({
+          ok: false,
+          msg: "Brigada no encontrada.",
+        })
+      }
+
+      console.log(`✅ Brigada encontrada:`, {
+        id: brigadeDetails.id,
+        name: brigadeDetails.name,
+        encargado: brigadeDetails.encargado_name,
+      })
+
+      console.log(`🔄 Obteniendo estudiantes de la brigada...`)
+      // Usar getStudentsByBrigade en lugar de getStudentsInBrigade para mayor compatibilidad
+      const studentsInBrigade = await BrigadaModel.getStudentsByBrigade(numericBrigadeId)
+      console.log(`✅ Estudiantes encontrados: ${studentsInBrigade.length}`)
+
+      const doc = new PDFDocument({ margin: 50, autoFirstPage: false })
+
+      // Configurar headers de respuesta
+      res.setHeader("Content-Type", "application/pdf")
+      res.setHeader("Content-Disposition", `attachment; filename="detalle_brigada_${brigadeId}.pdf"`)
+
+      // Manejar errores del documento PDF
+      doc.on("error", (err) => {
+        console.error("❌ Error en la stream del PDF (generateBrigadeDetailsPdf):", err)
+        if (!res.headersSent) {
+          res.status(500).json({ ok: false, msg: "Error interno al generar el PDF de detalles de brigada" })
+        }
+        if (!doc.ended) {
+          doc.end()
+        }
+      })
+
+      // Conectar el documento a la respuesta
+      doc.pipe(res)
+      doc.addPage()
+
+      // VALIDACIÓN SEGURA DEL NOMBRE DE LA BRIGADA
+      const brigadeName =
+        brigadeDetails.name && typeof brigadeDetails.name === "string"
+          ? brigadeDetails.name.trim()
+          : "BRIGADA SIN NOMBRE"
+
+      console.log(`📄 Generando PDF para: "${brigadeName}"`)
+
+      // Dibujar cabecera del documento
+      drawPageHeader(doc, `DETALLE DE BRIGADA: ${brigadeName.toUpperCase()}`)
+
+      // Información de la brigada
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Información de la Brigada:", 50, doc.y + 20)
+      doc.font("Helvetica").fontSize(10)
+      doc.text(`Nombre de Brigada: ${brigadeName}`, 50, doc.y + 10)
+
+      // VALIDACIÓN SEGURA DE NOMBRES DEL ENCARGADO
+      let teacherName = "N/A"
+      if (brigadeDetails.encargado_name || brigadeDetails.encargado_lastName) {
+        const firstName = (brigadeDetails.encargado_name || "").trim()
+        const lastName = (brigadeDetails.encargado_lastName || "").trim()
+
+        if (firstName && lastName) {
+          teacherName = `${firstName} ${lastName}`
+        } else if (firstName) {
+          teacherName = firstName
+        } else if (lastName) {
+          teacherName = lastName
+        }
+      }
+
+      doc.text(`Docente Encargado: ${teacherName}`, 50, doc.y + 10)
+      doc.text(`C.I. Docente: ${brigadeDetails.encargado_ci || "N/A"}`, 50, doc.y + 10)
+
+      // Formatear fecha de inicio
+      let fechaInicio = "N/A"
+      if (brigadeDetails.fecha_inicio) {
+        try {
+          fechaInicio = new Date(brigadeDetails.fecha_inicio).toLocaleDateString("es-ES")
+        } catch (error) {
+          console.warn("⚠️ Error formateando fecha de inicio:", error)
+          fechaInicio = "Fecha inválida"
+        }
+      }
+      doc.text(`Fecha de Inicio: ${fechaInicio}`, 50, doc.y + 10)
+
+      // Listado de estudiantes
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Listado de Estudiantes:", 50, doc.y + 20)
+
+      if (studentsInBrigade.length === 0) {
+        doc.fontSize(10).text("No hay estudiantes asignados a esta brigada.", { align: "center" })
+      } else {
+        // Cabecera de la tabla
+        doc.font("Helvetica-Bold").fontSize(10)
+        let yPos = doc.y + 10
+        doc.text("C.I. Estudiante", 50, yPos, { width: 100 })
+        doc.text("Nombre Completo", 160, yPos, { width: 200 })
+        doc.text("Fecha de Nacimiento", 370, yPos, { width: 150 })
+        doc
+          .lineWidth(0.5)
+          .moveTo(50, yPos + 15)
+          .lineTo(doc.page.width - 50, yPos + 15)
+          .stroke()
+        yPos += 20
+
+        // Datos de estudiantes
+        doc.font("Helvetica").fontSize(10)
+        studentsInBrigade.forEach((student, index) => {
+          // Verificar si necesitamos una nueva página
+          if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) {
+            doc.addPage()
+            drawPageHeader(doc, `DETALLE DE BRIGADA: ${brigadeName.toUpperCase()} (Continuación)`)
+            yPos = doc.y + 10
+
+            // Redibujar cabecera de tabla
+            doc.font("Helvetica-Bold").fontSize(10)
+            doc.text("C.I. Estudiante", 50, yPos, { width: 100 })
+            doc.text("Nombre Completo", 160, yPos, { width: 200 })
+            doc.text("Fecha de Nacimiento", 370, yPos, { width: 150 })
+            doc
+              .lineWidth(0.5)
+              .moveTo(50, yPos + 15)
+              .lineTo(doc.page.width - 50, yPos + 15)
+              .stroke()
+            yPos += 20
+            doc.font("Helvetica").fontSize(10)
+          }
+
+          // VALIDACIÓN SEGURA DE DATOS DEL ESTUDIANTE
+          const studentCi = student.ci || "N/A"
+
+          let studentFullName = "N/A"
+          if (student.name || student.lastName) {
+            const firstName = (student.name || "").trim()
+            const lastName = (student.lastName || "").trim()
+
+            if (firstName && lastName) {
+              studentFullName = `${firstName} ${lastName}`
+            } else if (firstName) {
+              studentFullName = firstName
+            } else if (lastName) {
+              studentFullName = lastName
+            }
+          }
+
+          let studentBirthday = "N/A"
+          if (student.birthday) {
+            try {
+              studentBirthday = new Date(student.birthday).toLocaleDateString("es-ES")
+            } catch (error) {
+              console.warn(`⚠️ Error formateando fecha de nacimiento para estudiante ${student.id}:`, error)
+              studentBirthday = "Fecha inválida"
+            }
+          }
+
+          // Escribir datos del estudiante
+          doc.text(studentCi, 50, yPos, { width: 100 })
+          doc.text(studentFullName, 160, yPos, { width: 200 })
+          doc.text(studentBirthday, 370, yPos, { width: 150 })
+          yPos += 20
+        })
+      }
+
+      console.log(`✅ PDF generado exitosamente para brigada: "${brigadeName}"`)
+      doc.end()
+    } catch (error) {
+      console.error("❌ Error al generar PDF de detalles de brigada:", error)
+      console.error("Stack trace:", error.stack)
+
+      if (!res.headersSent) {
+        res.status(500).json({
+          ok: false,
+          msg: "Error al generar el PDF de detalles de brigada",
+          error: error.message,
+          details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+        })
+      }
+    }
+  },
+
+  // Generar PDF con listado general de estudiantes
   generateStudentListPdf: async (req, res) => {
     try {
       const doc = new PDFDocument({
@@ -29,7 +366,6 @@ export const PdfController = {
 
       doc.pipe(res)
 
-      // Añadir la primera página y dibujar la cabecera
       doc.addPage()
       drawPageHeader(doc, "LISTADO DE ESTUDIANTES")
 
@@ -39,7 +375,7 @@ export const PdfController = {
       const enrollments = await MatriculaModel.findAll()
 
       // Adaptar los datos para el formato esperado por el PDF
-      const students = enrollments.map(enrollment => ({
+      const students = enrollments.map((enrollment) => ({
         id: enrollment.student_id,
         nombre: enrollment.student_name,
         apellido: enrollment.student_lastName,
@@ -57,22 +393,29 @@ export const PdfController = {
         doc.text("Nombre Completo", 150, yPos, { width: 200 })
         doc.text("Grado", 350, yPos, { width: 100 })
         doc.text("Sección", 450, yPos, { width: 100 })
-        doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
-        yPos += 20
+        doc
+          .lineWidth(0.5)
+          .moveTo(50, yPos + 20)
+          .lineTo(doc.page.width - 50, yPos + 20)
+          .stroke()
+        yPos += 25
 
         doc.font("Helvetica").fontSize(10)
         students.forEach((student) => {
-          // Si el contenido excede el espacio en la página, añade una nueva página y su cabecera
-          if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) { // Ajusta este valor si es necesario
+          if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) {
             doc.addPage()
-            drawPageHeader(doc, "LISTADO DE ESTUDIANTES (Continuación)") // Llama a la cabecera para la nueva página
-            yPos = doc.y + 10 // Reinicia yPos después de la cabecera
+            drawPageHeader(doc, "LISTADO DE ESTUDIANTES (Continuación)")
+            yPos = doc.y + 10
             doc.font("Helvetica-Bold").fontSize(10)
             doc.text("Cédula", 50, yPos, { width: 100 })
             doc.text("Nombre Completo", 150, yPos, { width: 200 })
             doc.text("Grado", 350, yPos, { width: 100 })
             doc.text("Sección", 450, yPos, { width: 100 })
-            doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
+            doc
+              .lineWidth(0.5)
+              .moveTo(50, yPos + 15)
+              .lineTo(doc.page.width - 50, yPos + 15)
+              .stroke()
             yPos += 20
             doc.font("Helvetica").fontSize(10)
           }
@@ -89,15 +432,14 @@ export const PdfController = {
     } catch (error) {
       console.error("Error al generar PDF de listado de estudiantes:", error)
       if (!res.headersSent) {
-        res.status(500).json({
-          ok: false,
-          msg: "Error al generar el PDF de listado de estudiantes.",
-          error: error.message,
-        })
+        res
+          .status(500)
+          .json({ ok: false, msg: "Error al generar el PDF de listado de estudiantes", error: error.message })
       }
     }
   },
 
+  // Generar PDF con detalles específicos de una matrícula
   generateEnrollmentFormPdf: async (req, res) => {
     try {
       const enrollmentId = req.params.id
@@ -120,9 +462,11 @@ export const PdfController = {
 
       const doc = new PDFDocument({ margin: 50, autoFirstPage: false })
 
+      // Configurar headers de respuesta
       res.setHeader("Content-Type", "application/pdf")
-      res.setHeader("Content-Disposition", `attachment; filename="ficha_matricula_${student.id}.pdf"`) // Usar student.id del resultado del modelo
+      res.setHeader("Content-Disposition", `attachment; filename="ficha_matricula_${student.id}.pdf"`)
 
+      // Manejar errores del documento PDF
       doc.on("error", (err) => {
         console.error("Error en la stream del PDF (generateEnrollmentFormPdf):", err)
         if (!res.headersSent) {
@@ -133,79 +477,151 @@ export const PdfController = {
         }
       })
 
+      // Conectar el documento a la respuesta
       doc.pipe(res)
-
       doc.addPage()
+
+      // VALIDACIÓN SEGURA DEL NOMBRE DE LA BRIGADA
+      const brigadeName =
+        student.brigada_name && typeof student.brigada_name === "string"
+          ? student.brigada_name.trim()
+          : "BRIGADA SIN NOMBRE"
+
+      console.log(`📄 Generando PDF para: "${brigadeName}"`)
+
+      // Dibujar cabecera del documento
       drawPageHeader(doc, "FICHA DE MATRÍCULA DEL ESTUDIANTE")
 
-      doc.moveDown()
-      doc.font("Helvetica-Bold").fontSize(14).text("Datos del Estudiante")
+      // Información de la brigada
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Información de la Brigada:", 50, doc.y + 20)
       doc.font("Helvetica").fontSize(10)
-      // Adaptar los nombres de los campos a los retornados por MatriculaModel.findById
-      doc.text(`Nombre: ${student.student_name} ${student.student_lastName}`)
-      doc.text(`Cédula Escolar: ${student.student_school_id || 'N/A'}`)
-      doc.text(`Fecha de Nacimiento: ${student.student_birthday ? new Date(student.student_birthday).toLocaleDateString('es-ES') : 'N/A'}`)
-      doc.text(`Lugar de Nacimiento: ${student.student_birthplace_name || 'N/A'}`) // Asumiendo que el modelo trae el nombre
-      doc.text(`Sexo: ${student.student_sex || 'N/A'}`)
-      doc.text(`Cantidad de Hermanos: ${student.student_sibling_count !== null ? student.student_sibling_count : 'N/A'}`)
-      doc.text(`Vive con la madre: ${student.lives_with_mother ? 'Sí' : 'No'}`)
-      doc.text(`Vive con el padre: ${student.lives_with_father ? 'Sí' : 'No'}`)
-      doc.text(`Vive con ambos: ${student.lives_with_both ? 'Sí' : 'No'}`)
-      doc.text(`Vive con el representante: ${student.lives_with_representative ? 'Sí' : 'No'}`)
+      doc.text(`Nombre de Brigada: ${brigadeName}`, 50, doc.y + 10)
 
-      doc.moveDown(2)
-      doc.font("Helvetica-Bold").fontSize(14).text("Datos del Representante")
-      doc.font("Helvetica").fontSize(10)
-      // Adaptar los nombres de los campos a los retornados por MatriculaModel.findById
-      doc.text(`Nombre: ${student.representative_name || 'N/A'} ${student.representative_lastName || ''}`)
-      doc.text(`Cédula: ${student.representative_ci || 'N/A'}`)
-      doc.text(`Teléfono: ${student.representative_phoneNumber || 'N/A'}`)
-      doc.text(`Email: ${student.representative_email || 'N/A'}`)
-      doc.text(`Dirección: ${student.representative_address || 'N/A'}`)
-      doc.text(`Lugar de Trabajo: ${student.representative_workplace || 'N/A'}`)
-      doc.text(`Teléfono Trabajo: ${student.representative_work_phone || 'N/A'}`)
+      // VALIDACIÓN SEGURA DE NOMBRES DEL ENCARGADO
+      let teacherName = "N/A"
+      if (student.teacher_name || student.teacher_lastName) {
+        const firstName = (student.teacher_name || "").trim()
+        const lastName = (student.teacher_lastName || "").trim()
 
-      doc.moveDown(2)
-      doc.font("Helvetica-Bold").fontSize(14).text("Datos de Matrícula")
-      doc.font("Helvetica").fontSize(10)
-      // Adaptar los nombres de los campos a los retornados por MatriculaModel.findById
-      doc.text(`Fecha de Inscripción: ${student.registration_date ? new Date(student.registration_date).toLocaleDateString('es-ES') : 'N/A'}`)
-      doc.text(`Período Escolar: ${student.period || 'N/A'}`) // Asumiendo que el modelo trae 'period'
-      doc.text(`Grado: ${student.grade_name || 'N/A'}`)
-      doc.text(`Sección: ${student.section_name || 'N/A'}`)
-      doc.text(`Repitiente: ${student.repeater ? 'Sí' : 'No'}`)
-      doc.text(`Docente de Grado: ${student.teacher_name || 'N/A'} ${student.teacher_lastName || ''}`)
+        if (firstName && lastName) {
+          teacherName = `${firstName} ${lastName}`
+        } else if (firstName) {
+          teacherName = firstName
+        } else if (lastName) {
+          teacherName = lastName
+        }
+      }
 
-      doc.moveDown(2)
-      doc.font("Helvetica-Bold").fontSize(14).text("Información Adicional de Matrícula")
-      doc.font("Helvetica").fontSize(10)
-      doc.text(`Talla Camisa: ${student.chemiseSize || 'N/A'}`)
-      doc.text(`Talla Pantalón: ${student.pantsSize || 'N/A'}`)
-      doc.text(`Talla Zapatos: ${student.shoesSize || 'N/A'}`)
-      doc.text(`Peso: ${student.weight || 'N/A'} kg`)
-      doc.text(`Estatura: ${student.stature || 'N/A'} cm`)
-      doc.text(`Enfermedades: ${student.diseases || 'Ninguna'}`)
-      doc.text(`Observaciones: ${student.observation || 'Ninguna'}`)
+      doc.text(`Docente Encargado: ${teacherName}`, 50, doc.y + 10)
+      doc.text(`C.I. Docente: ${student.teacher_ci || "N/A"}`, 50, doc.y + 10)
 
-      doc.moveDown(2)
-      doc.font("Helvetica-Bold").fontSize(14).text("Documentación Entregada")
-      doc.font("Helvetica").fontSize(10)
-      doc.text(`Acta de Nacimiento: ${student.birthCertificateCheck ? 'Sí' : 'No'}`)
-      doc.text(`Tarjeta de Vacunas: ${student.vaccinationCardCheck ? 'Sí' : 'No'}`)
-      doc.text(`Fotos del Estudiante: ${student.studentPhotosCheck ? 'Sí' : 'No'}`)
-      doc.text(`Fotos del Representante: ${student.representativePhotosCheck ? 'Sí' : 'No'}`)
-      doc.text(`Copia Cédula Representante: ${student.representativeCopyIDCheck ? 'Sí' : 'No'}`)
-      doc.text(`Copia Cédula Autorizados: ${student.autorizedCopyIDCheck ? 'Sí' : 'No'}`)
+      // Formatear fecha de inicio
+      let fechaInicio = "N/A"
+      if (student.brigada_fecha_inicio) {
+        try {
+          fechaInicio = new Date(student.brigada_fecha_inicio).toLocaleDateString("es-ES")
+        } catch (error) {
+          console.warn("⚠️ Error formateando fecha de inicio:", error)
+          fechaInicio = "Fecha inválida"
+        }
+      }
+      doc.text(`Fecha de Inicio: ${fechaInicio}`, 50, doc.y + 10)
 
+      // Listado de estudiantes
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Listado de Estudiantes:", 50, doc.y + 20)
 
+      if (student.students.length === 0) {
+        doc.fontSize(10).text("No hay estudiantes asignados a esta brigada.", { align: "center" })
+      } else {
+        // Cabecera de la tabla
+        doc.font("Helvetica-Bold").fontSize(10)
+        let yPos = doc.y + 10
+        doc.text("C.I. Estudiante", 50, yPos, { width: 100 })
+        doc.text("Nombre Completo", 160, yPos, { width: 200 })
+        doc.text("Fecha de Nacimiento", 370, yPos, { width: 150 })
+        doc
+          .lineWidth(0.5)
+          .moveTo(50, yPos + 15)
+          .lineTo(doc.page.width - 50, yPos + 15)
+          .stroke()
+        yPos += 20
+
+        // Datos de estudiantes
+        doc.font("Helvetica").fontSize(10)
+        student.students.forEach((student, index) => {
+          // Verificar si necesitamos una nueva página
+          if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) {
+            doc.addPage()
+            drawPageHeader(doc, `DETALLE DE BRIGADA: ${brigadeName.toUpperCase()} (Continuación)`)
+            yPos = doc.y + 10
+
+            // Redibujar cabecera de tabla
+            doc.font("Helvetica-Bold").fontSize(10)
+            doc.text("C.I. Estudiante", 50, yPos, { width: 100 })
+            doc.text("Nombre Completo", 160, yPos, { width: 200 })
+            doc.text("Fecha de Nacimiento", 370, yPos, { width: 150 })
+            doc
+              .lineWidth(0.5)
+              .moveTo(50, yPos + 15)
+              .lineTo(doc.page.width - 50, yPos + 15)
+              .stroke()
+            yPos += 20
+            doc.font("Helvetica").fontSize(10)
+          }
+
+          // VALIDACIÓN SEGURA DE DATOS DEL ESTUDIANTE
+          const studentCi = student.ci || "N/A"
+
+          let studentFullName = "N/A"
+          if (student.name || student.lastName) {
+            const firstName = (student.name || "").trim()
+            const lastName = (student.lastName || "").trim()
+
+            if (firstName && lastName) {
+              studentFullName = `${firstName} ${lastName}`
+            } else if (firstName) {
+              studentFullName = firstName
+            } else if (lastName) {
+              studentFullName = lastName
+            }
+          }
+
+          let studentBirthday = "N/A"
+          if (student.birthday) {
+            try {
+              studentBirthday = new Date(student.birthday).toLocaleDateString("es-ES")
+            } catch (error) {
+              console.warn(`⚠️ Error formateando fecha de nacimiento para estudiante ${student.id}:`, error)
+              studentBirthday = "Fecha inválida"
+            }
+          }
+
+          // Escribir datos del estudiante
+          doc.text(studentCi, 50, yPos, { width: 100 })
+          doc.text(studentFullName, 160, yPos, { width: 200 })
+          doc.text(studentBirthday, 370, yPos, { width: 150 })
+          yPos += 20
+        })
+      }
+
+      console.log(`✅ PDF generado exitosamente para brigada: "${brigadeName}"`)
       doc.end()
     } catch (error) {
-      console.error("Error al generar PDF de ficha de matrícula:", error)
+      console.error("❌ Error al generar PDF de detalles de brigada:", error)
+      console.error("Stack trace:", error.stack)
+
       if (!res.headersSent) {
         res.status(500).json({
           ok: false,
-          msg: "Error al generar el PDF de ficha de matrícula.",
+          msg: "Error al generar el PDF de detalles de brigada",
           error: error.message,
+          details: process.env.NODE_ENV === "development" ? error.stack : undefined,
         })
       }
     }
@@ -248,7 +664,11 @@ export const PdfController = {
         doc.text("Docente Encargado", 210, yPos, { width: 150 })
         doc.text("CI Docente", 370, yPos, { width: 80 })
         doc.text("Cantidad Estudiantes", 460, yPos, { width: 100, align: "center" })
-        doc.lineWidth(0.5).moveTo(50, yPos + 20).lineTo(doc.page.width - 50, yPos + 20).stroke()
+        doc
+          .lineWidth(0.5)
+          .moveTo(50, yPos + 20)
+          .lineTo(doc.page.width - 50, yPos + 20)
+          .stroke()
         yPos += 25
 
         doc.font("Helvetica").fontSize(10)
@@ -262,25 +682,28 @@ export const PdfController = {
             doc.text("Docente Encargado", 210, yPos, { width: 150 })
             doc.text("CI Docente", 370, yPos, { width: 80 })
             doc.text("Cantidad Estudiantes", 460, yPos, { width: 100, align: "center" }) // Reposicionado
-            doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
+            doc
+              .lineWidth(0.5)
+              .moveTo(50, yPos + 15)
+              .lineTo(doc.page.width - 50, yPos + 15)
+              .stroke()
             yPos += 20
             doc.font("Helvetica").fontSize(10)
           }
 
           // === LÓGICA DE CONSTRUCCIÓN DE teacherName ===
-          const firstName = brigade.encargado_name || '';
-          console.log(brigade.encargado_lastName);
-          const lastName = brigade.encargado_lastName || '';
+          const firstName = brigade.encargado_name || ""
+          const lastName = brigade.encargado_lastName || ""
 
-          let teacherName = '';
+          let teacherName = ""
           if (firstName && lastName) {
-            teacherName = `${firstName} ${lastName}`;
+            teacherName = `${firstName} ${lastName}`
           } else if (firstName) {
-            teacherName = firstName;
+            teacherName = firstName
           } else if (lastName) {
-            teacherName = lastName;
+            teacherName = lastName
           } else {
-            teacherName = 'N/A'; 
+            teacherName = "N/A"
           }
 
           const teacherCi = brigade.encargado_ci || "N/A"
@@ -288,7 +711,7 @@ export const PdfController = {
           doc.text(brigade.name || "N/A", 50, yPos, { width: 150 })
           doc.text(teacherName, 210, yPos, { width: 150 })
           doc.text(teacherCi, 370, yPos, { width: 80 })
-          doc.text(studentCount, 460, yPos, { width: 100, align: 'center' })
+          doc.text(studentCount, 460, yPos, { width: 100, align: "center" })
           yPos += 20
         })
       }
@@ -305,86 +728,8 @@ export const PdfController = {
       }
     }
   },
-  generateBrigadeDetailsPdf: async (req, res) => {
-    try {
-      const brigadeId = req.params.id
-      if (!brigadeId) {
-        return res.status(400).json({ ok: false, msg: "ID de brigada es requerido." })
-      }
 
-      const brigadeDetails = await BrigadaModel.findById(brigadeId) //
-      if (!brigadeDetails) {
-        return res.status(404).json({ ok: false, msg: "Brigada no encontrada." })
-      }
-
-      const studentsInBrigade = await BrigadaModel.getStudentsInBrigade(brigadeId) //
-
-      const doc = new PDFDocument({ margin: 50, autoFirstPage: false })
-      res.setHeader("Content-Type", "application/pdf")
-      res.setHeader("Content-Disposition", `attachment; filename="detalle_brigada_${brigadeId}.pdf"`)
-
-      doc.on("error", (err) => {
-        console.error("Error en la stream del PDF (generateBrigadeDetailsPdf):", err)
-        if (!res.headersSent) {
-          res.status(500).json({ ok: false, msg: "Error interno al generar el PDF de detalles de brigada" })
-        }
-        if (!doc.ended) {
-          doc.end()
-        }
-      })
-
-      doc.pipe(res)
-      doc.addPage()
-      drawPageHeader(doc, `DETALLE DE BRIGADA: ${brigadeDetails.name.toUpperCase()}`) //
-
-      doc.fontSize(12).font("Helvetica-Bold").text("Información de la Brigada:", 50, doc.y + 20)
-      doc.font("Helvetica").fontSize(10)
-      doc.text(`Nombre de Brigada: ${brigadeDetails.name || "N/A"}`, 50, doc.y + 10)
-      const teacherName = (brigadeDetails.encargado_name && brigadeDetails.encargado_lastName) ? `${brigadeDetails.encargado_name} ${brigadeDetails.encargado_lastName}` : 'N/A';
-      doc.text(`Docente Encargado: ${teacherName}`, 50, doc.y + 10)
-      doc.text(`C.I. Docente: ${brigadeDetails.encargado_ci || "N/A"}`, 50, doc.y + 10)
-      doc.text(`Fecha de Inicio: ${brigadeDetails.fecha_inicio ? new Date(brigadeDetails.fecha_inicio).toLocaleDateString() : "N/A"}`, 50, doc.y + 10)
-
-      doc.fontSize(12).font("Helvetica-Bold").text("Listado de Estudiantes:", 50, doc.y + 20)
-      if (studentsInBrigade.length === 0) {
-        doc.fontSize(10).text("No hay estudiantes asignados a esta brigada.", { align: "center" })
-      } else {
-        doc.font("Helvetica-Bold").fontSize(10)
-        let yPos = doc.y + 10
-        doc.text("C.I. Estudiante", 50, yPos, { width: 100 })
-        doc.text("Nombre Completo", 160, yPos, { width: 200 })
-        doc.text("Fecha de Nacimiento", 370, yPos, { width: 150 })
-        doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
-        yPos += 20
-
-        doc.font("Helvetica").fontSize(10)
-        studentsInBrigade.forEach((student) => {
-          if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) {
-            doc.addPage()
-            drawPageHeader(doc, `DETALLE DE BRIGADA: ${brigadeDetails.name.toUpperCase()} (Continuación)`) //
-            yPos = doc.y + 10
-            doc.font("Helvetica-Bold").fontSize(10)
-            doc.text("C.I. Estudiante", 50, yPos, { width: 100 })
-            doc.text("Nombre Completo", 160, yPos, { width: 200 })
-            doc.text("Fecha de Nacimiento", 370, yPos, { width: 150 })
-            doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
-            yPos += 20
-            doc.font("Helvetica").fontSize(10)
-          }
-          doc.text(student.student_ci || "N/A", 50, yPos, { width: 100 })
-          doc.text(`${student.student_name} ${student.student_lastName}`, 160, yPos, { width: 200 })
-          doc.text(student.student_birthday ? new Date(student.student_birthday).toLocaleDateString() : "N/A", 370, yPos, { width: 150 })
-          yPos += 20
-        })
-      }
-      doc.end()
-    } catch (error) {
-      console.error("Error al generar PDF de detalles de brigada:", error)
-      if (!res.headersSent) {
-        res.status(500).json({ ok: false, msg: "Error al generar el PDF de detalles de brigada", error: error.message })
-      }
-    }
-  },
+  // Generar PDF con listado de estudiantes por grado
   generateStudentListByGradePdf: async (req, res) => {
     try {
       const gradeId = req.params.gradeId
@@ -399,7 +744,9 @@ export const PdfController = {
       doc.on("error", (err) => {
         console.error("Error en la stream del PDF (generateStudentListByGradePdf):", err)
         if (!res.headersSent) {
-          res.status(500).json({ ok: false, msg: "Error interno al generar el PDF de listado de estudiantes por grado" })
+          res
+            .status(500)
+            .json({ ok: false, msg: "Error interno al generar el PDF de listado de estudiantes por grado" })
         }
         if (!doc.ended) {
           doc.end()
@@ -408,17 +755,17 @@ export const PdfController = {
 
       doc.pipe(res)
       doc.addPage()
-      
-      const enrollments = await MatriculaModel.findByGrade(gradeId) //
 
-      let gradeName = "Desconocido";
+      const enrollments = await MatriculaModel.findByGrade(gradeId)
+
+      let gradeName = "Desconocido"
       if (enrollments.length > 0) {
-        gradeName = enrollments[0].grade_name;
+        gradeName = enrollments[0].grade_name
       }
 
-      drawPageHeader(doc, `LISTADO DE ESTUDIANTES - ${gradeName}`) //
+      drawPageHeader(doc, `LISTADO DE ESTUDIANTES - ${gradeName}`)
 
-      const students = enrollments.map(enrollment => ({
+      const students = enrollments.map((enrollment) => ({
         cedula_escolar: enrollment.student_school_id,
         nombre: enrollment.student_name,
         apellido: enrollment.student_lastName,
@@ -433,20 +780,28 @@ export const PdfController = {
         doc.text("Cédula", 50, yPos, { width: 100 })
         doc.text("Nombre Completo", 150, yPos, { width: 200 })
         doc.text("Sección", 360, yPos, { width: 100 })
-        doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
+        doc
+          .lineWidth(0.5)
+          .moveTo(50, yPos + 15)
+          .lineTo(doc.page.width - 50, yPos + 15)
+          .stroke()
         yPos += 20
 
         doc.font("Helvetica").fontSize(10)
         students.forEach((student) => {
           if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) {
             doc.addPage()
-            drawPageHeader(doc, `LISTADO DE ESTUDIANTES - ${gradeName} (Continuación)`) //
+            drawPageHeader(doc, `LISTADO DE ESTUDIANTES - ${gradeName} (Continuación)`)
             yPos = doc.y + 10
             doc.font("Helvetica-Bold").fontSize(10)
             doc.text("Cédula", 50, yPos, { width: 100 })
             doc.text("Nombre Completo", 150, yPos, { width: 200 })
             doc.text("Sección", 360, yPos, { width: 100 })
-            doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
+            doc
+              .lineWidth(0.5)
+              .moveTo(50, yPos + 15)
+              .lineTo(doc.page.width - 50, yPos + 15)
+              .stroke()
             yPos += 20
             doc.font("Helvetica").fontSize(10)
           }
@@ -460,10 +815,14 @@ export const PdfController = {
     } catch (error) {
       console.error("Error al generar PDF de listado de estudiantes por grado:", error)
       if (!res.headersSent) {
-        res.status(500).json({ ok: false, msg: "Error al generar el PDF de listado de estudiantes por grado", error: error.message })
+        res
+          .status(500)
+          .json({ ok: false, msg: "Error al generar el PDF de listado de estudiantes por grado", error: error.message })
       }
     }
   },
+
+  // Generar PDF con listado general de docentes
   generateTeacherListPdf: async (req, res) => {
     try {
       const doc = new PDFDocument({ margin: 50, autoFirstPage: false })
@@ -482,9 +841,9 @@ export const PdfController = {
 
       doc.pipe(res)
       doc.addPage()
-      drawPageHeader(doc, "LISTADO DE DOCENTES") //
+      drawPageHeader(doc, "LISTADO DE DOCENTES")
 
-      const teachers = await PersonalModel.findTeachers() //
+      const teachers = await PersonalModel.findTeachers()
 
       if (teachers.length === 0) {
         doc.fontSize(12).text("No hay docentes registrados.", { align: "center" })
@@ -495,21 +854,29 @@ export const PdfController = {
         doc.text("Nombre Completo", 140, yPos, { width: 200 })
         doc.text("Email", 350, yPos, { width: 150 })
         doc.text("Teléfono", 510, yPos, { width: 80 })
-        doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
+        doc
+          .lineWidth(0.5)
+          .moveTo(50, yPos + 15)
+          .lineTo(doc.page.width - 50, yPos + 15)
+          .stroke()
         yPos += 20
 
         doc.font("Helvetica").fontSize(10)
         teachers.forEach((teacher) => {
           if (doc.y + 20 > doc.page.height - doc.page.margins.bottom - 50) {
             doc.addPage()
-            drawPageHeader(doc, "LISTADO DE DOCENTES (Continuación)") //
+            drawPageHeader(doc, "LISTADO DE DOCENTES (Continuación)")
             yPos = doc.y + 10
             doc.font("Helvetica-Bold").fontSize(10)
             doc.text("C.I.", 50, yPos, { width: 80 })
             doc.text("Nombre Completo", 140, yPos, { width: 200 })
             doc.text("Email", 350, yPos, { width: 150 })
             doc.text("Teléfono", 510, yPos, { width: 80 })
-            doc.lineWidth(0.5).moveTo(50, yPos + 15).lineTo(doc.page.width - 50, yPos + 15).stroke()
+            doc
+              .lineWidth(0.5)
+              .moveTo(50, yPos + 15)
+              .lineTo(doc.page.width - 50, yPos + 15)
+              .stroke()
             yPos += 20
             doc.font("Helvetica").fontSize(10)
           }
@@ -528,6 +895,8 @@ export const PdfController = {
       }
     }
   },
+
+  // Generar PDF con detalles específicos de un docente
   generateTeacherDetailsPdf: async (req, res) => {
     try {
       const personalId = req.params.id // Obtener el ID del personal de los parámetros de la URL
@@ -539,7 +908,7 @@ export const PdfController = {
       const result = await PersonalModel.findOneById(personalId)
       const teacherDetails = result ? result : null
       // Verificar si el personal existe y si es un docente
-      if (!teacherDetails || teacherDetails.idRole !== '1') {
+      if (!teacherDetails || teacherDetails.idRole !== "1") {
         return res.status(404).json({ ok: false, msg: "Docente no encontrado o el ID no corresponde a un docente." })
       }
 
@@ -562,27 +931,32 @@ export const PdfController = {
       drawPageHeader(doc, "FICHA DE DATOS DEL DOCENTE") // Título del PDF
 
       // Información personal del docente
-      doc.fontSize(14).font("Helvetica-Bold").text("Información Personal", 50, doc.y + 20)
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Información Personal", 50, doc.y + 20)
       doc.font("Helvetica").fontSize(11)
       doc.text(`Nombre Completo: ${teacherDetails.name || "N/A"} ${teacherDetails.lastName || ""}`, 50, doc.y + 10)
       doc.text(`Cédula de Identidad: ${teacherDetails.ci || "N/A"}`, 50, doc.y + 10)
       doc.text(`Email: ${teacherDetails.email || "N/A"}`, 50, doc.y + 10)
       doc.text(`Teléfono: ${teacherDetails.telephoneNumber || "N/A"}`, 50, doc.y + 10)
-      doc.text(`Fecha de Nacimiento: ${teacherDetails.birthday ? new Date(teacherDetails.birthday).toLocaleDateString() : "N/A"}`, 50, doc.y + 10)
+      doc.text(
+        `Fecha de Nacimiento: ${teacherDetails.birthday ? new Date(teacherDetails.birthday).toLocaleDateString() : "N/A"}`,
+        50,
+        doc.y + 10,
+      )
       doc.text(`Género: ${teacherDetails.gender || "N/A"}`, 50, doc.y + 10)
       doc.text(`Dirección: ${teacherDetails.direction || "N/A"}`, 50, doc.y + 10)
       doc.text(`Parroquia: ${teacherDetails.parroquia_nombre || "N/A"}`, 50, doc.y + 10)
 
       // Información de rol (ya que PersonalModel.findOneById incluye el rol)
-      doc.fontSize(14).font("Helvetica-Bold").text("Información de Rol", 50, doc.y + 20)
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Información de Rol", 50, doc.y + 20)
       doc.font("Helvetica").fontSize(11)
       doc.text(`Rol: ${teacherDetails.rol_nombre || "N/A"}`, 50, doc.y + 10)
       doc.text(`Descripción del Rol: ${teacherDetails.rol_descripcion || "N/A"}`, 50, doc.y + 10)
-
-      // Puedes añadir más información relevante para un docente si tu modelo la tiene, por ejemplo:
-      // - Historial académico (si lo gestionas)
-      // - Brigadas asignadas (sería una consulta adicional similar a BrigadaModel.getStudentsInBrigade)
-      // - Secciones o grados a cargo (si los obtienes a través del modelo de personal o de matrícula)
 
       doc.end()
     } catch (error) {
@@ -593,3 +967,5 @@ export const PdfController = {
     }
   },
 }
+
+export { PdfController }
