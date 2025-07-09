@@ -110,7 +110,7 @@ CREATE TABLE "student" (
   "placeBirth" varchar(20),
   "parishID" bigint,
   "status_id" bigint,
-  "brigadeTeacherDateID" bigint,
+  -- Eliminado brigadeTeacherDateID de aquí
   "quantityBrothers" int,
   "representativeID" varchar(20),
   "motherName" varchar(100),
@@ -126,6 +126,16 @@ CREATE TABLE "student" (
   "rolRopresentative" varchar(50),
   "created_at" timestamp,
   "updated_at" timestamp
+);
+
+-- Nueva tabla intermedia para la relación muchos a muchos entre student y brigade
+CREATE TABLE "studentBrigade" (
+  "studentID" BIGINT,
+  "brigadeID" BIGINT,
+  "assignmentDate" date, -- Puedes añadir la fecha de asignación a la brigada
+  "created_at" timestamp,
+  "updated_at" timestamp,
+  PRIMARY KEY ("studentID", "brigadeID") -- Clave primaria compuesta
 );
 
 CREATE TABLE "grade" (
@@ -236,9 +246,14 @@ ALTER TABLE "student" ADD FOREIGN KEY ("parishID") REFERENCES "parish" ("id");
 
 ALTER TABLE "student" ADD FOREIGN KEY ("status_id") REFERENCES "status_student" ("id");
 
-ALTER TABLE "student" ADD FOREIGN KEY ("brigadeTeacherDateID") REFERENCES "brigadeTeacherDate" ("id");
+-- Eliminada la clave foránea anterior de student a brigadeTeacherDateID
+-- ALTER TABLE "student" ADD FOREIGN KEY ("brigadeTeacherDateID") REFERENCES "brigadeTeacherDate" ("id");
 
 ALTER TABLE "student" ADD FOREIGN KEY ("representativeID") REFERENCES "representative" ("ci");
+
+-- Nuevas claves foráneas para la tabla studentBrigade
+ALTER TABLE "studentBrigade" ADD FOREIGN KEY ("studentID") REFERENCES "student" ("id");
+ALTER TABLE "studentBrigade" ADD FOREIGN KEY ("brigadeID") REFERENCES "brigade" ("id");
 
 ALTER TABLE "section" ADD FOREIGN KEY ("teacherCI") REFERENCES "personal" ("id");
 

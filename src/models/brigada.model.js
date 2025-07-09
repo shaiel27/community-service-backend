@@ -1,117 +1,199 @@
-import { db } from "../db/connection.database.js";
+import { db } from "../db/connection.database.js"
 
-// Crear una nueva brigada
-const create = async ({ name }) => {
+// Crear nueva brigada
+const create = async (brigadeData) => {
   try {
-    if (name && name.length > 100) {
-      throw new Error(`El nombre de la brigada es demasiado largo (máximo 100 caracteres)`);
-    }
-
+    const { name } = brigadeData
     const query = {
-      text: `INSERT INTO "brigade" (name, created_at, updated_at)
-             VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-             RETURNING id, name, created_at, updated_at`,
+      text: 'INSERT INTO "brigade" (name, created_at, updated_at) VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *',
       values: [name],
-    };
-
-    const { rows } = await db.query(query);
-    return rows[0];
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
   } catch (error) {
-    console.error("Error in create brigade:", error);
-    throw error;
+    console.error("Error in BrigadaModel.create:", error)
+    throw error
   }
-};
+}
 
-// Obtener todas las brigadas
+// Obtener todas las brigadas con información del encargado
 const findAll = async () => {
   try {
     const query = {
-      text: `SELECT b.*, 
-                p."name" as "encargado_name",
-                p."lastName" as "encargado_lastName",
-                p.ci as "encargado_ci",
-                COUNT(DISTINCT s.id) as "studentCount"
-             FROM "brigade" b
-             LEFT JOIN "brigadeTeacherDate" bdf ON b.id = bdf."brigadeID"
-             LEFT JOIN "personal" p ON bdf."personalID" = p.id
-             LEFT JOIN "student" s ON s."brigadeTeacherDateID" = bdf.id 
-             GROUP BY b.id, b.name, b.created_at, b.updated_at, 
-                      p.name, p."lastName", p.ci
-             ORDER BY b.name`,
-    };
-
-    const { rows } = await db.query(query);
-    return rows;
+      text: `
+        SELECT 
+          b.id,
+          b.name,
+          p.name as encargado_name,
+          p."lastName" as encargado_lastName,
+          p.ci as encargado_ci,
+          btd."dateI" as fecha_inicio,
+          COUNT(s.id) as studentCount
+        FROM "brigade" b
+        LEFT JOIN "brigadeTeacherDate" btd ON b.id = btd."brigadeID"
+        LEFT JOIN "personal" p ON btd."personalID" = p.id
+        LEFT JOIN "student" s ON s."brigadeTeacherDateID" = btd.id
+        GROUP BY b.id, b.name, p.name, p."lastName", p.ci, btd."dateI"
+        ORDER BY b.name
+      `,
+    }
+    const { rows } = await db.query(query)
+    return rows
   } catch (error) {
-    console.error("Error in findAll brigades:", error);
-    throw error;
+    console.error("Error in BrigadaModel.findAll:", error)
+    throw error
   }
-};
+}
 
-// Obtener brigada por ID
+// Buscar brigada por ID
 const findById = async (id) => {
   try {
     const query = {
-      text: `SELECT b.*, 
-                p.name as encargado_name,
-                p."lastName" as encargado_lastName,
-                p.ci as encargado_ci,
-                p.email as encargado_email,
-                p.telephone_number as encargado_phoneNumber,
-                COUNT(DISTINCT s.id) as studentCount -- Alias corregido a camelCase
-             FROM "brigade" b
-             LEFT JOIN "brigadeTeacherDate" bdf ON b.id = bdf."brigadeID" -- Eliminado AND bdf."endDate" IS NULL
-             LEFT JOIN "personal" p ON bdf."personalID" = p.id
-             LEFT JOIN "student" s ON s."brigadeTeacherDateID" = bdf.id
-             WHERE b.id = $1
-             GROUP BY b.id, b.name, b.created_at, b.updated_at, 
-                      p.name, p."lastName", p.ci, p.email, p.telephone_number -- Eliminado bdf."startDate"
-             ORDER BY b.name`, // Añadido ORDER BY b.name para consistencia
+      text: `
+        SELECT 
+          b.id,
+          b.name,
+          p.name as encargado_name,
+          p."lastName" as encargado_lastName,
+          p.ci as encargado_ci,
+          btd."dateI" as fecha_inicio
+        FROM "brigade" b
+        LEFT JOIN "brigadeTeacherDate" btd ON b.id = btd."brigadeID"
+        LEFT JOIN "personal" p ON btd."personalID" = p.id
+        WHERE b.id = $1
+        ORDER BY btd."dateI" DESC
+        LIMIT 1
+      `,
       values: [id],
-    };
-
-    const { rows } = await db.query(query);
-    return rows[0];
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
   } catch (error) {
-    console.error("Error in findById brigade:", error);
-    throw error;
+    console.error("Error in BrigadaModel.findById:", error)
+    throw error
   }
-};
+}
 
 // Buscar brigadas por nombre
 const searchByName = async (name) => {
   try {
     const query = {
-      text: `SELECT b.*, 
-                p.name as encargado_name,
-                p."lastName" as encargado_lastName,
-                p.ci as encargado_ci,
-                COUNT(DISTINCT s.id) as studentCount -- Alias corregido a camelCase
-             FROM "brigade" b
-             LEFT JOIN "brigadeTeacherDate" bdf ON b.id = bdf."brigadeID" -- Eliminado AND bdf."endDate" IS NULL
-             LEFT JOIN "personal" p ON bdf."personalID" = p.id
-             LEFT JOIN "student" s ON s."brigadeTeacherDateID" = bdf.id
-             WHERE b.name ILIKE $1
-             GROUP BY b.id, b.name, b.created_at, b.updated_at, 
-                      p.name, p."lastName", p.ci -- Eliminado bdf."startDate"
-             ORDER BY b.name`,
+      text: `
+        SELECT 
+          b.id,
+          b.name,
+          p.name as encargado_name,
+          p."lastName" as encargado_lastName,
+          p.ci as encargado_ci,
+          btd."dateI" as fecha_inicio,
+          COUNT(s.id) as studentCount
+        FROM "brigade" b
+        LEFT JOIN "brigadeTeacherDate" btd ON b.id = btd."brigadeID"
+        LEFT JOIN "personal" p ON btd."personalID" = p.id
+        LEFT JOIN "student" s ON s."brigadeTeacherDateID" = btd.id
+        WHERE b.name ILIKE $1
+        GROUP BY b.id, b.name, p.name, p."lastName", p.ci, btd."dateI"
+        ORDER BY b.name
+      `,
       values: [`%${name}%`],
-    };
-
-    const { rows } = await db.query(query);
-    return rows;
+    }
+    const { rows } = await db.query(query)
+    return rows
   } catch (error) {
-    console.error("Error in searchByName brigades:", error);
-    throw error;
+    console.error("Error in BrigadaModel.searchByName:", error)
+    throw error
   }
-};
+}
 
-// Obtener estudiantes por brigada
+// Actualizar brigada
+const update = async (id, brigadeData) => {
+  try {
+    const { name } = brigadeData
+    const query = {
+      text: 'UPDATE "brigade" SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      values: [name, id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in BrigadaModel.update:", error)
+    throw error
+  }
+}
+
+// Eliminar brigada
+const remove = async (id) => {
+  try {
+    // Primero limpiar estudiantes asignados
+    await db.query({
+      text: `
+        UPDATE "student" 
+        SET "brigadeTeacherDateID" = NULL 
+        WHERE "brigadeTeacherDateID" IN (
+          SELECT id FROM "brigadeTeacherDate" WHERE "brigadeID" = $1
+        )
+      `,
+      values: [id],
+    })
+
+    // Eliminar asignaciones de docentes
+    await db.query({
+      text: 'DELETE FROM "brigadeTeacherDate" WHERE "brigadeID" = $1',
+      values: [id],
+    })
+
+    // Eliminar brigada
+    const query = {
+      text: 'DELETE FROM "brigade" WHERE id = $1 RETURNING *',
+      values: [id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in BrigadaModel.remove:", error)
+    throw error
+  }
+}
+
+// Asignar docente a brigada
+const assignTeacher = async (brigadeId, personalId, startDate) => {
+  try {
+    // Verificar si ya hay un docente asignado a esta brigada
+    const existingQuery = {
+      text: 'SELECT id FROM "brigadeTeacherDate" WHERE "brigadeID" = $1',
+      values: [brigadeId],
+    }
+    const existing = await db.query(existingQuery)
+
+    if (existing.rows.length > 0) {
+      // Actualizar la asignación existente
+      const updateQuery = {
+        text: 'UPDATE "brigadeTeacherDate" SET "personalID" = $1, "dateI" = $2, updated_at = CURRENT_TIMESTAMP WHERE "brigadeID" = $3 RETURNING *',
+        values: [personalId, startDate || new Date().toISOString().split("T")[0], brigadeId],
+      }
+      const { rows } = await db.query(updateQuery)
+      return rows[0]
+    } else {
+      // Crear nueva asignación
+      const query = {
+        text: 'INSERT INTO "brigadeTeacherDate" ("brigadeID", "personalID", "dateI", created_at, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *',
+        values: [brigadeId, personalId, startDate || new Date().toISOString().split("T")[0]],
+      }
+      const { rows } = await db.query(query)
+      return rows[0]
+    }
+  } catch (error) {
+    console.error("Error in BrigadaModel.assignTeacher:", error)
+    throw error
+  }
+}
+
+// Obtener estudiantes de una brigada
 const getStudentsByBrigade = async (brigadeId) => {
   try {
     const query = {
       text: `
-        SELECT
+        SELECT 
           s.id,
           s.ci,
           s.name,
@@ -119,143 +201,158 @@ const getStudentsByBrigade = async (brigadeId) => {
           s.sex,
           s.birthday,
           g.name as grade_name,
-          sec.seccion as section_name,
-          r.name as representative_name,
-          r."lastName" as representative_lastName,
-          r.ci as representative_ci
+          sec.seccion as section_name
         FROM "student" s
-        JOIN "enrollment" e ON s.id = e."studentID"
-        JOIN "section" sec ON e."sectionID" = sec.id
-        JOIN "grade" g ON sec."gradeID" = g.id
-        LEFT JOIN "representative" r ON s."representativeID" = r.ci
-        WHERE s."brigadeTeacherDateID" IN (
-            SELECT bdf.id
-            FROM "brigadeTeacherDate" bdf
-            WHERE bdf."brigadeID" = $1 -- Eliminado AND bdf."endDate" IS NULL
-        )
+        JOIN "brigadeTeacherDate" btd ON s."brigadeTeacherDateID" = btd.id
+        LEFT JOIN "enrollment" e ON s.id = e."studentID"
+        LEFT JOIN "section" sec ON e."sectionID" = sec.id
+        LEFT JOIN "grade" g ON sec."gradeID" = g.id
+        WHERE btd."brigadeID" = $1
         ORDER BY s."lastName", s.name
       `,
       values: [brigadeId],
-    };
-    const { rows } = await db.query(query);
-    return rows;
+    }
+    const { rows } = await db.query(query)
+    return rows
   } catch (error) {
-    console.error("Error in getStudentsByBrigade:", error);
-    throw error;
+    console.error("Error in BrigadaModel.getStudentsByBrigade:", error)
+    throw error
   }
-};
+}
 
-
-// Verificar asignación activa de docente
-const checkTeacherAssignment = async (personalId) => {
+// Obtener estudiantes disponibles (sin brigada)
+const getAvailableStudents = async () => {
   try {
     const query = {
-      text: `SELECT "brigadeID" FROM "brigadeTeacherDate"
-             WHERE "personalID" = $1`, // Eliminado AND "endDate" IS NULL
-      values: [personalId],
-    };
-    
-    const { rows } = await db.query(query);
-    return rows.length > 0 ? rows[0].brigadeID : null;
+      text: `
+        SELECT 
+          s.id,
+          s.ci,
+          s.name,
+          s."lastName",
+          s.sex,
+          s.birthday,
+          g.name as grade_name,
+          sec.seccion as section_name
+        FROM "student" s
+        LEFT JOIN "enrollment" e ON s.id = e."studentID"
+        LEFT JOIN "section" sec ON e."sectionID" = sec.id
+        LEFT JOIN "grade" g ON sec."gradeID" = g.id
+        WHERE s."brigadeTeacherDateID" IS NULL 
+        AND s.status_id = 1
+        ORDER BY g.name, sec.seccion, s."lastName", s.name
+      `,
+    }
+    const { rows } = await db.query(query)
+    return rows
   } catch (error) {
-    console.error("Error in checkTeacherAssignment:", error);
-    throw error;
+    console.error("Error in BrigadaModel.getAvailableStudents:", error)
+    throw error
   }
-};
+}
 
-
-// Asignar docente a brigada
-const assignTeacherToBrigade = async (brigadeId, personalId) => {
+// Obtener docentes disponibles
+const getAvailableTeachers = async () => {
   try {
-    // Primero, verificar si el docente ya tiene una brigada activa
-    const existingAssignment = await checkTeacherAssignment(personalId);
-    if (existingAssignment) {
-      throw new Error(`El docente ya está asignado a la brigada con ID: ${existingAssignment}.`);
+    const query = {
+      text: `
+        SELECT 
+          p.id,
+          p.ci,
+          p.name,
+          p."lastName",
+          p.email,
+          p."telephoneNumber",
+          r.name as rol_nombre
+        FROM "personal" p
+        LEFT JOIN "rol" r ON p."idRole" = r.id
+        WHERE p."idRole" IN (1, 2, 3, 4)
+        ORDER BY p.name, p."lastName"
+      `,
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in BrigadaModel.getAvailableTeachers:", error)
+    throw error
+  }
+}
+
+// Inscribir estudiantes en brigada
+const enrollStudents = async (brigadeId, studentIds) => {
+  try {
+    // Obtener el brigadeTeacherDateID para esta brigada
+    const brigadeQuery = {
+      text: 'SELECT id FROM "brigadeTeacherDate" WHERE "brigadeID" = $1 ORDER BY "dateI" DESC LIMIT 1',
+      values: [brigadeId],
+    }
+    const brigadeResult = await db.query(brigadeQuery)
+
+    if (brigadeResult.rows.length === 0) {
+      throw new Error("La brigada no tiene un docente asignado")
     }
 
-    // Insertar la nueva asignación
+    const brigadeTeacherDateId = brigadeResult.rows[0].id
+
+    // Actualizar estudiantes
+    const placeholders = studentIds.map((_, index) => `$${index + 1}`).join(",")
     const query = {
-      text: `INSERT INTO "brigadeTeacherDate" ("brigadeID", "personalID", created_at, updated_at) -- Eliminado "startDate"
-             VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-             RETURNING id, "brigadeID", "personalID"`, // Eliminado "startDate"
-      values: [brigadeId, personalId],
-    };
-    const { rows } = await db.query(query);
-    return rows[0];
-  } catch (error) {
-    console.error("Error in assignTeacherToBrigade:", error);
-    throw error;
-  }
-};
-
-// Finalizar asignación de docente
-const endTeacherAssignment = async (brigadeId, personalId) => {
-  try {
-    const query = {
-      text: `UPDATE "brigadeTeacherDate"
-             SET updated_at = CURRENT_TIMESTAMP
-             WHERE "brigadeID" = $1 AND "personalID" = $2
-             RETURNING *`,
-      values: [brigadeId, personalId],
-    };
-    const { rows } = await db.query(query);
-    if (rows.length === 0) {
-      throw new Error("No se encontró una asignación activa para finalizar con los IDs proporcionados.");
-    }
-    return rows[0];
-  } catch (error) {
-    console.error("Error in endTeacherAssignment:", error);
-    throw error;
-  }
-};
-
-
-// Actualizar una brigada
-const update = async (id, { name }) => {
-  try {
-    if (name && name.length > 100) {
-      throw new Error(`El nombre de la brigada es demasiado largo (máximo 100 caracteres)`);
+      text: `
+        UPDATE "student" 
+        SET "brigadeTeacherDateID" = $${studentIds.length + 1}
+        WHERE id IN (${placeholders})
+        AND "brigadeTeacherDateID" IS NULL
+        RETURNING id, name, "lastName"
+      `,
+      values: [...studentIds, brigadeTeacherDateId],
     }
 
-    const query = {
-      text: `UPDATE "brigade" SET name = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $2
-             RETURNING id, name, created_at, updated_at`,
-      values: [name, id],
-    };
-
-    const { rows } = await db.query(query);
-    return rows[0];
+    const { rows } = await db.query(query)
+    return {
+      studentsEnrolled: rows.length,
+      students: rows,
+    }
   } catch (error) {
-    console.error("Error in update brigade:", error);
-    throw error;
+    console.error("Error in BrigadaModel.enrollStudents:", error)
+    throw error
   }
-};
+}
 
-// Eliminar una brigada
-const remove = async (id) => {
+// Limpiar brigada (remover todos los estudiantes)
+const clearBrigade = async (brigadeId) => {
   try {
     const query = {
-      text: `DELETE FROM "brigade" WHERE id = $1 RETURNING id`,
-      values: [id],
-    };
-
-    const { rows } = await db.query(query);
-    return rows[0];
+      text: `
+        UPDATE "student" 
+        SET "brigadeTeacherDateID" = NULL
+        WHERE "brigadeTeacherDateID" IN (
+          SELECT id FROM "brigadeTeacherDate" WHERE "brigadeID" = $1
+        )
+        RETURNING id
+      `,
+      values: [brigadeId],
+    }
+    const { rows } = await db.query(query)
+    return {
+      studentsRemoved: rows.length,
+    }
   } catch (error) {
-    console.error("Error in delete brigade:", error);
-    throw error;
+    console.error("Error in BrigadaModel.clearBrigade:", error)
+    throw error
   }
-};
+}
 
 export const BrigadaModel = {
   create,
   findAll,
   findById,
   searchByName,
-  getStudentsByBrigade,
-  assignTeacherToBrigade,
-  endTeacherAssignment,
   update,
   remove,
-};
+  assignTeacher,
+  getStudentsByBrigade,
+  getAvailableStudents,
+  getAvailableTeachers,
+  enrollStudents,
+  clearBrigade,
+}

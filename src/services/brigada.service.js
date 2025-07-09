@@ -1,118 +1,186 @@
-import { BrigadaModel } from "../models/brigada.model.js";
-import { PersonalModel } from "../models/personal.model.js";
-// import { StudentModel } from "../models/student.model.js";
+import { BrigadaModel } from "../models/brigada.model.js"
 
-export class BrigadaService {
-  static async crearBrigada({ name }) {
-    if (!name || name.trim() === "") {
-      throw new Error("El nombre de la brigada es obligatorio");
+class BrigadaService {
+  // Validar datos de brigada
+  static validateBrigadeData(data) {
+    const errors = []
+
+    if (!data.name || !data.name.trim()) {
+      errors.push("El nombre de la brigada es requerido")
     }
-    if (name.length > 100) {
-      throw new Error("El nombre de la brigada es demasiado largo (máximo 100 caracteres)");
+
+    if (data.name && data.name.length > 100) {
+      errors.push("El nombre de la brigada no puede exceder 100 caracteres")
     }
-    return await BrigadaModel.create({ name });
+
+    if (data.name && data.name.length < 3) {
+      errors.push("El nombre de la brigada debe tener al menos 3 caracteres")
+    }
+
+    return errors
   }
 
-  static async obtenerTodasBrigadas() {
-    return await BrigadaModel.findAll();
+  // Validar asignación de docente
+  static validateTeacherAssignment(data) {
+    const errors = []
+
+    if (!data.personalId) {
+      errors.push("El ID del personal es requerido")
+    }
+
+    if (data.personalId && (isNaN(data.personalId) || data.personalId <= 0)) {
+      errors.push("El ID del personal debe ser un número válido")
+    }
+
+    if (data.startDate && isNaN(Date.parse(data.startDate))) {
+      errors.push("La fecha de inicio debe ser válida")
+    }
+
+    return errors
   }
 
-  static async obtenerBrigadaPorId(id) {
-    const brigada = await BrigadaModel.findById(id);
-    if (!brigada) {
-      throw new Error("Brigada no encontrada");
+  // Validar inscripción de estudiantes
+  static validateStudentEnrollment(data) {
+    const errors = []
+
+    if (!data.studentIds || !Array.isArray(data.studentIds)) {
+      errors.push("Debe proporcionar una lista de IDs de estudiantes")
     }
-    return brigada;
+
+    if (data.studentIds && data.studentIds.length === 0) {
+      errors.push("Debe seleccionar al menos un estudiante")
+    }
+
+    if (data.studentIds && data.studentIds.length > 50) {
+      errors.push("No puede inscribir más de 50 estudiantes a la vez")
+    }
+
+    if (data.studentIds) {
+      const invalidIds = data.studentIds.filter((id) => isNaN(id) || id <= 0)
+      if (invalidIds.length > 0) {
+        errors.push("Todos los IDs de estudiantes deben ser números válidos")
+      }
+    }
+
+    return errors
   }
 
-  static async actualizarBrigada(id, { name }) {
-    if (name && name.length > 100) {
-      throw new Error("El nombre de la brigada es demasiado largo (máximo 100 caracteres)");
+  // Procesar datos de brigada para respuesta
+  static formatBrigadeData(brigade) {
+    return {
+      id: brigade.id,
+      name: brigade.name,
+      encargado_name: brigade.encargado_name || null,
+      encargado_lastName: brigade.encargado_lastName || null,
+      encargado_ci: brigade.encargado_ci || null,
+      fecha_inicio: brigade.fecha_inicio || null,
+      studentCount: Number.parseInt(brigade.studentcount) || 0,
+      created_at: brigade.created_at || null,
+      updated_at: brigade.updated_at || null,
     }
-    
-    const brigada = await BrigadaModel.update(id, { name });
-    if (!brigada) {
-      throw new Error("Brigada no encontrada");
-    }
-    return brigada;
   }
 
-  static async obtenerEstudiantesPorBrigada(id) {
-    const brigada = await this.obtenerBrigadaPorId(id);
-    return await BrigadaModel.getStudentsByBrigade(id);
+  // Procesar lista de brigadas
+  static formatBrigadeList(brigades) {
+    return brigades.map(this.formatBrigadeData)
   }
 
-  static async asignarDocente(brigadeId, personalId, startDate = null) {
-    // Verificar que el personal existe y tiene un rol válido
-    const personal = await PersonalModel.findOneById(personalId);
-    if (!personal) {
-      throw new Error("Personal no encontrado");
-    }
-    
-    // Roles permitidos: 1 (Docente), 2 (Administrador), 3 (Mantenimiento)
-    const rolesPermitidos = [1, 2, 3];
-    if (!rolesPermitidos.includes(Number(personal.idRole))) {
-      throw new Error("El personal asignado no tiene un rol válido para ser encargado de brigada");
-    }
+  // Verificar disponibilidad de estudiantes
+  static async verifyStudentAvailability(studentIds) {
+    try {
+      const availableStudents = await BrigadaModel.getAvailableStudents()
+      const availableIds = availableStudents.map((s) => s.id)
 
-    // Verificar que no está asignado a otra brigada activa
-    const asignacionActiva = await BrigadaModel.checkTeacherAssignment(personalId);
-    if (asignacionActiva) {
-      throw new Error("El docente ya está asignado a otra brigada activa");
-    }
+      const unavailableStudents = studentIds.filter((id) => !availableIds.includes(Number.parseInt(id)))
 
-    return await BrigadaModel.assignTeacher(brigadeId, personalId, startDate);
+      if (unavailableStudents.length > 0) {
+        throw new Error(`Los siguientes estudiantes no están disponibles: ${unavailableStudents.join(", ")}`)
+      }
+
+      return true
+    } catch (error) {
+      console.error("Error verificando disponibilidad de estudiantes:", error)
+      throw error
+    }
   }
 
-  static async inscribirEstudiantes(brigadeId, studentIds) {
-    // Verificar que la brigada existe y tiene docente asignado
-    const brigada = await BrigadaModel.findById(brigadeId);
-    if (!brigada) {
-      throw new Error("Brigada no encontrada");
-    }
-    if (!brigada.brigade_teacher_date_id) {
-      throw new Error("La brigada no tiene un docente asignado");
-    }
+  // Verificar disponibilidad de docente
+  static async verifyTeacherAvailability(personalId) {
+    try {
+      const availableTeachers = await BrigadaModel.getAvailableTeachers()
+      const isAvailable = availableTeachers.some((t) => t.id === Number.parseInt(personalId))
 
-    // Verificar que los estudiantes existen y no están asignados
-    const estudiantes = await StudentModel.findByIds(studentIds);
-    if (estudiantes.length !== studentIds.length) {
-      const encontrados = estudiantes.map(e => e.id);
-      const noEncontrados = studentIds.filter(id => !encontrados.includes(id));
-      throw new Error(`Estudiantes no encontrados: ${noEncontrados.join(', ')}`);
-    }
+      if (!isAvailable) {
+        throw new Error("El docente seleccionado no está disponible")
+      }
 
-    const estudiantesConBrigada = estudiantes.filter(e => e.brigade_teacher_date_id);
-    if (estudiantesConBrigada.length > 0) {
-      const ids = estudiantesConBrigada.map(e => e.id);
-      throw new Error(`Estudiantes ya asignados a otra brigada: ${ids.join(', ')}`);
+      return true
+    } catch (error) {
+      console.error("Error verificando disponibilidad de docente:", error)
+      throw error
     }
-
-    return await BrigadaModel.enrollStudents(studentIds, brigada.brigade_teacher_date_id);
   }
 
-  static async limpiarBrigada(brigadeId) {
-    const brigada = await this.obtenerBrigadaPorId(brigadeId);
-    return await BrigadaModel.clearBrigade(brigadeId);
-  }
+  // Obtener estadísticas de brigada
+  static async getBrigadeStatistics(brigadeId) {
+    try {
+      const brigade = await BrigadaModel.findById(brigadeId)
+      if (!brigade) {
+        throw new Error("Brigada no encontrada")
+      }
 
-  static async eliminarBrigada(id) {
-    const brigada = await this.obtenerBrigadaPorId(id);
-    return await BrigadaModel.remove(id);
-  }
+      const students = await BrigadaModel.getStudentsByBrigade(brigadeId)
 
-  static async obtenerEstudiantesDisponibles() {
-    return await BrigadaModel.getAvailableStudents();
-  }
+      const stats = {
+        totalStudents: students.length,
+        maleStudents: students.filter((s) => s.sex === "Masculino").length,
+        femaleStudents: students.filter((s) => s.sex === "Femenino").length,
+        gradeDistribution: {},
+      }
 
-  static async obtenerDocentesDisponibles() {
-    return await BrigadaModel.getAvailableTeachers();
-  }
+      // Distribución por grado
+      students.forEach((student) => {
+        const grade = student.grade_name || "Sin grado"
+        stats.gradeDistribution[grade] = (stats.gradeDistribution[grade] || 0) + 1
+      })
 
-  static async buscarBrigadasPorNombre(name) {
-    if (!name || name.trim().length < 3) {
-      throw new Error("El término de búsqueda debe tener al menos 3 caracteres");
+      return {
+        brigade,
+        statistics: stats,
+        students,
+      }
+    } catch (error) {
+      console.error("Error obteniendo estadísticas de brigada:", error)
+      throw error
     }
-    return await BrigadaModel.searchByName(name);
+  }
+
+  // Generar reporte de brigada
+  static async generateBrigadeReport(brigadeId) {
+    try {
+      const brigadeData = await this.getBrigadeStatistics(brigadeId)
+
+      const report = {
+        brigada: brigadeData.brigade,
+        estadisticas: brigadeData.statistics,
+        estudiantes: brigadeData.students,
+        fechaReporte: new Date().toISOString(),
+        resumen: {
+          nombre: brigadeData.brigade.name,
+          encargado: brigadeData.brigade.encargado_name
+            ? `${brigadeData.brigade.encargado_name} ${brigadeData.brigade.encargado_lastName}`
+            : "Sin asignar",
+          totalEstudiantes: brigadeData.statistics.totalStudents,
+          fechaInicio: brigadeData.brigade.fecha_inicio,
+        },
+      }
+
+      return report
+    } catch (error) {
+      console.error("Error generando reporte de brigada:", error)
+      throw error
+    }
   }
 }
+
+export default BrigadaService
