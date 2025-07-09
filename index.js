@@ -5,6 +5,8 @@ import userRoutes from "./src/routes/user.route.js"
 import personalRoutes from "./src/routes/personal.route.js"
 import pdfRoutes from "./src/routes/pdf.route.js"
 import matriculaRoutes from "./src/routes/matricula.route.js"
+import studentRoutes from "./src/routes/student.route.js"
+import representativeRoutes from "./src/routes/representative.route.js"
 import brigadaRoutes from "./src/routes/brigada.route.js"
 import dashboardRoutes from "./src/routes/dashboard.route.js"
 import { db } from "./src/db/connection.database.js"
@@ -29,6 +31,8 @@ app.use("/api/users", userRoutes)
 app.use("/api/personal", personalRoutes)
 app.use("/api/pdf", pdfRoutes)
 app.use("/api/matriculas", matriculaRoutes)
+app.use("/api/students", studentRoutes)
+app.use("/api/representatives", representativeRoutes)
 app.use("/api/brigadas", brigadaRoutes)
 app.use("/api/dashboard", dashboardRoutes)
 
