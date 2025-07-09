@@ -69,7 +69,7 @@ const findAll = async () => {
         SELECT
           e.*,
           s."name" as student_name,
-          s."lastName" as student_lastName,
+          s."lastName" as "student_lastName",
           s."ci" as student_school_id,
           s."birthday" as student_birthday,
           s."placeBirth" as student_birthplace_name,
@@ -83,11 +83,11 @@ const findAll = async () => {
           sec."seccion" as section_name,
           sec."period",
           per."name" as teacher_name,
-          per."lastName" as teacher_lastName,
+          per."lastName" as "teacher_lastName",
           rep."name" as representative_name,
-          rep."lastName" as representative_lastName,
+          rep."lastName" as "representative_lastName",
           rep."ci" as representative_ci,
-          rep."telephoneNumber" as representative_phoneNumber,
+          rep."telephoneNumber" as "representative_phoneNumber",
           rep."email" as representative_email,
           rep."roomAdress" as representative_address,
           rep."workPlace" as representative_workplace,
@@ -117,7 +117,7 @@ const findById = async (id) => {
         SELECT
           e.*,
           s."name" as student_name,
-          s."lastName" as student_lastName,
+          s."lastName" as "student_lastName",
           s."ci" as student_school_id,
           s."sex" as student_sex,
           s."birthday" as student_birthday,
@@ -131,11 +131,11 @@ const findById = async (id) => {
           sec."seccion" as section_name,
           sec."period",
           per."name" as teacher_name,
-          per."lastName" as teacher_lastName,
+          per."lastName" as "teacher_lastName",
           rep."name" as representative_name,
-          rep."lastName" as representative_lastName,
+          rep."lastName" as "representative_lastName",
           rep."ci" as representative_ci,
-          rep."telephoneNumber" as representative_phoneNumber,
+          rep."telephoneNumber" as "representative_phoneNumber",
           rep."email" as representative_email,
           rep."roomAdress" as representative_address,
           rep."workPlace" as representative_workplace,
@@ -369,6 +369,34 @@ const checkExistingMatricula = async (studentID, sectionID) => {
     throw error
   }
 }
+const findByGrade = async (gradeId) => {
+  try {
+    const query = {
+      text: `
+        SELECT
+          e.*,
+          s."name" as student_name,
+          s."lastName" as "student_lastName",
+          s."ci" as student_school_id,
+          g."name" as grade_name,
+          sec."seccion" as section_name
+        FROM "enrollment" e
+        LEFT JOIN "student" s ON e."studentID" = s."id"
+        LEFT JOIN "section" sec ON e."sectionID" = sec."id"
+        LEFT JOIN "grade" g ON sec."gradeID" = g."id"
+        WHERE g.id = $1
+        ORDER BY g."name", sec."seccion", s."lastName", s.name
+      `,
+      values: [gradeId],
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in findByGrade matriculas:", error)
+    throw error
+  }
+}
+
 
 export const MatriculaModel = {
   create,
@@ -381,4 +409,5 @@ export const MatriculaModel = {
   getGrados,
   getDocenteGrados,
   checkExistingMatricula,
+  findByGrade
 }

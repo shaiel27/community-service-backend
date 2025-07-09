@@ -1,11 +1,14 @@
 import { Router } from "express"
 import { BrigadaController } from "../controllers/brigada.controller.js"
 import { verifyToken, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
+<<<<<<< HEAD
 import {
   validateBrigadeData,
   validateTeacherAssignment,
   validateStudentEnrollment,
 } from "../validators/brigada.validator.js"
+=======
+>>>>>>> 6e1b82ff7bf7915a9f0b9d51a58b45d63278ae09
 
 const router = Router()
 
