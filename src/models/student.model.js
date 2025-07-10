@@ -108,6 +108,34 @@ const getRegisteredStudents = async () => {
   }
 }
 
+const findOneById = async (id) => {
+  try {
+    const query = {
+      text: `
+        SELECT 
+          s.*,
+          r.name as representative_name,
+          r."lastName" as representative_lastName,
+          r.ci as representative_ci,
+          r."telephoneNumber" as representative_phone,
+          ss.descripcion as status_description,
+          p.name as parish_name
+        FROM "student" s
+        LEFT JOIN "representative" r ON s."representativeID" = r.ci
+        LEFT JOIN "status_student" ss ON s.status_id = ss.id
+        LEFT JOIN "parish" p ON s."parishID" = p.id
+        WHERE s.id = $1
+      `,
+      values: [id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in findOneById student:", error)
+    throw error
+  }
+}
+
 // Buscar estudiante por CI para inscripción
 const findStudentForInscription = async (ci) => {
   try {
@@ -189,6 +217,7 @@ const updateStudentStatus = async (studentId, statusId) => {
 export const StudentModel = {
   createStudentRegistry,
   getRegisteredStudents,
+  findOneById,
   findStudentForInscription,
   findStudentByCi,
   updateStudentStatus,

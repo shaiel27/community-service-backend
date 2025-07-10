@@ -5,25 +5,34 @@ import { PdfController } from "../controllers/pdf.controller.js"
 
 const router = express.Router()
 
-// Ruta para generar el PDF de listado de todo los estudiantes con su respectivo grado y sección
-router.get("/students/list"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateStudentListPdf)
-
-// Ruta para generar la ficha de matrícula de un estudiante específico
-router.get("/enrollment/student/:id"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateEnrollmentFormPdf)
-
-// Ruta para generar el PDF de listado de estudiantes por grado
-router.get("/students/list/grade/:gradeId"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateStudentListByGradePdf)
-
 // Ruta para generar el PDF de listado de brigadas y docentes
-router.get("/brigades/list"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateBrigadesAndTeachersPdf)
+router.get("/brigades/list" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateBrigadeListPdf)
 
 // Ruta para generar el PDF de los integrantes de una brigada específica y sus datos
-router.get("/brigades/:id/details"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateBrigadeDetailsPdf)
+router.get("/brigades/:id/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateBrigadeDetailsPdf)
 
-// Nueva ruta para generar el PDF de listado de docentes
-router.get("/personal/teachers/list"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateTeacherListPdf)
+// Ruta para generar el PDF de listado de docentes 
+router.get("/personal/teachers/list" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateTeacherListPdf)
 
-// Ruta para generar el PDF de los datos extensos de un docente específico
-router.get("/personal/teacher/:id/details"/*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateTeacherDetailsPdf)
+// Ruta para generar el PDF de los datos extensos de un docente específico 
+router.get("/personal/teacher/:id/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateTeacherDetailsPdf)
+
+//  Ruta para generar el PDF de todos los alumnos con grado y sección
+router.get("/students/list/all" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateAllStudentsPdf)
+
+//  Ruta para generar el PDF de listado de estudiantes por grado específico
+router.get("/students/list/grade/:gradeId" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateStudentsByGradePdf)
+
+//  Ruta para generar el PDF de todos los datos de un alumno específico (buscar por CI)
+router.get("/student/:ci/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateStudentDetailsPdf)
+
+//  Ruta para generar el PDF de listado de todo el personal en la institución
+router.get("/personal/list/all" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateAllPersonalListPdf)
+
+//  Ruta para generar el PDF de listado de todo el personal por idRole específico
+router.get("/personal/list/role/:roleId" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generatePersonalByRolePdf)
+
+//  Ruta para generar el PDF de todos los datos extensivos de un personal específico
+router.get("/personal/:id/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generatePersonalDetailsPdf)
 
 export default router
