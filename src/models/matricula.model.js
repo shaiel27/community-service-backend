@@ -215,6 +215,75 @@ const getAllInscriptions = async () => {
     throw error
   }
 }
+// Actualizar un registro de matrícula por su ID**
+const update = async (id, updateData) => {
+  try {
+    const fields = []
+    const values = []
+    let paramIndex = 1
+
+    for (const key in updateData) {
+      // Ignorar studentID ya que no debe ser actualizable directamente en matrícula
+      if (key === 'studentID') {
+        continue;
+      }
+      fields.push(`"${key}" = $${paramIndex++}`)
+      values.push(updateData[key])
+    }
+
+    if (fields.length === 0) {
+      throw new Error("No se proporcionaron campos para actualizar la matrícula.")
+    }
+
+    fields.push(`updated_at = CURRENT_TIMESTAMP`)
+
+    const query = {
+      text: `
+        UPDATE "enrollment"
+        SET ${fields.join(", ")}
+        WHERE id = $${paramIndex++}
+        RETURNING *
+      `,
+      values: [...values, id],
+    }
+
+    console.log("🔍 Query de actualización de matrícula a ejecutar:", query)
+    const { rows } = await db.query(query)
+    if (rows.length === 0) {
+      throw new Error(`Matrícula con ID ${id} no encontrada.`)
+    }
+    console.log("✅ Matrícula actualizada:", rows[0])
+    return rows[0]
+  } catch (error) {
+    console.error("❌ Error in updateMatricula:", error)
+    throw error
+  }
+}
+
+// Eliminar un registro de matrícula por su ID**
+const remove = async (id) => {
+  try {
+    const query = {
+      text: `
+        DELETE FROM "enrollment"
+        WHERE id = $1
+        RETURNING *
+      `,
+      values: [id],
+    }
+
+    console.log("🔍 Query de eliminación de matrícula a ejecutar:", query)
+    const { rows } = await db.query(query)
+    if (rows.length === 0) {
+      throw new Error(`Matrícula con ID ${id} no encontrada para eliminar.`)
+    }
+    console.log("🗑️ Matrícula eliminada:", rows[0])
+    return rows[0] // Retorna la matrícula eliminada
+  } catch (error) {
+    console.error("❌ Error in deleteMatricula:", error)
+    throw error
+  }
+}
 
 export const MatriculaModel = {
   createSchoolInscription,
@@ -224,4 +293,6 @@ export const MatriculaModel = {
   assignTeacherToSection,
   getInscriptionsByGrade,
   getAllInscriptions,
+  update,
+  remove,
 }

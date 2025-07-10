@@ -24,9 +24,9 @@ router.get("/:ci", StudentController.findStudentByCi)
 router.get("/list/all", StudentController.getAllStudents)
 
 // Ruta para actualizar un estudiante por ID (PUT completo o PATCH parcial si lo prefieres)
-router.put("/students/:id", StudentController.updateStudent)
+router.put("/:id", StudentController.updateStudent)
 
 // Ruta para eliminar un estudiante por ID
-router.delete("/students/:id", StudentController.deleteStudent)
+router.delete("/:id", StudentController.deleteStudent)
 
 export default router
