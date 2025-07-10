@@ -168,6 +168,32 @@ const getAllStudents = async (req, res) => {
     handleError(res, error)
   }
 }
+// Controlador para actualizar un estudiante**
+const updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params // ID del estudiante a actualizar
+    const studentData = req.body // Datos a actualizar
+
+    const updatedStudent = await StudentModel.updateStudent(id, studentData)
+    res.status(200).json({ message: "Estudiante actualizado exitosamente", student: updatedStudent })
+  } catch (error) {
+    console.error("Error updating student:", error)
+    res.status(400).json({ error: error.message })
+  }
+}
+
+// Controlador para eliminar un estudiante**
+const deleteStudent = async (req, res) => {
+  try {
+    const { id } = req.params // ID del estudiante a eliminar
+
+    const deletedStudent = await StudentModel.deleteStudent(id)
+    res.status(200).json({ message: "Estudiante eliminado exitosamente", student: deletedStudent })
+  } catch (error) {
+    console.error("Error deleting student:", error)
+    res.status(400).json({ error: error.message })
+  }
+}
 
 export const StudentController = {
   createStudentRegistry,
@@ -175,4 +201,6 @@ export const StudentController = {
   findStudentForInscription,
   findStudentByCi,
   getAllStudents,
+  updateStudent,
+  deleteStudent
 }

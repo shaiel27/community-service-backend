@@ -217,6 +217,124 @@ const getAllStudents = async () => {
   }
 }
 
+// **NUEVO: Actualizar un estudiante por su ID**
+const updateStudent = async (studentId, studentData) => {
+  try {
+    const {
+      ci,
+      name,
+      lastName,
+      sex,
+      birthday,
+      placeBirth,
+      parishID,
+      quantityBrothers,
+      representativeID,
+      motherName,
+      motherCi,
+      motherTelephone,
+      fatherName,
+      fatherCi,
+      fatherTelephone,
+      livesMother,
+      livesFather,
+      livesBoth,
+      livesRepresentative,
+      rolRopresentative,
+      status_id, // Permitir actualizar el status_id aquí también
+    } = studentData
+
+    const fields = []
+    const values = []
+    let paramIndex = 1
+
+    const addField = (fieldName, value) => {
+      if (value !== undefined) { // Solo añadir si el valor está presente en studentData
+        fields.push(`"${fieldName}" = $${paramIndex++}`)
+        values.push(value)
+      }
+    }
+
+    addField("ci", ci)
+    addField("name", name)
+    addField("lastName", lastName)
+    addField("sex", sex)
+    addField("birthday", birthday)
+    addField("placeBirth", placeBirth)
+    addField("parishID", parishID)
+    addField("quantityBrothers", quantityBrothers)
+    addField("representativeID", representativeID)
+    addField("motherName", motherName)
+    addField("motherCi", motherCi)
+    addField("motherTelephone", motherTelephone)
+    addField("fatherName", fatherName)
+    addField("fatherCi", fatherCi)
+    addField("fatherTelephone", fatherTelephone)
+    addField("livesMother", livesMother)
+    addField("livesFather", livesFather)
+    addField("livesBoth", livesBoth)
+    addField("livesRepresentative", livesRepresentative)
+    addField("rolRopresentative", rolRopresentative)
+    addField("status_id", status_id) // Add status_id to updatable fields
+
+    if (fields.length === 0) {
+      throw new Error("No se proporcionaron campos para actualizar.")
+    }
+
+    fields.push(`updated_at = CURRENT_TIMESTAMP`)
+
+    const query = {
+      text: `
+        UPDATE "student" 
+        SET ${fields.join(", ")} 
+        WHERE id = $${paramIndex++} 
+        RETURNING *
+      `,
+      values: [...values, studentId],
+    }
+
+    console.log("🔍 Query de actualización a ejecutar:", query)
+    const { rows } = await db.query(query)
+    if (rows.length === 0) {
+      throw new Error(`Estudiante con ID ${studentId} no encontrado.`)
+    }
+    console.log("✅ Estudiante actualizado:", rows[0])
+    return rows[0]
+  } catch (error) {
+    console.error("❌ Error in updateStudent:", error)
+    throw error
+  }
+}
+
+// **NUEVO: Eliminar un estudiante por su ID**
+const deleteStudent = async (studentId) => {
+  try {
+    // Puedes optar por una eliminación física (DELETE) o una eliminación lógica (actualizar status_id)
+    // Recomendación: Para datos sensibles como estudiantes, una eliminación lógica (cambiar status_id a "inactivo" o "eliminado") es preferible
+    // Aquí implementaré la eliminación física por simplicidad, pero tenlo en cuenta.
+
+    const query = {
+      text: `
+        DELETE FROM "student" 
+        WHERE id = $1 
+        RETURNING *
+      `,
+      values: [studentId],
+    }
+
+    console.log("🔍 Query de eliminación a ejecutar:", query)
+    const { rows } = await db.query(query)
+    if (rows.length === 0) {
+      throw new Error(`Estudiante con ID ${studentId} no encontrado para eliminar.`)
+    }
+    console.log("🗑️ Estudiante eliminado:", rows[0])
+    return rows[0] // Retorna el estudiante eliminado
+  } catch (error) {
+    console.error("❌ Error in deleteStudent:", error)
+    throw error
+  }
+}
+
 export const StudentModel = {
   createStudentRegistry,
   getRegisteredStudents,
@@ -224,4 +342,6 @@ export const StudentModel = {
   findStudentByCi,
   updateStudentStatus,
   getAllStudents,
+  updateStudent,
+  deleteStudent,
 }
