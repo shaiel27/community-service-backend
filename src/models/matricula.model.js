@@ -194,12 +194,12 @@ const getAllInscriptions = async () => {
         SELECT 
           e.*,
           s.name as student_name,
-          s."lastName" as student_lastName,
+          s."lastName" as "student_lastName",
           s.ci as student_ci,
           g.name as grade_name,
           sec.seccion as section_name,
           p.name as teacher_name,
-          p."lastName" as teacher_lastName
+          p."lastName" as "teacher_lastName"
         FROM "enrollment" e
         JOIN "student" s ON e."studentID" = s.id
         JOIN "section" sec ON e."sectionID" = sec.id

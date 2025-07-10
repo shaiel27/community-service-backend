@@ -64,6 +64,50 @@ const findOneById = async (id) => {
   }
 }
 
+const findAllPersonal = async () => {
+  try {
+    const query = {
+      text: `
+        SELECT p.id, p.ci, p.name, p."lastName", p."telephoneNumber", p.email,
+               r.name as rol_nombre,
+               par.name as parroquia_nombre
+        FROM "personal" p
+        LEFT JOIN rol r ON p."idRole" = r.id
+        LEFT JOIN parish par ON p.parish = par.id
+        ORDER BY p.name, p."lastName"
+      `,
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in findAllPersonal:", error)
+    throw error
+  }
+}
+
+const findByRoleId = async (roleId) => {
+  try {
+    const query = {
+      text: `
+        SELECT p.id, p.ci, p.name, p."lastName", p."telephoneNumber", p.email,
+               r.name as rol_nombre,
+               par.name as parroquia_nombre
+        FROM "personal" p
+        LEFT JOIN rol r ON p."idRole" = r.id
+        LEFT JOIN parish par ON p.parish = par.id
+        WHERE p."idRole" = $1
+        ORDER BY p.name, p."lastName"
+      `,
+      values: [roleId],
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in findByRoleId personal:", error)
+    throw error
+  }
+}
+
 const findOneByCi = async (ci) => {
   try {
     const query = {
@@ -476,4 +520,6 @@ export const PersonalModel = {
   searchByCi,
   getRoles,
   getParishes,
+  findAllPersonal,
+  findByRoleId,
 }
