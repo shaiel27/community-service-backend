@@ -358,59 +358,33 @@ INSERT INTO "notes" ("enrollmentID", notes, period, subject, "registrationDate",
 (19, 17.00, 'Primer Lapso', 'Geografía', '2024-12-15', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 (22, 18.80, 'Primer Lapso', 'Inglés', '2024-12-15', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO NOTHING;
+
 -- Datos de Prueba para 'studentBrigade' (ejemplos, asegurando que los studentID y brigadeID existan)
-INSERT INTO "studentBrigade" (studentID, brigadeID, assignmentDate, created_at, updated_at) VALUES
-(1, 1, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Diego Pérez en Brigada Ecológica
-(2, 2, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Sofía López en Brigada Deportiva
-(3, 3, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Andrés Ramírez en Brigada Cívica
-(4, 1, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Mariana Silva en Brigada Ecológica
-(5, 2, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Pablo Velasquez en Brigada Deportiva
-(6, 3, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Lucía Guerrero en Brigada Cívica
-(7, 4, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Mateo Arias en Brigada de Lectura
-(8, 5, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Valeria Blanco en Brigada de Arte
-(9, 6, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Santiago Castañeda en Brigada de Ciencias
-(10, 7, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Isabella Díaz en Brigada de Robótica
-(11, 8, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Juan Espinoza en Brigada de Música
-(12, 9, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Emma Flores en Brigada de Voluntariado
-(13, 10, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Sebastián García en Brigada de Primeros Auxilios
-(14, 11, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Laura Hernández en Brigada de Debate
-(15, 12, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Leo Ibarra en Brigada de Fotografía
-(16, 1, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Ana Jara en Brigada Ecológica
-(17, 2, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Tomás King en Brigada Deportiva
-(18, 3, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Daniela León en Brigada Cívica
-(19, 4, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Sara Mora en Brigada de Lectura
-(20, 5, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Lucas Nieves en Brigada de Arte
-(21, 6, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Emilia Ortiz en Brigada de Ciencias
-(22, 7, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Felipe Paredes en Brigada de Robótica
-(23, 8, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Victoria Quintero en Brigada de Música
-(24, 9, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Ricardo Rojas en Brigada de Voluntariado
-(25, 10, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Sofía Salazar en Brigada de Primeros Auxilios
-(26, 11, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Javier Torres en Brigada de Debate
-(27, 12, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Camila Uribe en Brigada de Fotografía
-(28, 1, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Alejandro Vargas en Brigada Ecológica
-(29, 2, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Valeria Zurita en Brigada Deportiva
-(30, 3, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Miguel Acosta en Brigada Cívica
-(31, 4, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Natalia Benítez en Brigada de Lectura
-(32, 5, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Diego Cabrera en Brigada de Arte
-(33, 6, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Elena Delgado en Brigada de Ciencias
-(34, 7, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Luis Estrada en Brigada de Robótica
-(35, 8, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Andrea Figueroa en Brigada de Música
-(36, 9, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Carlos Guzmán en Brigada de Voluntariado
-(37, 10, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Daniela Hernández en Brigada de Primeros Auxilios
-(38, 11, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Pedro Infante en Brigada de Debate
-(39, 12, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Gabriela Jaramillo en Brigada de Fotografía
-(40, 1, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Jorge Klein en Brigada Ecológica
-(41, 2, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Carolina Lara en Brigada Deportiva
-(42, 3, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Manuel Méndez en Brigada Cívica
-(43, 4, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Valeria Navarro en Brigada de Lectura
-(44, 5, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Pablo Olivares en Brigada de Arte
-(45, 6, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Lucía Pérez en Brigada de Ciencias
-(46, 7, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Santiago Quiroz en Brigada de Robótica
-(47, 8, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Isabella Reyes en Brigada de Música
-(48, 9, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Juan Sosa en Brigada de Voluntariado
-(49, 10, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- María Tapia en Brigada de Primeros Auxilios
-(50, 11, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- José Urbina en Brigada de Debate
-(51, 12, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Ana Vidal en Brigada de Fotografía
-(52, 1, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Pedro Zambrano en Brigada Ecológica
-(53, 2, '2024-10-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) -- Elena Álvarez en Brigada Deportiva
-ON CONFLICT ("studentID", "brigadeID") DO NOTHING;
+INSERT INTO "studentBrigade" ("studentID", "brigadeID", "assignmentDate", created_at, updated_at) VALUES
+(1, 1, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(2, 2, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(3, 1, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(4, 2, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(5, 1, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(6, 2, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(7, 1, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(8, 2, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(10, 1, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(11, 2, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO "studentBrigade" ("studentID", "brigadeID", "assignmentDate", created_at, updated_at) VALUES
+(12, 3, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Emma Flores to Brigada Siembra A
+(13, 4, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Sebastián García to Brigada Siembra B
+(14, 5, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Laura Hernández to Brigada Reciclaje A
+(15, 6, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Leo Ibarra to Brigada Reciclaje B
+(16, 1, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Ana Jara to Brigada Limpieza A
+(17, 2, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Tomás King to Brigada Limpieza B
+(18, 3, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Daniela León to Brigada Siembra A
+(19, 4, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Sara Mora to Brigada Siembra B
+(20, 5, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Lucas Nieves to Brigada Reciclaje A
+(21, 6, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Emilia Ortiz to Brigada Reciclaje B
+(22, 1, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Felipe Paredes to Brigada Limpieza A
+(23, 2, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Victoria Quintero to Brigada Limpieza B
+(24, 3, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Ricardo Rojas to Brigada Siembra A
+(25, 4, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- Sofía Salazar to Brigada Siembra B
+(26, 5, '2024-09-01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP); -- Javier Torres to Brigada Reciclaje A
