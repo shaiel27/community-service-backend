@@ -108,34 +108,6 @@ const getRegisteredStudents = async () => {
   }
 }
 
-const findOneById = async (id) => {
-  try {
-    const query = {
-      text: `
-        SELECT 
-          s.*,
-          r.name as representative_name,
-          r."lastName" as representative_lastName,
-          r.ci as representative_ci,
-          r."telephoneNumber" as representative_phone,
-          ss.descripcion as status_description,
-          p.name as parish_name
-        FROM "student" s
-        LEFT JOIN "representative" r ON s."representativeID" = r.ci
-        LEFT JOIN "status_student" ss ON s.status_id = ss.id
-        LEFT JOIN "parish" p ON s."parishID" = p.id
-        WHERE s.id = $1
-      `,
-      values: [id],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findOneById student:", error)
-    throw error
-  }
-}
-
 // Buscar estudiante por CI para inscripción
 const findStudentForInscription = async (ci) => {
   try {
@@ -154,9 +126,7 @@ const findStudentForInscription = async (ci) => {
         FROM "student" s
         LEFT JOIN "representative" r ON s."representativeID" = r.ci
         LEFT JOIN "status_student" ss ON s.status_id = ss.id
-        WHERE s.ci = $1 AND s.status_id = 1 AND s.id NOT IN (
-          SELECT DISTINCT "studentID" FROM "enrollment" WHERE "studentID" IS NOT NULL
-        )
+        WHERE s.ci = $1 AND s.status_id = 1
       `,
       values: [ci],
     }
@@ -207,6 +177,9 @@ const updateStudentStatus = async (studentId, statusId) => {
       values: [statusId, studentId],
     }
     const { rows } = await db.query(query)
+    if (rows.length === 0) {
+      throw new Error(`Estudiante con ID ${studentId} no encontrado.`)
+    }
     return rows[0]
   } catch (error) {
     console.error("Error in updateStudentStatus:", error)
@@ -214,11 +187,41 @@ const updateStudentStatus = async (studentId, statusId) => {
   }
 }
 
+// Obtener todos los estudiantes, sin importar el estado de inscripción
+const getAllStudents = async () => {
+  try {
+    const query = {
+      text: `
+        SELECT 
+          s.*,
+          r.name AS representative_name,
+          r."lastName" AS representative_lastName,
+          r."telephoneNumber" AS representative_phone,
+          ss.descripcion AS status_description,
+          CASE 
+            WHEN e."studentID" IS NOT NULL THEN TRUE
+            ELSE FALSE
+          END AS is_enrolled
+        FROM "student" s
+        LEFT JOIN "representative" r ON s."representativeID" = r.ci
+        LEFT JOIN "status_student" ss ON s.status_id = ss.id
+        LEFT JOIN "enrollment" e ON s.id = e."studentID"
+        ORDER BY s.created_at DESC
+      `,
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in getAllStudents:", error)
+    throw error
+  }
+}
+
 export const StudentModel = {
   createStudentRegistry,
   getRegisteredStudents,
-  findOneById,
   findStudentForInscription,
   findStudentByCi,
   updateStudentStatus,
+  getAllStudents,
 }

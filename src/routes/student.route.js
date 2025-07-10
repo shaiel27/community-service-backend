@@ -20,4 +20,7 @@ router.get("/inscription/:ci", StudentController.findStudentForInscription)
 // Buscar estudiante por CI (general)
 router.get("/:ci", StudentController.findStudentByCi)
 
+// Obtener todos los estudiantes (sin importar estado de inscripción)
+router.get("/all", StudentController.getAllStudents)
+
 export default router

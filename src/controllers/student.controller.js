@@ -1,6 +1,22 @@
 import { StudentModel } from "../models/student.model.js"
 import { RepresentativeModel } from "../models/representative.model.js"
 
+// Centralized error handler (if not already present, add it)
+const handleError = (res, error) => {
+  console.error("❌ Error:", error)
+  const status = error.message.includes("no encontrad")
+    ? 404
+    : error.message.includes("Ya existe")
+    ? 400
+    : 500
+  const message = status === 500 ? "Error interno del servidor" : error.message
+
+  res.status(status).json({
+    ok: false,
+    msg: message,
+  })
+}
+
 // Crear registro estudiantil (estudiante + representante)
 const createStudentRegistry = async (req, res) => {
   try {
@@ -71,32 +87,7 @@ const createStudentRegistry = async (req, res) => {
       },
     })
   } catch (error) {
-    console.error("❌ Error en createStudentRegistry:", error)
-
-    // Manejar errores específicos de base de datos
-    if (error.code === "23505") {
-      // Unique constraint violation
-      return res.status(400).json({
-        ok: false,
-        msg: "Ya existe un registro con esa cédula",
-        error: error.detail,
-      })
-    }
-
-    if (error.code === "23503") {
-      // Foreign key constraint violation
-      return res.status(400).json({
-        ok: false,
-        msg: "Error de referencia en los datos",
-        error: error.detail,
-      })
-    }
-
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -104,21 +95,14 @@ const createStudentRegistry = async (req, res) => {
 const getRegisteredStudents = async (req, res) => {
   try {
     console.log("📋 Obteniendo estudiantes registrados")
-
     const students = await StudentModel.getRegisteredStudents()
-
     res.json({
       ok: true,
       students,
       total: students.length,
     })
   } catch (error) {
-    console.error("❌ Error en getRegisteredStudents:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -142,12 +126,7 @@ const findStudentForInscription = async (req, res) => {
       student,
     })
   } catch (error) {
-    console.error("❌ Error en findStudentForInscription:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -171,12 +150,22 @@ const findStudentByCi = async (req, res) => {
       student,
     })
   } catch (error) {
-    console.error("❌ Error en findStudentByCi:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
+    handleError(res, error)
+  }
+}
+
+// NUEVA FUNCIÓN: Obtener todos los estudiantes
+const getAllStudents = async (req, res) => {
+  try {
+    console.log("📋 Obteniendo todos los estudiantes")
+    const students = await StudentModel.getAllStudents()
+    res.json({
+      ok: true,
+      students,
+      total: students.length,
     })
+  } catch (error) {
+    handleError(res, error)
   }
 }
 
@@ -185,4 +174,5 @@ export const StudentController = {
   getRegisteredStudents,
   findStudentForInscription,
   findStudentByCi,
+  getAllStudents, // Export the new function
 }

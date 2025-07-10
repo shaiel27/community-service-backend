@@ -18,13 +18,13 @@ router.get("/personal/teachers/list" /*, verifyToken, verifyAdminOrReadOnly*/, P
 router.get("/personal/teacher/:id/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateTeacherDetailsPdf)
 
 //  Ruta para generar el PDF de todos los alumnos con grado y sección
-router.get("/students/list/all" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateAllStudentsPdf)
+router.get("/students/enrolled/list/all" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.GenerateAllEnrolledStudentsPdf)
 
 //  Ruta para generar el PDF de listado de estudiantes por grado específico
 router.get("/students/list/grade/:gradeId" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateStudentsByGradePdf)
 
 //  Ruta para generar el PDF de todos los datos de un alumno específico (buscar por CI)
-router.get("/student/:ci/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateStudentDetailsPdf)
+router.get("/student/:id/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateStudentDetailsPdf)
 
 //  Ruta para generar el PDF de listado de todo el personal en la institución
 router.get("/personal/list/all" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateAllPersonalListPdf)

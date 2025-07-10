@@ -589,7 +589,7 @@ const PdfController = {
     }
   },
   // 1. NUEVO: Generar PDF con listado de todos los alumnos con grado y sección
-  generateAllStudentsPdf: async (req, res) => {
+  GenerateAllEnrolledStudentsPdf: async (req, res) => {
     try {
       console.log("📄 Generando PDF de listado de todos los estudiantes con grado y sección...")
 
@@ -610,7 +610,7 @@ const PdfController = {
       drawPageHeader(doc, "LISTADO GENERAL DE ESTUDIANTES")
 
       doc.moveDown(2)
-      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`)
+      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`, 50)
       doc.text(`Total de estudiantes: ${students.length}`)
       doc.moveDown()
 
@@ -693,7 +693,7 @@ const PdfController = {
       drawPageHeader(doc, `LISTADO DE ESTUDIANTES - GRADO: ${students[0].grade_name.toUpperCase()}`)
 
       doc.moveDown(2)
-      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`)
+      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`, 50)
       doc.text(`Grado: ${students[0].grade_name || "N/A"}`)
       doc.text(`Total de estudiantes en este grado: ${students.length}`)
       doc.moveDown()
@@ -754,14 +754,12 @@ const PdfController = {
       res.status(500).json({ ok: false, msg: "Error al generar el PDF de estudiantes por grado." })
     }
   },
-
-  // 3. NUEVO: Generar PDF de todos los datos de un alumno específico
   generateStudentDetailsPdf: async (req, res) => {
     try {
-      const { ci } = req.params // o id, dependiendo de cómo quieras buscarlo
-      console.log(`📄 Generando PDF de detalles para el estudiante con CI/ID: ${ci}...`)
+      const { id } = req.params // o id, dependiendo de cómo quieras buscarlo
+      console.log(`📄 Generando PDF de detalles para el estudiante con CI/ID: ${id}...`)
 
-      const studentDetails = await StudentModel.findStudentByCi(ci) // Usamos findStudentByCi
+      const studentDetails = await StudentModel.findOneById(id) // Usamos findStudentByCi
 
       if (!studentDetails) {
         return res.status(404).json({
@@ -777,7 +775,7 @@ const PdfController = {
 
       drawPageHeader(doc, "DETALLES DE ESTUDIANTE")
 
-      doc.moveDown(2)
+      doc.moveDown(1)
       doc.fontSize(14).font("Helvetica-Bold").text("Información Personal del Estudiante", 50, doc.y)
       doc.font("Helvetica").fontSize(10)
       doc.text(`Cédula de Identidad: ${studentDetails.ci || "N/A"}`, 50, doc.y + 10)
@@ -864,7 +862,7 @@ const PdfController = {
       drawPageHeader(doc, "LISTADO GENERAL DE PERSONAL")
 
       doc.moveDown(2)
-      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`)
+      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`, 50)
       doc.text(`Total de personal: ${personal.length}`)
       doc.moveDown()
 
@@ -875,9 +873,9 @@ const PdfController = {
       doc.fontSize(10).font("Helvetica-Bold")
       doc.text("Cédula", 50, yPosition, { width: 80 })
       doc.text("Nombre Completo", 130, yPosition, { width: 200 })
-      doc.text("Rol", 330, yPosition, { width: 100 })
-      doc.text("Teléfono", 430, yPosition, { width: 80 })
-      doc.text("Email", 510, yPosition, { width: 100 })
+      doc.text("Rol", 230, yPosition, { width: 100 })
+      doc.text("Teléfono", 330, yPosition, { width: 80 })
+      doc.text("Email", 410, yPosition, { width: 100 })
       yPosition += itemHeight
 
       doc
@@ -895,9 +893,9 @@ const PdfController = {
           doc.fontSize(10).font("Helvetica-Bold")
           doc.text("Cédula", 50, yPosition, { width: 80 })
           doc.text("Nombre Completo", 130, yPosition, { width: 200 })
-          doc.text("Rol", 330, yPosition, { width: 100 })
-          doc.text("Teléfono", 430, yPosition, { width: 80 })
-          doc.text("Email", 510, yPosition, { width: 100 })
+          doc.text("Rol", 230, yPosition, { width: 100 })
+          doc.text("Teléfono", 330, yPosition, { width: 80 })
+          doc.text("Email", 410, yPosition, { width: 100 })
           yPosition += itemHeight
           doc
             .moveTo(50, yPosition - 5)
@@ -910,9 +908,9 @@ const PdfController = {
 
         doc.text(member.ci || "N/A", 50, yPosition, { width: 80 })
         doc.text(fullName, 130, yPosition, { width: 200 })
-        doc.text(member.rol_nombre || "N/A", 330, yPosition, { width: 100 })
-        doc.text(member.telephoneNumber || "N/A", 430, yPosition, { width: 80 })
-        doc.text(member.email || "N/A", 510, yPosition, { width: 100 })
+        doc.text(member.rol_nombre || "N/A", 230, yPosition, { width: 100 })
+        doc.text(member.telephoneNumber || "N/A", 330, yPosition, { width: 80 })
+        doc.text(member.email || "N/A", 410, yPosition, { width: 150 })
         yPosition += itemHeight
       })
 
@@ -946,7 +944,7 @@ const PdfController = {
       drawPageHeader(doc, `LISTADO DE PERSONAL - ROL: ${personal[0].rol_nombre.toUpperCase()}`)
 
       doc.moveDown(2)
-      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`)
+      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`, 50)
       doc.text(`Rol: ${personal[0].rol_nombre || "N/A"}`)
       doc.text(`Total de personal en este rol: ${personal.length}`)
       doc.moveDown()
