@@ -178,6 +178,39 @@ const getInscriptionById = async (req, res) => {
   }
 }
 
+// Controlador para actualizar un registro de matrícula**
+const updateMatricula = async (req, res) => {
+  try {
+    const { id } = req.params // ID del registro de matrícula a actualizar
+    const updateData = req.body // Datos a actualizar
+
+    const updatedInscription = await MatriculaModel.update(id, updateData)
+    res.status(200).json({
+      ok: true,
+      msg: "Matrícula actualizada exitosamente",
+      inscription: updatedInscription,
+    })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
+
+// Controlador para eliminar un registro de matrícula**
+const deleteMatricula = async (req, res) => {
+  try {
+    const { id } = req.params // ID del registro de matrícula a eliminar
+
+    const deletedInscription = await MatriculaModel.remove(id)
+    res.status(200).json({
+      ok: true,
+      msg: "Matrícula eliminada exitosamente",
+      inscription: deletedInscription,
+    })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
+
 export const MatriculaController = {
   createSchoolInscription,
   getAvailableGrades,
@@ -186,5 +219,7 @@ export const MatriculaController = {
   assignTeacherToSection,
   getInscriptionsByGrade,
   getAllInscriptions,
-  getInscriptionById, // Add the new function here
+  getInscriptionById,
+  updateMatricula,
+  deleteMatricula,
 }

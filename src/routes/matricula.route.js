@@ -17,5 +17,6 @@ router.post("/assign-teacher", MatriculaController.assignTeacherToSection)
 router.get("/inscriptions/:gradeId", MatriculaController.getInscriptionsByGrade)
 router.get("/all", MatriculaController.getAllInscriptions)
 router.get("/:id", MatriculaController.getInscriptionById)
-
+router.put("/:id", MatriculaController.updateMatricula)
+router.delete("/:id", MatriculaController.deleteMatricula)
 export default router
