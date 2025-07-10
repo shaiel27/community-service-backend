@@ -1,6 +1,22 @@
 import { MatriculaModel } from "../models/matricula.model.js"
 import { StudentModel } from "../models/student.model.js"
 
+// Centralized error handler
+const handleError = (res, error) => {
+  console.error(error)
+  const status = error.message.includes("no encontrad")
+    ? 404
+    : error.message.includes("Ya existe")
+    ? 400
+    : 500
+  const message = status === 500 ? "Error interno del servidor" : error.message
+
+  res.status(status).json({
+    ok: false,
+    msg: message,
+  })
+}
+
 // Crear inscripción escolar
 const createSchoolInscription = async (req, res) => {
   try {
@@ -9,7 +25,7 @@ const createSchoolInscription = async (req, res) => {
     const { studentCi, sectionID, ...enrollmentData } = req.body
 
     // Buscar el estudiante por CI para obtener su ID
-    const student = await StudentModel.findStudentForInscription(studentCi)
+    const student = await StudentModel.findStudentForInscription(studentCi) //
     if (!student) {
       return res.status(400).json({
         ok: false,
@@ -24,10 +40,10 @@ const createSchoolInscription = async (req, res) => {
       ...enrollmentData,
     }
 
-    const inscription = await MatriculaModel.createSchoolInscription(inscriptionData)
+    const inscription = await MatriculaModel.createSchoolInscription(inscriptionData) //
 
     // Actualizar estado del estudiante a inscrito (status_id = 2)
-    await StudentModel.updateStudentStatus(student.id, 2)
+    await StudentModel.updateStudentStatus(student.id, 2) //
 
     res.status(201).json({
       ok: true,
@@ -35,12 +51,7 @@ const createSchoolInscription = async (req, res) => {
       inscription,
     })
   } catch (error) {
-    console.error("❌ Error en createSchoolInscription:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -56,12 +67,7 @@ const getAvailableGrades = async (req, res) => {
       grades,
     })
   } catch (error) {
-    console.error("❌ Error en getAvailableGrades:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -78,12 +84,7 @@ const getSectionsByGrade = async (req, res) => {
       sections,
     })
   } catch (error) {
-    console.error("❌ Error en getSectionsByGrade:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -91,20 +92,13 @@ const getSectionsByGrade = async (req, res) => {
 const getAvailableTeachers = async (req, res) => {
   try {
     console.log("👨‍🏫 Obteniendo docentes disponibles")
-
     const teachers = await MatriculaModel.getAvailableTeachers()
-
     res.json({
       ok: true,
       teachers,
     })
   } catch (error) {
-    console.error("❌ Error en getAvailableTeachers:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -113,21 +107,14 @@ const assignTeacherToSection = async (req, res) => {
   try {
     const { sectionId, teacherId } = req.body
     console.log("👨‍🏫 Asignando docente a sección:", { sectionId, teacherId })
-
     const section = await MatriculaModel.assignTeacherToSection(sectionId, teacherId)
-
     res.json({
       ok: true,
-      msg: "Docente asignado exitosamente",
+      msg: "Docente asignado a la sección exitosamente",
       section,
     })
   } catch (error) {
-    console.error("❌ Error en assignTeacherToSection:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -137,7 +124,7 @@ const getInscriptionsByGrade = async (req, res) => {
     const { gradeId } = req.params
     console.log("📋 Obteniendo inscripciones para grado:", gradeId)
 
-    const inscriptions = await MatriculaModel.getInscriptionsByGrade(gradeId)
+    const inscriptions = await MatriculaModel.getInscriptionsByGrade(gradeId) //
 
     res.json({
       ok: true,
@@ -145,12 +132,7 @@ const getInscriptionsByGrade = async (req, res) => {
       total: inscriptions.length,
     })
   } catch (error) {
-    console.error("❌ Error en getInscriptionsByGrade:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
-    })
+    handleError(res, error)
   }
 }
 
@@ -159,7 +141,7 @@ const getAllInscriptions = async (req, res) => {
   try {
     console.log("📋 Obteniendo todas las inscripciones")
 
-    const inscriptions = await MatriculaModel.getAllInscriptions()
+    const inscriptions = await MatriculaModel.getAllInscriptions() //
 
     res.json({
       ok: true,
@@ -167,12 +149,32 @@ const getAllInscriptions = async (req, res) => {
       total: inscriptions.length,
     })
   } catch (error) {
-    console.error("❌ Error en getAllInscriptions:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Error interno del servidor",
-      error: error.message,
+    handleError(res, error)
+  }
+}
+
+/**
+ * @route GET /api/matricula/:id
+ * @desc Get enrollment by ID
+ * @access Private (Admin, Academic Management, ReadOnly)
+ */
+const getInscriptionById = async (req, res) => {
+  try {
+    const { id } = req.params
+    const inscription = await MatriculaModel.getInscriptionById(id)
+
+    if (!inscription) {
+      return res.status(404).json({
+        ok: false,
+        msg: "Enrollment not found",
+      })
+    }
+    res.json({
+      ok: true,
+      inscription,
     })
+  } catch (error) {
+    handleError(res, error)
   }
 }
 
@@ -184,4 +186,5 @@ export const MatriculaController = {
   assignTeacherToSection,
   getInscriptionsByGrade,
   getAllInscriptions,
+  getInscriptionById, // Add the new function here
 }
