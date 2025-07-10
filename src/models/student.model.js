@@ -1,6 +1,5 @@
 import { db } from "../db/connection.database.js"
 
-// Crear registro básico de estudiante (sin inscripción)
 const createStudentRegistry = async (studentData) => {
   try {
     const {
@@ -51,36 +50,33 @@ const createStudentRegistry = async (studentData) => {
         lastName,
         sex,
         birthday,
-        placeBirth || null,
-        parishID || null,
-        quantityBrothers || 0,
+        placeBirth,
+        parishID,
+        quantityBrothers,
         representativeID,
-        motherName || null,
-        motherCi || null,
-        motherTelephone || null,
-        fatherName || null,
-        fatherCi || null,
-        fatherTelephone || null,
-        livesMother || false,
-        livesFather || false,
-        livesBoth || false,
-        livesRepresentative || false,
-        rolRopresentative || null,
+        motherName,
+        motherCi,
+        motherTelephone,
+        fatherName,
+        fatherCi,
+        fatherTelephone,
+        livesMother,
+        livesFather,
+        livesBoth,
+        livesRepresentative,
+        rolRopresentative,
       ],
     }
-
-    console.log("🔍 Query a ejecutar:", query)
     const { rows } = await db.query(query)
-    console.log("✅ Estudiante insertado:", rows[0])
     return rows[0]
   } catch (error) {
-    console.error("❌ Error in createStudentRegistry:", error)
+    console.error("Error in createStudentRegistry:", error)
     throw error
   }
 }
 
-// Obtener estudiantes registrados (sin inscribir) - status_id = 1 (Activo pero sin inscripción)
-const getRegisteredStudents = async () => {
+// Buscar estudiante registrado (status_id = 1)
+const findRegisteredStudents = async () => {
   try {
     const query = {
       text: `
@@ -88,15 +84,11 @@ const getRegisteredStudents = async () => {
           s.*,
           r.name as representative_name,
           r."lastName" as representative_lastName,
-          r."telephoneNumber" as representative_phone,
-          r."maritalStat" as relationship,
-          ss.descripcion as status_description
+          r.ci as representative_ci,
+          r."telephoneNumber" as representative_phone
         FROM "student" s
-        LEFT JOIN "representative" r ON s."representativeID" = r.ci
-        LEFT JOIN "status_student" ss ON s.status_id = ss.id
-        WHERE s.status_id = 1 AND s.id NOT IN (
-          SELECT DISTINCT "studentID" FROM "enrollment" WHERE "studentID" IS NOT NULL
-        )
+        JOIN "representative" r ON s."representativeID" = r.ci
+        WHERE s.status_id = 1
         ORDER BY s.created_at DESC
       `,
     }
@@ -108,7 +100,7 @@ const getRegisteredStudents = async () => {
   }
 }
 
-// Buscar estudiante por CI para inscripción
+// Buscar estudiante para inscripción (status_id = 1)
 const findStudentForInscription = async (ci) => {
   try {
     const query = {
@@ -117,21 +109,16 @@ const findStudentForInscription = async (ci) => {
           s.*,
           r.name as representative_name,
           r."lastName" as representative_lastName,
-          r."telephoneNumber" as representative_phone,
-          r.email as representative_email,
-          r."roomAdress" as representative_address,
-          r."maritalStat" as relationship,
-          r.profesion as occupation,
-          ss.descripcion as status_description
+          r.ci as representative_ci,
+          r."telephoneNumber" as representative_phone
         FROM "student" s
-        LEFT JOIN "representative" r ON s."representativeID" = r.ci
-        LEFT JOIN "status_student" ss ON s.status_id = ss.id
+        JOIN "representative" r ON s."representativeID" = r.ci
         WHERE s.ci = $1 AND s.status_id = 1
       `,
       values: [ci],
     }
     const { rows } = await db.query(query)
-    return rows[0]
+    return rows[0] // Retorna el primer estudiante encontrado o undefined
   } catch (error) {
     console.error("Error in findStudentForInscription:", error)
     throw error
@@ -217,11 +204,95 @@ const getAllStudents = async () => {
   }
 }
 
+// Obtener un estudiante por ID
+const findOneById = async (id) => {
+  try {
+    const query = {
+      text: `SELECT * FROM "student" WHERE id = $1`,
+      values: [id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in findOneById (student.model):", error)
+    throw error
+  }
+}
+
+// Actualizar datos del estudiante
+const updateStudent = async (id, updateData) => {
+  try {
+    const setClauses = []
+    const values = []
+    let paramIndex = 1
+
+    for (const key in updateData) {
+      if (updateData.hasOwnProperty(key)) {
+        setClauses.push(`"${key}" = $${paramIndex}`)
+        values.push(updateData[key])
+        paramIndex++
+      }
+    }
+
+    if (setClauses.length === 0) {
+      return null // No hay datos para actualizar
+    }
+
+    setClauses.push(`updated_at = CURRENT_TIMESTAMP`)
+    values.push(id) // El ID es el último valor
+
+    const query = {
+      text: `
+        UPDATE "student"
+        SET ${setClauses.join(", ")}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `,
+      values: values,
+    }
+
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in updateStudent (student.model):", error)
+    throw error
+  }
+}
+
+// Eliminar estudiante (eliminación lógica o física, dependiendo de la política)
+const deleteStudent = async (id) => {
+  try {
+    // Aquí se puede elegir entre eliminación física o lógica
+    // Eliminación física:
+    const query = {
+      text: `DELETE FROM "student" WHERE id = $1 RETURNING *`,
+      values: [id],
+    }
+    
+    // Si se opta por eliminación lógica, se actualizaría un campo 'isActive' o 'deleted_at'
+    // Ejemplo de eliminación lógica:
+    // const query = {
+    //   text: `UPDATE "student" SET status_id = 5, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`, // Suponiendo status_id = 5 para "eliminado"
+    //   values: [id],
+    // };
+
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in deleteStudent (student.model):", error)
+    throw error
+  }
+}
+
+
 export const StudentModel = {
   createStudentRegistry,
-  getRegisteredStudents,
+  findRegisteredStudents,
   findStudentForInscription,
   findStudentByCi,
   updateStudentStatus,
   getAllStudents,
+  findOneById,
+  updateStudent,
+  deleteStudent,
 }

@@ -1,26 +1,55 @@
 import { Router } from "express"
 import { StudentController } from "../controllers/student.controller.js"
-import { verifyToken, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
+import { verifyToken, verifyAdminOrReadOnly, verifyAdmin } from "../middlewares/jwt.middleware.js"
+import validate from "../middlewares/validation.middleware.js"
+import { createStudentRegistrySchema, updateStudentSchema } from "../validators/student.validator.js"
 
 const router = Router()
+
+// Middleware para validar IDs numéricos en las rutas que lo requieran
+router.param('id', (req, res, next, id) => {
+  if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+    return res.status(400).json({ ok: false, msg: "ID de estudiante inválido" });
+  }
+  next();
+});
 
 // Aplicar middleware de autenticación
 router.use(verifyToken)
 router.use(verifyAdminOrReadOnly)
 
-// NUEVA RUTA: Registro estudiantil (estudiante + representante)
-router.post("/registry", StudentController.createStudentRegistry)
+// Registro estudiantil (estudiante + representante)
+router.post(
+  "/registry",
+  verifyAdmin,
+  validate(createStudentRegistrySchema),
+  StudentController.createStudentRegistry
+)
 
-// NUEVA RUTA: Obtener estudiantes registrados (disponibles para inscripción)
-router.get("/registered", StudentController.getRegisteredStudents)
+// Obtener estudiantes registrados (disponibles para inscripción)
+router.get("/registered", verifyAdminOrReadOnly, StudentController.getRegisteredStudents)
 
-// NUEVA RUTA: Buscar estudiante para inscripción
-router.get("/inscription/:ci", StudentController.findStudentForInscription)
+// Buscar estudiante para inscripción
+router.get("/inscription/:ci", verifyAdminOrReadOnly, StudentController.findStudentForInscription)
 
 // Buscar estudiante por CI (general)
-router.get("/:ci", StudentController.findStudentByCi)
+router.get("/:ci", verifyAdminOrReadOnly, StudentController.findStudentByCi)
 
 // Obtener todos los estudiantes (sin importar estado de inscripción)
-router.get("/list/all", StudentController.getAllStudents)
+router.get("/list/all", verifyAdminOrReadOnly, StudentController.getAllStudents)
+
+// Actualizar y eliminar estudiantes
+router.put(
+  "/:id",
+  verifyAdmin,
+  validate(updateStudentSchema),
+  StudentController.updateStudent
+)
+
+router.delete(
+  "/:id",
+  verifyAdmin, 
+  StudentController.deleteStudent
+)
 
 export default router

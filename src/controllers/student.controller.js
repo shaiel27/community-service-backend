@@ -1,7 +1,7 @@
-import { StudentModel } from "../models/student.model.js"
-import { RepresentativeModel } from "../models/representative.model.js"
+// src/controllers/student.controller.js
+import { studentService } from "../services/student.service.js"
 
-// Centralized error handler (if not already present, add it)
+// Centralized error handler
 const handleError = (res, error) => {
   console.error("❌ Error:", error)
   const status = error.message.includes("no encontrad")
@@ -24,78 +24,26 @@ const createStudentRegistry = async (req, res) => {
 
     const { student, representative } = req.body
 
-    // Validar que se envíen ambos objetos
-    if (!student || !representative) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Se requiere información del estudiante y del representante",
-      })
-    }
-
-    // Validar campos requeridos del estudiante
-    if (!student.ci || !student.name || !student.lastName || !student.sex || !student.birthday) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Faltan campos requeridos del estudiante: CI, nombre, apellido, sexo, fecha de nacimiento",
-      })
-    }
-
-    // Validar campos requeridos del representante
-    if (!representative.ci || !representative.name || !representative.lastName || !representative.telephoneNumber) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Faltan campos requeridos del representante: CI, nombre, apellido, teléfono",
-      })
-    }
-
-    // Verificar que el estudiante no exista
-    const existingStudent = await StudentModel.findStudentByCi(student.ci)
-    if (existingStudent) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Ya existe un estudiante registrado con esta cédula",
-      })
-    }
-
-    // Verificar que el representante no exista
-    const existingRepresentative = await RepresentativeModel.getRepresentativeByCi(representative.ci)
-    if (existingRepresentative) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Ya existe un representante registrado con esta cédula",
-      })
-    }
-
-    // Crear representante primero
-    const newRepresentative = await RepresentativeModel.createRepresentative(representative)
-    console.log("✅ Representante creado:", newRepresentative)
-
-    // Crear estudiante con referencia al representante
-    const studentData = {
-      ...student,
-      representativeID: representative.ci,
-    }
-    const newStudent = await StudentModel.createStudentRegistry(studentData)
-    console.log("✅ Estudiante creado:", newStudent)
+    const newStudent = await studentService.createStudentRegistry(student, representative)
 
     res.status(201).json({
       ok: true,
       msg: "Registro estudiantil creado exitosamente",
-      data: {
-        student: newStudent,
-        representative: newRepresentative,
-      },
+      student: result.student,
+      representative: result.representative,
     })
   } catch (error) {
     handleError(res, error)
   }
 }
 
-// Obtener estudiantes registrados (disponibles para inscripción)
+// Obtener estudiantes registrados (status_id = 1)
 const getRegisteredStudents = async (req, res) => {
   try {
     console.log("📋 Obteniendo estudiantes registrados")
-    const students = await StudentModel.getRegisteredStudents()
+
+    const students = await studentService.getRegisteredStudents()
+
     res.json({
       ok: true,
       students,
@@ -112,14 +60,7 @@ const findStudentForInscription = async (req, res) => {
     const { ci } = req.params
     console.log("🔍 Buscando estudiante para inscripción:", ci)
 
-    const student = await StudentModel.findStudentForInscription(ci)
-
-    if (!student) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Estudiante no encontrado o ya inscrito",
-      })
-    }
+    const student = await studentService.findStudentForInscription(ci)
 
     res.json({
       ok: true,
@@ -136,14 +77,7 @@ const findStudentByCi = async (req, res) => {
     const { ci } = req.params
     console.log("🔍 Buscando estudiante por CI:", ci)
 
-    const student = await StudentModel.findStudentByCi(ci)
-
-    if (!student) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Estudiante no encontrado",
-      })
-    }
+    const student = await studentService.findStudentByCi(ci)
 
     res.json({
       ok: true,
@@ -158,7 +92,7 @@ const findStudentByCi = async (req, res) => {
 const getAllStudents = async (req, res) => {
   try {
     console.log("📋 Obteniendo todos los estudiantes")
-    const students = await StudentModel.getAllStudents()
+    const students = await studentService.getAllStudents()
     res.json({
       ok: true,
       students,
@@ -169,10 +103,51 @@ const getAllStudents = async (req, res) => {
   }
 }
 
+// Actualizar estudiante
+const updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.validated; // Data validated by Joi middleware
+
+    console.log(`🔄 Actualizando estudiante con ID: ${id}`, updateData);
+
+    const updatedStudent = await studentService.updateStudent(id, updateData);
+
+    res.json({
+      ok: true,
+      msg: "Estudiante actualizado exitosamente",
+      student: updatedStudent,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+// Eliminar estudiante
+const deleteStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🗑️ Eliminando estudiante con ID: ${id}`);
+
+    const deletedStudent = await studentService.deleteStudent(id);
+
+    res.json({
+      ok: true,
+      msg: "Estudiante eliminado exitosamente",
+      student: deletedStudent,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 export const StudentController = {
   createStudentRegistry,
   getRegisteredStudents,
   findStudentForInscription,
   findStudentByCi,
   getAllStudents,
+  updateStudent, 
+  deleteStudent,
 }

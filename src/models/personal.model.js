@@ -210,34 +210,6 @@ const findByRole = async (idRole) => {
   }
 }
 
-const findTeachers = async () => {
-  try {
-    const query = {
-      text: `
-        SELECT p.id, p.ci, p.name, p."lastName", p."idRole", p."telephoneNumber", 
-               p.email, p.birthday, p.direction, p.parish,
-               r.name as rol_nombre, r.description as rol_descripcion,
-               par.name as parroquia_nombre,
-               CASE 
-                 WHEN u.id IS NOT NULL THEN true
-                 ELSE false
-               END as tiene_usuario_sistema
-        FROM "personal" p
-        LEFT JOIN rol r ON p."idRole" = r.id
-        LEFT JOIN parish par ON p.parish = par.id
-        LEFT JOIN usuario u ON p.id = u.personal_id
-        WHERE p."idRole" = 1
-        ORDER BY p.id
-      `,
-    }
-    const { rows } = await db.query(query)
-    return rows
-  } catch (error) {
-    console.error("Error in findTeachers personal:", error)
-    throw error
-  }
-}
-
 const findAdministrators = async () => {
   try {
     const query = {
@@ -509,7 +481,6 @@ export const PersonalModel = {
   findOneByEmail,
   findAll,
   findByRole,
-  findTeachers,
   findAdministrators,
   findMaintenance,
   findWithoutSystemAccess,

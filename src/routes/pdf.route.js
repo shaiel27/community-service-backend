@@ -11,9 +11,6 @@ router.get("/brigades/list" /*, verifyToken, verifyAdminOrReadOnly*/, PdfControl
 // Ruta para generar el PDF de los integrantes de una brigada específica y sus datos
 router.get("/brigades/:id/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateBrigadeDetailsPdf)
 
-// Ruta para generar el PDF de listado de docentes 
-router.get("/personal/teachers/list" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateTeacherListPdf)
-
 // Ruta para generar el PDF de los datos extensos de un docente específico 
 router.get("/personal/teacher/:id/details" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateTeacherDetailsPdf)
 
