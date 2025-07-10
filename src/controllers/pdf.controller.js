@@ -636,7 +636,7 @@ const PdfController = {
       students.forEach((student, index) => {
         if (yPosition > 700) {
           doc.addPage()
-          drawPageHeader(doc, "LISTADO GENERAL DE ESTUDIANTES")
+          drawPageHeader(doc, "LISTADO DE ESTUDIANTES MATRICULADOS")
           yPosition = doc.y + 50
           doc.fontSize(10).font("Helvetica-Bold")
           doc.text("Cédula", 50, yPosition, { width: 80 })
@@ -1058,6 +1058,101 @@ const PdfController = {
     } catch (error) {
       console.error("Error al generar PDF de detalles de personal:", error)
       res.status(500).json({ ok: false, msg: "Error al generar el PDF de detalles de personal." })
+    }
+  },
+
+  generateAllStudentsPdf: async (req, res) => {
+    try {
+      console.log("📄 Generando PDF de listado de todos los estudiantes...")
+
+      const students = await StudentModel.getAllStudents() // Obtener todos los estudiantes
+
+      if (!students || students.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          msg: "No hay estudiantes registrados para generar el reporte.",
+        })
+      }
+
+      const doc = new PDFDocument({ margin: 50 })
+      res.setHeader("Content-Type", "application/pdf")
+      res.setHeader("Content-Disposition", 'attachment; filename="listado_todos_estudiantes.pdf"')
+      doc.pipe(res)
+
+      drawPageHeader(doc, "LISTADO DE TODOS LOS ESTUDIANTES")
+
+      doc.moveDown(2)
+      doc.fontSize(12).text(`Fecha de generación: ${new Date().toLocaleDateString("es-ES")}`, 50)
+      doc.text(`Total de estudiantes: ${students.length}`)
+      doc.moveDown()
+
+      let yPosition = doc.y
+      const itemHeight = 20
+
+      // Headers de tabla de estudiantes
+      doc.fontSize(9).font("Helvetica-Bold")
+      doc.text("CI", 50, yPosition, { width: 80 })
+      doc.text("NOMBRE COMPLETO", 140, yPosition, { width: 150 })
+      doc.text("FECHA NAC.", 250, yPosition, { width: 70 })
+      doc.text("SEXO", 320, yPosition, { width: 40 })
+      doc.text("REPRESENTANTE", 400, yPosition, { width: 120 })
+      doc.text("ESTADO", 520, yPosition, { width: 70 })
+
+      yPosition += itemHeight - 5
+      doc
+        .moveTo(50, yPosition)
+        .lineTo(590, yPosition)
+        .stroke()
+      yPosition += 5
+
+      doc.font("Helvetica").fontSize(8)
+
+      students.forEach((student) => {
+        if (yPosition + itemHeight > doc.page.height - 50) {
+          doc.addPage()
+          drawPageHeader(doc, "LISTADO DE TODOS LOS ESTUDIANTES (Continuación)")
+          yPosition = doc.y + 50
+
+          // Repetir headers en nueva página
+          doc.fontSize(9).font("Helvetica-Bold")
+          doc.text("CI", 50, yPosition, { width: 80 })
+          doc.text("NOMBRE COMPLETO", 140, yPosition, { width: 150 })
+          doc.text("FECHA NAC.", 250, yPosition, { width: 70 })
+          doc.text("SEXO", 320, yPosition, { width: 40 })
+          doc.text("REPRESENTANTE", 400, yPosition, { width: 120 })
+          doc.text("ESTADO", 520, yPosition, { width: 70 })
+          yPosition += itemHeight - 5
+          doc
+            .moveTo(50, yPosition)
+            .lineTo(590, yPosition)
+            .stroke()
+          yPosition += 5
+          doc.font("Helvetica").fontSize(8)
+        }
+
+        doc.text(student.ci || "N/A", 50, yPosition, { width: 80 })
+        doc.text(`${student.name || ""} ${student.lastName || ""}`, 140, yPosition, { width: 150 })
+        doc.text(student.birthday ? new Date(student.birthday).toLocaleDateString() : "N/A", 250, yPosition, {
+          width: 70,
+        })
+        doc.text(student.sex || "N/A", 320, yPosition, { width: 40 })
+        doc.text(`${student.representative_name || ""} ${student.representative_lastName || ""}`, 400, yPosition, {
+          width: 120,
+        })
+        doc.text(student.status_description || "N/A", 520, yPosition, { width: 70 })
+
+        yPosition += itemHeight
+      })
+
+      doc.end()
+      console.log("✅ PDF de listado de todos los estudiantes generado exitosamente")
+    } catch (error) {
+      console.error("❌ Error generando PDF de listado de todos los estudiantes:", error)
+      res.status(500).json({
+        ok: false,
+        msg: "Error interno del servidor al generar PDF de estudiantes",
+        error: error.message,
+      })
     }
   },
 }

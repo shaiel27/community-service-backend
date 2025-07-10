@@ -20,6 +20,8 @@ router.get("/personal/teacher/:id/details" /*, verifyToken, verifyAdminOrReadOnl
 //  Ruta para generar el PDF de todos los alumnos con grado y sección
 router.get("/students/enrolled/list/all" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.GenerateAllEnrolledStudentsPdf)
 
+router.get("/students/list/all", /* verifyToken, verifyAdminOrReadOnly, */ PdfController.generateAllStudentsPdf)
+
 //  Ruta para generar el PDF de listado de estudiantes por grado específico
 router.get("/students/list/grade/:gradeId" /*, verifyToken, verifyAdminOrReadOnly*/, PdfController.generateStudentsByGradePdf)
 
