@@ -216,6 +216,107 @@ const getAllInscriptions = async () => {
   }
 }
 
+const updateSchoolInscription = async (id, inscriptionData) => {
+  try {
+    const {
+      sectionID,
+      brigadeTeacherDateID,
+      repeater,
+      chemiseSize,
+      pantsSize,
+      shoesSize,
+      weight,
+      stature,
+      diseases,
+      observation,
+      birthCertificateCheck,
+      vaccinationCardCheck,
+      studentPhotosCheck,
+      representativePhotosCheck,
+      representativeCopyIDCheck,
+      representativeRIFCheck,
+      autorizedCopyIDCheck,
+    } = inscriptionData
+
+    const query = {
+      text: `
+        UPDATE "enrollment"
+        SET
+          "sectionID" = COALESCE($1, "sectionID"),
+          "brigadeTeacherDateID" = COALESCE($2, "brigadeTeacherDateID"),
+          repeater = COALESCE($3, repeater),
+          "chemiseSize" = COALESCE($4, "chemiseSize"),
+          "pantsSize" = COALESCE($5, "pantsSize"),
+          "shoesSize" = COALESCE($6, "shoesSize"),
+          weight = COALESCE($7, weight),
+          stature = COALESCE($8, stature),
+          diseases = COALESCE($9, diseases),
+          observation = COALESCE($10, observation),
+          "birthCertificateCheck" = COALESCE($11, "birthCertificateCheck"),
+          "vaccinationCardCheck" = COALESCE($12, "vaccinationCardCheck"),
+          "studentPhotosCheck" = COALESCE($13, "studentPhotosCheck"),
+          "representativePhotosCheck" = COALESCE($14, "representativePhotosCheck"),
+          "representativeCopyIDCheck" = COALESCE($15, "representativeCopyIDCheck"),
+          "representativeRIFCheck" = COALESCE($16, "representativeRIFCheck"),
+          "autorizedCopyIDCheck" = COALESCE($17, "autorizedCopyIDCheck"),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $18
+        RETURNING *
+      `,
+      values: [
+        sectionID,
+        brigadeTeacherDateID,
+        repeater,
+        chemiseSize,
+        pantsSize,
+        shoesSize,
+        weight,
+        stature,
+        diseases,
+        observation,
+        birthCertificateCheck,
+        vaccinationCardCheck,
+        studentPhotosCheck,
+        representativePhotosCheck,
+        representativeCopyIDCheck,
+        representativeRIFCheck,
+        autorizedCopyIDCheck,
+        id,
+      ],
+    }
+    const { rows } = await db.query(query)
+    if (rows.length === 0) {
+      throw new Error(`Inscripción con ID ${id} no encontrada.`)
+    }
+    return rows[0]
+  } catch (error) {
+    console.error("Error in updateSchoolInscription:", error)
+    throw error
+  }
+}
+
+// Eliminar inscripción escolar
+const deleteSchoolInscription = async (id) => {
+  try {
+    const query = {
+      text: `
+        DELETE FROM "enrollment"
+        WHERE id = $1
+        RETURNING *
+      `,
+      values: [id],
+    }
+    const { rows } = await db.query(query)
+    if (rows.length === 0) {
+      throw new Error(`Inscripción con ID ${id} no encontrada.`)
+    }
+    return rows[0]
+  } catch (error) {
+    console.error("Error in deleteSchoolInscription:", error)
+    throw error
+  }
+}
+
 export const MatriculaModel = {
   createSchoolInscription,
   getAvailableGrades,
@@ -224,4 +325,6 @@ export const MatriculaModel = {
   assignTeacherToSection,
   getInscriptionsByGrade,
   getAllInscriptions,
+  updateSchoolInscription, 
+  deleteSchoolInscription, 
 }

@@ -118,29 +118,45 @@ class MatriculaService {
     return MatriculaModel.findByPeriodoEscolar(periodo)
   }
 
+  // Nuevo método para actualizar matrícula
   async actualizarMatricula(id, updateData) {
-    delete updateData.studentID
+    console.log(`🔄 Actualizando inscripción con ID: ${id}`, updateData)
 
-    if (updateData.documents) {
-      const documents = updateData.documents
-      updateData = {
-        ...updateData,
-        birthCertificateCheck: documents.birthCertificate,
-        vaccinationCardCheck: documents.vaccinationCard,
-        studentPhotosCheck: documents.studentPhotos,
-        representativePhotosCheck: documents.representativePhotos,
-        representativeCopyIDCheck: documents.representativeCopyID,
-        autorizedCopyIDCheck: documents.autorizedCopyID,
-      }
-      delete updateData.documents
+    const existingInscription = await MatriculaModel.getInscriptionById(id)
+    if (!existingInscription) {
+      throw new Error(`Inscripción con ID ${id} no encontrada.`)
     }
 
-    return MatriculaModel.update(id, updateData)
+    const dataForModel = { ...updateData };
+
+    if (updateData.documents) {
+      dataForModel.birthCertificateCheck = updateData.documents.birthCertificate || false;
+      dataForModel.vaccinationCardCheck = updateData.documents.vaccinationCard || false;
+      dataForModel.studentPhotosCheck = updateData.documents.studentPhotos || false;
+      dataForModel.representativePhotosCheck = updateData.documents.representativePhotos || false;
+      dataForModel.representativeCopyIDCheck = updateData.documents.representativeCopyID || false;
+      dataForModel.representativeRIFCheck = updateData.documents.representativeRIF || false;
+      dataForModel.autorizedCopyIDCheck = updateData.documents.autorizedCopyID || false;
+      delete dataForModel.documents; // Eliminar el objeto documents
+    }
+
+    return MatriculaModel.updateSchoolInscription(id, dataForModel)
   }
 
+  // Método para eliminar matrícula
   async eliminarMatricula(id) {
-    const matricula = await this.obtenerPorId(id)
-    return MatriculaModel.remove(id)
+    console.log(`🗑️ Eliminando inscripción con ID: ${id}`)
+    const inscriptionToDelete = await MatriculaModel.getInscriptionById(id);
+    if (!inscriptionToDelete) {
+        throw new Error(`Inscripción con ID ${id} no encontrada.`);
+    }
+
+    const deletedInscription = await MatriculaModel.deleteSchoolInscription(id);
+
+    await StudentModel.updateStudentStatus(inscriptionToDelete.studentID, 1);
+    console.log(`✅ Estado del estudiante con ID ${inscriptionToDelete.studentID} actualizado a 'no inscrito'`);
+
+    return deletedInscription;
   }
 
   async obtenerGrados() {
