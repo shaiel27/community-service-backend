@@ -1,4 +1,4 @@
-import { db } from "../db/connection.database.js"
+import { db } from "../db/connection.database.js";
 
 // Crear registro básico de estudiante (sin inscripción)
 const createStudentRegistry = async (studentData) => {
@@ -24,13 +24,15 @@ const createStudentRegistry = async (studentData) => {
       livesBoth,
       livesRepresentative,
       rolRopresentative,
-    } = studentData
+    } = studentData;
 
-    console.log("📝 Datos del estudiante a insertar:", studentData)
+    console.log("📝 Datos del estudiante a insertar:", studentData);
 
     // Validar campos requeridos
     if (!ci || !name || !lastName || !sex || !birthday || !representativeID) {
-      throw new Error("Campos requeridos: CI, nombre, apellido, sexo, fecha de nacimiento y representante")
+      throw new Error(
+        "Campos requeridos: CI, nombre, apellido, sexo, fecha de nacimiento y representante"
+      );
     }
 
     const query = {
@@ -67,17 +69,17 @@ const createStudentRegistry = async (studentData) => {
         livesRepresentative || false,
         rolRopresentative || null,
       ],
-    }
+    };
 
-    console.log("🔍 Query a ejecutar:", query)
-    const { rows } = await db.query(query)
-    console.log("✅ Estudiante insertado:", rows[0])
-    return rows[0]
+    console.log("🔍 Query a ejecutar:", query);
+    const { rows } = await db.query(query);
+    console.log("✅ Estudiante insertado:", rows[0]);
+    return rows[0];
   } catch (error) {
-    console.error("❌ Error in createStudentRegistry:", error)
-    throw error
+    console.error("❌ Error in createStudentRegistry:", error);
+    throw error;
   }
-}
+};
 
 // Obtener estudiantes registrados (sin inscribir) - status_id = 1 (Activo pero sin inscripción)
 const getRegisteredStudents = async () => {
@@ -99,14 +101,14 @@ const getRegisteredStudents = async () => {
         )
         ORDER BY s.created_at DESC
       `,
-    }
-    const { rows } = await db.query(query)
-    return rows
+    };
+    const { rows } = await db.query(query);
+    return rows;
   } catch (error) {
-    console.error("Error in getRegisteredStudents:", error)
-    throw error
+    console.error("Error in getRegisteredStudents:", error);
+    throw error;
   }
-}
+};
 
 // Buscar estudiante por CI para inscripción
 const findStudentForInscription = async (ci) => {
@@ -129,14 +131,14 @@ const findStudentForInscription = async (ci) => {
         WHERE s.ci = $1 AND s.status_id = 1
       `,
       values: [ci],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
+    };
+    const { rows } = await db.query(query);
+    return rows[0];
   } catch (error) {
-    console.error("Error in findStudentForInscription:", error)
-    throw error
+    console.error("Error in findStudentForInscription:", error);
+    throw error;
   }
-}
+};
 
 // Buscar estudiante por CI (general)
 const findStudentByCi = async (ci) => {
@@ -155,14 +157,14 @@ const findStudentByCi = async (ci) => {
         WHERE s.ci = $1
       `,
       values: [ci],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
+    };
+    const { rows } = await db.query(query);
+    return rows[0];
   } catch (error) {
-    console.error("Error in findStudentByCi:", error)
-    throw error
+    console.error("Error in findStudentByCi:", error);
+    throw error;
   }
-}
+};
 
 // Actualizar estado del estudiante
 const updateStudentStatus = async (studentId, statusId) => {
@@ -175,17 +177,17 @@ const updateStudentStatus = async (studentId, statusId) => {
         RETURNING *
       `,
       values: [statusId, studentId],
-    }
-    const { rows } = await db.query(query)
+    };
+    const { rows } = await db.query(query);
     if (rows.length === 0) {
-      throw new Error(`Estudiante con ID ${studentId} no encontrado.`)
+      throw new Error(`Estudiante con ID ${studentId} no encontrado.`);
     }
-    return rows[0]
+    return rows[0];
   } catch (error) {
-    console.error("Error in updateStudentStatus:", error)
-    throw error
+    console.error("Error in updateStudentStatus:", error);
+    throw error;
   }
-}
+};
 
 // Obtener todos los estudiantes, sin importar el estado de inscripción
 const getAllStudents = async () => {
@@ -208,14 +210,14 @@ const getAllStudents = async () => {
         LEFT JOIN "enrollment" e ON s.id = e."studentID"
         ORDER BY s.created_at DESC
       `,
-    }
-    const { rows } = await db.query(query)
-    return rows
+    };
+    const { rows } = await db.query(query);
+    return rows;
   } catch (error) {
-    console.error("Error in getAllStudents:", error)
-    throw error
+    console.error("Error in getAllStudents:", error);
+    throw error;
   }
-}
+};
 
 // **NUEVO: Actualizar un estudiante por su ID**
 const updateStudent = async (studentId, studentData) => {
@@ -242,46 +244,47 @@ const updateStudent = async (studentId, studentData) => {
       livesRepresentative,
       rolRopresentative,
       status_id, // Permitir actualizar el status_id aquí también
-    } = studentData
+    } = studentData;
 
-    const fields = []
-    const values = []
-    let paramIndex = 1
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
 
     const addField = (fieldName, value) => {
-      if (value !== undefined) { // Solo añadir si el valor está presente en studentData
-        fields.push(`"${fieldName}" = $${paramIndex++}`)
-        values.push(value)
+      if (value !== undefined) {
+        // Solo añadir si el valor está presente en studentData
+        fields.push(`"${fieldName}" = $${paramIndex++}`);
+        values.push(value);
       }
-    }
+    };
 
-    addField("ci", ci)
-    addField("name", name)
-    addField("lastName", lastName)
-    addField("sex", sex)
-    addField("birthday", birthday)
-    addField("placeBirth", placeBirth)
-    addField("parishID", parishID)
-    addField("quantityBrothers", quantityBrothers)
-    addField("representativeID", representativeID)
-    addField("motherName", motherName)
-    addField("motherCi", motherCi)
-    addField("motherTelephone", motherTelephone)
-    addField("fatherName", fatherName)
-    addField("fatherCi", fatherCi)
-    addField("fatherTelephone", fatherTelephone)
-    addField("livesMother", livesMother)
-    addField("livesFather", livesFather)
-    addField("livesBoth", livesBoth)
-    addField("livesRepresentative", livesRepresentative)
-    addField("rolRopresentative", rolRopresentative)
-    addField("status_id", status_id) // Add status_id to updatable fields
+    addField("ci", ci);
+    addField("name", name);
+    addField("lastName", lastName);
+    addField("sex", sex);
+    addField("birthday", birthday);
+    addField("placeBirth", placeBirth);
+    addField("parishID", parishID);
+    addField("quantityBrothers", quantityBrothers);
+    addField("representativeID", representativeID);
+    addField("motherName", motherName);
+    addField("motherCi", motherCi);
+    addField("motherTelephone", motherTelephone);
+    addField("fatherName", fatherName);
+    addField("fatherCi", fatherCi);
+    addField("fatherTelephone", fatherTelephone);
+    addField("livesMother", livesMother);
+    addField("livesFather", livesFather);
+    addField("livesBoth", livesBoth);
+    addField("livesRepresentative", livesRepresentative);
+    addField("rolRopresentative", rolRopresentative);
+    addField("status_id", status_id); // Add status_id to updatable fields
 
     if (fields.length === 0) {
-      throw new Error("No se proporcionaron campos para actualizar.")
+      throw new Error("No se proporcionaron campos para actualizar.");
     }
 
-    fields.push(`updated_at = CURRENT_TIMESTAMP`)
+    fields.push(`updated_at = CURRENT_TIMESTAMP`);
 
     const query = {
       text: `
@@ -291,20 +294,23 @@ const updateStudent = async (studentId, studentData) => {
         RETURNING *
       `,
       values: [...values, studentId],
-    }
+    };
 
-    console.log("🔍 Query de actualización a ejecutar:", query)
-    const { rows } = await db.query(query)
+    console.log("🔍 Ejecutando query:", query.text);
+    console.log("📦 Con valores:", query.values);
+
+    console.log("🔍 Query de actualización a ejecutar:", query);
+    const { rows } = await db.query(query);
     if (rows.length === 0) {
-      throw new Error(`Estudiante con ID ${studentId} no encontrado.`)
+      throw new Error(`Estudiante con ID ${studentId} no encontrado.`);
     }
-    console.log("✅ Estudiante actualizado:", rows[0])
-    return rows[0]
+    console.log("✅ Estudiante actualizado:", rows[0]);
+    return rows[0];
   } catch (error) {
-    console.error("❌ Error in updateStudent:", error)
-    throw error
+    console.error("❌ Error in updateStudent:", error);
+    throw error;
   }
-}
+};
 
 // **NUEVO: Eliminar un estudiante por su ID**
 const deleteStudent = async (studentId) => {
@@ -320,20 +326,22 @@ const deleteStudent = async (studentId) => {
         RETURNING *
       `,
       values: [studentId],
-    }
+    };
 
-    console.log("🔍 Query de eliminación a ejecutar:", query)
-    const { rows } = await db.query(query)
+    console.log("🔍 Query de eliminación a ejecutar:", query);
+    const { rows } = await db.query(query);
     if (rows.length === 0) {
-      throw new Error(`Estudiante con ID ${studentId} no encontrado para eliminar.`)
+      throw new Error(
+        `Estudiante con ID ${studentId} no encontrado para eliminar.`
+      );
     }
-    console.log("🗑️ Estudiante eliminado:", rows[0])
-    return rows[0] // Retorna el estudiante eliminado
+    console.log("🗑️ Estudiante eliminado:", rows[0]);
+    return rows[0]; // Retorna el estudiante eliminado
   } catch (error) {
-    console.error("❌ Error in deleteStudent:", error)
-    throw error
+    console.error("❌ Error in deleteStudent:", error);
+    throw error;
   }
-}
+};
 
 export const StudentModel = {
   createStudentRegistry,
@@ -344,4 +352,4 @@ export const StudentModel = {
   getAllStudents,
   updateStudent,
   deleteStudent,
-}
+};
