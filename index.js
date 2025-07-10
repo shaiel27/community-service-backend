@@ -31,7 +31,7 @@ app.use("/api/users", userRoutes)
 app.use("/api/personal", personalRoutes)
 app.use("/api/pdf", pdfRoutes)
 app.use("/api/matriculas", matriculaRoutes)
-app.use("/api/students", studentRoutes)
+app.use("/api/students", studentRoutes) // Esta ruta ya existe, solo necesitamos agregar el endpoint /registry
 app.use("/api/representatives", representativeRoutes)
 app.use("/api/brigadas", brigadaRoutes)
 app.use("/api/dashboard", dashboardRoutes)

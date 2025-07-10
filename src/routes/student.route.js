@@ -1,18 +1,23 @@
 import { Router } from "express"
 import { StudentController } from "../controllers/student.controller.js"
+import { verifyToken, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
 
 const router = Router()
 
-// Aplicar middleware de autenticación (comentado temporalmente para testing)
-// router.use(verifyToken)
-// router.use(verifyAdminOrReadOnly)
+// Aplicar middleware de autenticación
+router.use(verifyToken)
+router.use(verifyAdminOrReadOnly)
 
-// Rutas de estudiantes
-router.get("/", StudentController.findAll)
-router.get("/search", StudentController.search)
-router.get("/:id", StudentController.findById)
-router.post("/", StudentController.create)
-router.put("/:id", StudentController.update)
-router.delete("/:id", StudentController.delete)
+// NUEVA RUTA: Registro estudiantil (estudiante + representante)
+router.post("/registry", StudentController.createStudentRegistry)
+
+// NUEVA RUTA: Obtener estudiantes registrados (disponibles para inscripción)
+router.get("/registered", StudentController.getRegisteredStudents)
+
+// NUEVA RUTA: Buscar estudiante para inscripción
+router.get("/inscription/:ci", StudentController.findStudentForInscription)
+
+// Buscar estudiante por CI (general)
+router.get("/:ci", StudentController.findStudentByCi)
 
 export default router

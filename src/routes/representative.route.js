@@ -8,12 +8,10 @@ const router = Router()
 router.use(verifyToken)
 router.use(verifyAdminOrReadOnly)
 
-// Rutas de representantes
-router.get("/", RepresentativeController.findAll)
-router.get("/search", RepresentativeController.search)
-router.get("/:ci", RepresentativeController.findByCi)
-router.post("/", RepresentativeController.create)
-router.put("/:ci", RepresentativeController.update)
-router.delete("/:ci", RepresentativeController.delete)
+// Rutas para representantes
+router.post("/", RepresentativeController.createRepresentative)
+router.get("/", RepresentativeController.getAllRepresentatives)
+router.get("/:ci", RepresentativeController.getRepresentativeByCi)
+router.put("/:ci", RepresentativeController.updateRepresentative)
 
 export default router

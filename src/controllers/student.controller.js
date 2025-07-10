@@ -1,378 +1,188 @@
-import { db } from "../db/connection.database.js"
+import { StudentModel } from "../models/student.model.js"
+import { RepresentativeModel } from "../models/representative.model.js"
 
-class StudentController {
-  // Crear nuevo estudiante
-  static async create(req, res) {
-    try {
-      console.log("📝 Creando nuevo estudiante...")
-      console.log("Datos recibidos:", req.body)
+// Crear registro estudiantil (estudiante + representante)
+const createStudentRegistry = async (req, res) => {
+  try {
+    console.log("📝 Creando registro estudiantil:", req.body)
 
-      const {
-        ci,
-        name,
-        lastName,
-        sex,
-        birthday,
-        placeBirth,
-        parishID,
-        quantityBrothers,
-        representativeID,
-        motherName,
-        motherCi,
-        motherTelephone,
-        fatherName,
-        fatherCi,
-        fatherTelephone,
-        livesMother,
-        livesFather,
-        livesBoth,
-        livesRepresentative,
-        rolRopresentative,
-      } = req.body
+    const { student, representative } = req.body
 
-      // Validaciones básicas
-      if (!ci || !name || !lastName) {
-        return res.status(400).json({
-          ok: false,
-          msg: "Cédula, nombre y apellido son campos requeridos",
-        })
-      }
-
-      // Verificar si ya existe un estudiante con esa cédula
-      const existingStudent = await db.query({
-        text: 'SELECT id FROM "student" WHERE ci = $1',
-        values: [ci],
+    // Validar que se envíen ambos objetos
+    if (!student || !representative) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Se requiere información del estudiante y del representante",
       })
+    }
 
-      if (existingStudent.rows.length > 0) {
-        return res.status(400).json({
-          ok: false,
-          msg: "Ya existe un estudiante registrado con esa cédula",
-        })
-      }
+    // Validar campos requeridos del estudiante
+    if (!student.ci || !student.name || !student.lastName || !student.sex || !student.birthday) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Faltan campos requeridos del estudiante: CI, nombre, apellido, sexo, fecha de nacimiento",
+      })
+    }
 
-      // Crear el estudiante
-      const query = {
-        text: `
-          INSERT INTO "student" (
-            ci, name, "lastName", sex, birthday, "placeBirth", "parishID", status_id,
-            "quantityBrothers", "representativeID", "motherName", "motherCi", "motherTelephone",
-            "fatherName", "fatherCi", "fatherTelephone", "livesMother", "livesFather", 
-            "livesBoth", "livesRepresentative", "rolRopresentative", created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          RETURNING *
-        `,
-        values: [
-          ci,
-          name,
-          lastName,
-          sex,
-          birthday || null,
-          placeBirth || null,
-          parishID || 1,
-          quantityBrothers || 0,
-          representativeID || null,
-          motherName || null,
-          motherCi || null,
-          motherTelephone || null,
-          fatherName || null,
-          fatherCi || null,
-          fatherTelephone || null,
-          livesMother || false,
-          livesFather || false,
-          livesBoth || false,
-          livesRepresentative || false,
-          rolRopresentative || null,
-        ],
-      }
+    // Validar campos requeridos del representante
+    if (!representative.ci || !representative.name || !representative.lastName || !representative.telephoneNumber) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Faltan campos requeridos del representante: CI, nombre, apellido, teléfono",
+      })
+    }
 
-      const result = await db.query(query)
-      const newStudent = result.rows[0]
+    // Verificar que el estudiante no exista
+    const existingStudent = await StudentModel.findStudentByCi(student.ci)
+    if (existingStudent) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Ya existe un estudiante registrado con esta cédula",
+      })
+    }
 
-      console.log("✅ Estudiante creado exitosamente:", newStudent.id)
+    // Verificar que el representante no exista
+    const existingRepresentative = await RepresentativeModel.getRepresentativeByCi(representative.ci)
+    if (existingRepresentative) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Ya existe un representante registrado con esta cédula",
+      })
+    }
 
-      res.status(201).json({
-        ok: true,
-        msg: "Estudiante creado exitosamente",
+    // Crear representante primero
+    const newRepresentative = await RepresentativeModel.createRepresentative(representative)
+    console.log("✅ Representante creado:", newRepresentative)
+
+    // Crear estudiante con referencia al representante
+    const studentData = {
+      ...student,
+      representativeID: representative.ci,
+    }
+    const newStudent = await StudentModel.createStudentRegistry(studentData)
+    console.log("✅ Estudiante creado:", newStudent)
+
+    res.status(201).json({
+      ok: true,
+      msg: "Registro estudiantil creado exitosamente",
+      data: {
         student: newStudent,
-      })
-    } catch (error) {
-      console.error("❌ Error creando estudiante:", error)
-      res.status(500).json({
+        representative: newRepresentative,
+      },
+    })
+  } catch (error) {
+    console.error("❌ Error en createStudentRegistry:", error)
+
+    // Manejar errores específicos de base de datos
+    if (error.code === "23505") {
+      // Unique constraint violation
+      return res.status(400).json({
         ok: false,
-        msg: "Error interno del servidor al crear estudiante",
-        error: error.message,
+        msg: "Ya existe un registro con esa cédula",
+        error: error.detail,
       })
     }
-  }
 
-  // Obtener todos los estudiantes
-  static async findAll(req, res) {
-    try {
-      console.log("🔍 Obteniendo todos los estudiantes...")
-
-      const query = {
-        text: `
-          SELECT 
-            s.*,
-            st.name as status_name,
-            r.name as representative_name,
-            r."lastName" as representative_lastName
-          FROM "student" s
-          LEFT JOIN "status" st ON s.status_id = st.id
-          LEFT JOIN "representative" r ON s."representativeID" = r.ci
-          ORDER BY s."lastName", s.name
-        `,
-      }
-
-      const result = await db.query(query)
-
-      res.json({
-        ok: true,
-        students: result.rows,
-        total: result.rows.length,
-      })
-    } catch (error) {
-      console.error("❌ Error obteniendo estudiantes:", error)
-      res.status(500).json({
+    if (error.code === "23503") {
+      // Foreign key constraint violation
+      return res.status(400).json({
         ok: false,
-        msg: "Error interno del servidor al obtener estudiantes",
-        error: error.message,
+        msg: "Error de referencia en los datos",
+        error: error.detail,
       })
     }
-  }
 
-  // Obtener estudiante por ID
-  static async findById(req, res) {
-    try {
-      const { id } = req.params
-      console.log(`🔍 Obteniendo estudiante ID: ${id}`)
-
-      if (!id || isNaN(id)) {
-        return res.status(400).json({
-          ok: false,
-          msg: "ID de estudiante inválido",
-        })
-      }
-
-      const query = {
-        text: `
-          SELECT 
-            s.*,
-            st.name as status_name,
-            r.name as representative_name,
-            r."lastName" as representative_lastName,
-            r."telephoneNumber" as representative_phone
-          FROM "student" s
-          LEFT JOIN "status" st ON s.status_id = st.id
-          LEFT JOIN "representative" r ON s."representativeID" = r.ci
-          WHERE s.id = $1
-        `,
-        values: [id],
-      }
-
-      const result = await db.query(query)
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          ok: false,
-          msg: "Estudiante no encontrado",
-        })
-      }
-
-      res.json({
-        ok: true,
-        student: result.rows[0],
-      })
-    } catch (error) {
-      console.error("❌ Error obteniendo estudiante:", error)
-      res.status(500).json({
-        ok: false,
-        msg: "Error interno del servidor al obtener estudiante",
-        error: error.message,
-      })
-    }
-  }
-
-  // Buscar estudiantes por cédula
-  static async search(req, res) {
-    try {
-      const { ci } = req.query
-      console.log(`🔍 Buscando estudiante con CI: ${ci}`)
-
-      if (!ci || ci.trim().length < 2) {
-        return res.status(400).json({
-          ok: false,
-          msg: "La cédula debe tener al menos 2 caracteres",
-        })
-      }
-
-      const query = {
-        text: `
-          SELECT 
-            s.*,
-            st.name as status_name,
-            r.name as representative_name,
-            r."lastName" as representative_lastName
-          FROM "student" s
-          LEFT JOIN "status" st ON s.status_id = st.id
-          LEFT JOIN "representative" r ON s."representativeID" = r.ci
-          WHERE s.ci ILIKE $1 AND s.status_id = 1
-          ORDER BY s."lastName", s.name
-          LIMIT 10
-        `,
-        values: [`%${ci.trim()}%`],
-      }
-
-      const result = await db.query(query)
-
-      res.json({
-        ok: true,
-        students: result.rows,
-        total: result.rows.length,
-        searchTerm: ci,
-      })
-    } catch (error) {
-      console.error("❌ Error buscando estudiantes:", error)
-      res.status(500).json({
-        ok: false,
-        msg: "Error interno del servidor al buscar estudiantes",
-        error: error.message,
-      })
-    }
-  }
-
-  // Actualizar estudiante
-  static async update(req, res) {
-    try {
-      const { id } = req.params
-      console.log(`📝 Actualizando estudiante ID: ${id}`)
-
-      if (!id || isNaN(id)) {
-        return res.status(400).json({
-          ok: false,
-          msg: "ID de estudiante inválido",
-        })
-      }
-
-      const updateData = req.body
-
-      // Verificar si el estudiante existe
-      const existingStudent = await db.query({
-        text: 'SELECT id FROM "student" WHERE id = $1',
-        values: [id],
-      })
-
-      if (existingStudent.rows.length === 0) {
-        return res.status(404).json({
-          ok: false,
-          msg: "Estudiante no encontrado",
-        })
-      }
-
-      // Construir query dinámicamente
-      const fields = []
-      const values = []
-      let paramCount = 1
-
-      Object.keys(updateData).forEach((key) => {
-        if (updateData[key] !== undefined && key !== "id") {
-          fields.push(`"${key}" = $${paramCount}`)
-          values.push(updateData[key])
-          paramCount++
-        }
-      })
-
-      if (fields.length === 0) {
-        return res.status(400).json({
-          ok: false,
-          msg: "No hay campos para actualizar",
-        })
-      }
-
-      fields.push(`updated_at = CURRENT_TIMESTAMP`)
-      values.push(id)
-
-      const query = {
-        text: `UPDATE "student" SET ${fields.join(", ")} WHERE id = $${paramCount} RETURNING *`,
-        values: values,
-      }
-
-      const result = await db.query(query)
-
-      console.log("✅ Estudiante actualizado exitosamente")
-
-      res.json({
-        ok: true,
-        msg: "Estudiante actualizado exitosamente",
-        student: result.rows[0],
-      })
-    } catch (error) {
-      console.error("❌ Error actualizando estudiante:", error)
-      res.status(500).json({
-        ok: false,
-        msg: "Error interno del servidor al actualizar estudiante",
-        error: error.message,
-      })
-    }
-  }
-
-  // Eliminar estudiante (cambiar status)
-  static async delete(req, res) {
-    try {
-      const { id } = req.params
-      console.log(`🗑️ Eliminando estudiante ID: ${id}`)
-
-      if (!id || isNaN(id)) {
-        return res.status(400).json({
-          ok: false,
-          msg: "ID de estudiante inválido",
-        })
-      }
-
-      // Verificar si el estudiante existe
-      const existingStudent = await db.query({
-        text: 'SELECT id FROM "student" WHERE id = $1',
-        values: [id],
-      })
-
-      if (existingStudent.rows.length === 0) {
-        return res.status(404).json({
-          ok: false,
-          msg: "Estudiante no encontrado",
-        })
-      }
-
-      // Cambiar status a inactivo (2)
-      const query = {
-        text: `
-          UPDATE "student" SET
-            status_id = 2,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1
-          RETURNING *
-        `,
-        values: [id],
-      }
-
-      const result = await db.query(query)
-
-      console.log("✅ Estudiante eliminado exitosamente")
-
-      res.json({
-        ok: true,
-        msg: "Estudiante eliminado exitosamente",
-        student: result.rows[0],
-      })
-    } catch (error) {
-      console.error("❌ Error eliminando estudiante:", error)
-      res.status(500).json({
-        ok: false,
-        msg: "Error interno del servidor al eliminar estudiante",
-        error: error.message,
-      })
-    }
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
   }
 }
 
-export { StudentController }
+// Obtener estudiantes registrados (disponibles para inscripción)
+const getRegisteredStudents = async (req, res) => {
+  try {
+    console.log("📋 Obteniendo estudiantes registrados")
+
+    const students = await StudentModel.getRegisteredStudents()
+
+    res.json({
+      ok: true,
+      students,
+      total: students.length,
+    })
+  } catch (error) {
+    console.error("❌ Error en getRegisteredStudents:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+// Buscar estudiante para inscripción
+const findStudentForInscription = async (req, res) => {
+  try {
+    const { ci } = req.params
+    console.log("🔍 Buscando estudiante para inscripción:", ci)
+
+    const student = await StudentModel.findStudentForInscription(ci)
+
+    if (!student) {
+      return res.status(404).json({
+        ok: false,
+        msg: "Estudiante no encontrado o ya inscrito",
+      })
+    }
+
+    res.json({
+      ok: true,
+      student,
+    })
+  } catch (error) {
+    console.error("❌ Error en findStudentForInscription:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+// Buscar estudiante por CI
+const findStudentByCi = async (req, res) => {
+  try {
+    const { ci } = req.params
+    console.log("🔍 Buscando estudiante por CI:", ci)
+
+    const student = await StudentModel.findStudentByCi(ci)
+
+    if (!student) {
+      return res.status(404).json({
+        ok: false,
+        msg: "Estudiante no encontrado",
+      })
+    }
+
+    res.json({
+      ok: true,
+      student,
+    })
+  } catch (error) {
+    console.error("❌ Error en findStudentByCi:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
+  }
+}
+
+export const StudentController = {
+  createStudentRegistry,
+  getRegisteredStudents,
+  findStudentForInscription,
+  findStudentByCi,
+}

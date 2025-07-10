@@ -1,12 +1,12 @@
 import { db } from "../db/connection.database.js"
 
-const create = async (matriculaData) => {
+// Crear inscripción escolar (enrollment)
+const createSchoolInscription = async (inscriptionData) => {
   try {
     const {
       studentID,
       sectionID,
       brigadeTeacherDateID,
-      registrationDate,
       repeater,
       chemiseSize,
       pantsSize,
@@ -22,25 +22,24 @@ const create = async (matriculaData) => {
       representativeCopyIDCheck,
       representativeRIFCheck,
       autorizedCopyIDCheck,
-    } = matriculaData
+    } = inscriptionData
 
     const query = {
       text: `
         INSERT INTO "enrollment" (
-          "studentID", "sectionID", "brigadeTeacherDateID", "registrationDate", 
-          "repeater", "chemiseSize", "pantsSize", "shoesSize", "weight", "stature", 
-          "diseases", "observation", "birthCertificateCheck", "vaccinationCardCheck", 
-          "studentPhotosCheck", "representativePhotosCheck", "representativeCopyIDCheck", 
-          "representativeRIFCheck", "autorizedCopyIDCheck", "created_at", "updated_at"
+          "studentID", "sectionID", "brigadeTeacherDateID", "registrationDate",
+          repeater, "chemiseSize", "pantsSize", "shoesSize", weight, stature,
+          diseases, observation, "birthCertificateCheck", "vaccinationCardCheck",
+          "studentPhotosCheck", "representativePhotosCheck", "representativeCopyIDCheck",
+          "representativeRIFCheck", "autorizedCopyIDCheck", created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING *
       `,
       values: [
         studentID,
         sectionID,
         brigadeTeacherDateID || null,
-        registrationDate || new Date(),
         repeater || false,
         chemiseSize,
         pantsSize,
@@ -62,224 +61,13 @@ const create = async (matriculaData) => {
     const { rows } = await db.query(query)
     return rows[0]
   } catch (error) {
-    console.error("Error in create enrollment:", error)
+    console.error("Error in createSchoolInscription:", error)
     throw error
   }
 }
 
-const findAll = async () => {
-  try {
-    const query = {
-      text: `
-        SELECT 
-          e.*,
-          s.name as student_name,
-          s."lastName" as student_lastName,
-          s.ci as student_ci,
-          s.birthday as student_birthday,
-          s.sex as student_sex,
-          sec.seccion as section_name,
-          g.name as grade_name,
-          p.name as teacher_name,
-          p."lastName" as teacher_lastName,
-          r.name as representative_name,
-          r."lastName" as representative_lastName,
-          r."telephoneNumber" as representative_phone
-        FROM "enrollment" e
-        LEFT JOIN "student" s ON e."studentID" = s.id
-        LEFT JOIN "section" sec ON e."sectionID" = sec.id
-        LEFT JOIN "grade" g ON sec."gradeID" = g.id
-        LEFT JOIN "personal" p ON sec."teacherCI" = p.id
-        LEFT JOIN "representative" r ON s."representativeID" = r.ci
-        ORDER BY e.created_at DESC
-      `,
-    }
-    const { rows } = await db.query(query)
-    return rows
-  } catch (error) {
-    console.error("Error in findAll enrollments:", error)
-    throw error
-  }
-}
-
-const findById = async (id) => {
-  try {
-    const query = {
-      text: `
-        SELECT 
-          e.*,
-          s.name as student_name,
-          s."lastName" as student_lastName,
-          s.ci as student_ci,
-          s.birthday as student_birthday,
-          s.sex as student_sex,
-          s."placeBirth" as student_birthPlace,
-          s.address as student_address,
-          sec.seccion as section_name,
-          g.name as grade_name,
-          p.name as teacher_name,
-          p."lastName" as teacher_lastName,
-          r.name as representative_name,
-          r."lastName" as representative_lastName,
-          r."telephoneNumber" as representative_phone,
-          r.email as representative_email,
-          r.address as representative_address,
-          r.workplace as representative_workplace,
-          r."workTelephone" as representative_work_phone,
-          r."telephoneHouse" as representative_telephoneHouse,
-          r.profesion as representative_profesion,
-          r."maritalStat" as representative_maritalStat,
-          r.birthday as representative_birthday,
-          r.ci as representative_ci
-        FROM "enrollment" e
-        LEFT JOIN "student" s ON e."studentID" = s.id
-        LEFT JOIN "section" sec ON e."sectionID" = sec.id
-        LEFT JOIN "grade" g ON sec."gradeID" = g.id
-        LEFT JOIN "personal" p ON sec."teacherCI" = p.id
-        LEFT JOIN "representative" r ON s."representativeID" = r.ci
-        WHERE e.id = $1
-      `,
-      values: [id],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in findById enrollment:", error)
-    throw error
-  }
-}
-
-const findByEstudianteId = async (studentID) => {
-  try {
-    const query = {
-      text: `
-        SELECT 
-          e.*,
-          sec.seccion as section_name,
-          g.name as grade_name,
-          p.name as teacher_name,
-          p."lastName" as teacher_lastName
-        FROM "enrollment" e
-        LEFT JOIN "section" sec ON e."sectionID" = sec.id
-        LEFT JOIN "grade" g ON sec."gradeID" = g.id
-        LEFT JOIN "personal" p ON sec."teacherCI" = p.id
-        WHERE e."studentID" = $1
-        ORDER BY e.created_at DESC
-      `,
-      values: [studentID],
-    }
-    const { rows } = await db.query(query)
-    return rows
-  } catch (error) {
-    console.error("Error in findByEstudianteId enrollment:", error)
-    throw error
-  }
-}
-
-const findByPeriodoEscolar = async (periodo) => {
-  try {
-    const query = {
-      text: `
-        SELECT 
-          e.*,
-          s.name as student_name,
-          s."lastName" as student_lastName,
-          s.ci as student_ci,
-          s.sex as student_sex,
-          s.birthday as student_birthday,
-          sec.seccion as section_name,
-          g.name as grade_name,
-          p.name as teacher_name,
-          p."lastName" as teacher_lastName,
-          r.name as representative_name,
-          r."lastName" as representative_lastName,
-          r."telephoneNumber" as representative_phone
-        FROM "enrollment" e
-        LEFT JOIN "student" s ON e."studentID" = s.id
-        LEFT JOIN "section" sec ON e."sectionID" = sec.id
-        LEFT JOIN "grade" g ON sec."gradeID" = g.id
-        LEFT JOIN "personal" p ON sec."teacherCI" = p.id
-        LEFT JOIN "representative" r ON s."representativeID" = r.ci
-        WHERE EXTRACT(YEAR FROM e."registrationDate") = $1
-        ORDER BY g.id, sec.seccion, s."lastName", s.name
-      `,
-      values: [periodo],
-    }
-    const { rows } = await db.query(query)
-    return rows
-  } catch (error) {
-    console.error("Error in findByPeriodoEscolar enrollment:", error)
-    throw error
-  }
-}
-
-const checkExistingMatricula = async (studentID, sectionID) => {
-  try {
-    const query = {
-      text: `
-        SELECT id FROM "enrollment" 
-        WHERE "studentID" = $1 AND "sectionID" = $2
-      `,
-      values: [studentID, sectionID],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in checkExistingMatricula:", error)
-    throw error
-  }
-}
-
-const update = async (id, updateData) => {
-  try {
-    // Construir query dinámicamente
-    const fields = []
-    const values = []
-    let paramCount = 1
-
-    Object.keys(updateData).forEach((key) => {
-      if (updateData[key] !== undefined && key !== "id") {
-        fields.push(`"${key}" = $${paramCount}`)
-        values.push(updateData[key])
-        paramCount++
-      }
-    })
-
-    if (fields.length === 0) {
-      throw new Error("No hay campos para actualizar")
-    }
-
-    fields.push(`updated_at = CURRENT_TIMESTAMP`)
-    values.push(id)
-
-    const query = {
-      text: `UPDATE "enrollment" SET ${fields.join(", ")} WHERE id = $${paramCount} RETURNING *`,
-      values: values,
-    }
-
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in update enrollment:", error)
-    throw error
-  }
-}
-
-const remove = async (id) => {
-  try {
-    const query = {
-      text: 'DELETE FROM "enrollment" WHERE id = $1 RETURNING *',
-      values: [id],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in remove enrollment:", error)
-    throw error
-  }
-}
-
-const getGrados = async () => {
+// Obtener grados disponibles para inscripción
+const getAvailableGrades = async () => {
   try {
     const query = {
       text: `SELECT * FROM "grade" ORDER BY id`,
@@ -287,44 +75,153 @@ const getGrados = async () => {
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in getGrados:", error)
+    console.error("Error in getAvailableGrades:", error)
     throw error
   }
 }
 
-const getDocenteGrados = async () => {
+// Obtener secciones por grado con información del docente
+const getSectionsByGrade = async (gradeId) => {
   try {
     const query = {
       text: `
         SELECT 
-          s.id,
-          s.seccion,
-          g.name as grade_name,
+          s.*,
           p.name as teacher_name,
-          p."lastName" as teacher_lastName
+          p."lastName" as teacher_lastName,
+          COUNT(e."studentID") as student_count
         FROM "section" s
-        LEFT JOIN "grade" g ON s."gradeID" = g.id
         LEFT JOIN "personal" p ON s."teacherCI" = p.id
-        ORDER BY g.id, s.seccion
+        LEFT JOIN "enrollment" e ON s.id = e."sectionID"
+        WHERE s."gradeID" = $1
+        GROUP BY s.id, s."teacherCI", s."gradeID", s.seccion, s.period, s.created_at, s.updated_at, p.name, p."lastName"
+        ORDER BY s.seccion
+      `,
+      values: [gradeId],
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in getSectionsByGrade:", error)
+    throw error
+  }
+}
+
+// Obtener docentes disponibles
+const getAvailableTeachers = async () => {
+  try {
+    const query = {
+      text: `
+        SELECT 
+          p.id,
+          p.ci,
+          p.name,
+          p."lastName",
+          p.email,
+          p."telephoneNumber"
+        FROM "personal" p
+        WHERE p."idRole" = 1
+        ORDER BY p.name, p."lastName"
       `,
     }
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in getDocenteGrados:", error)
+    console.error("Error in getAvailableTeachers:", error)
+    throw error
+  }
+}
+
+// Asignar docente a sección
+const assignTeacherToSection = async (sectionId, teacherId) => {
+  try {
+    const query = {
+      text: `
+        UPDATE "section" 
+        SET "teacherCI" = $1, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = $2 
+        RETURNING *
+      `,
+      values: [teacherId, sectionId],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in assignTeacherToSection:", error)
+    throw error
+  }
+}
+
+// Obtener inscripciones por grado para vista de matrícula
+const getInscriptionsByGrade = async (gradeId) => {
+  try {
+    const query = {
+      text: `
+        SELECT 
+          e.*,
+          s.name as student_name,
+          s."lastName" as student_lastName,
+          s.sex as student_sex,
+          s.birthday as student_birthday,
+          s.ci as student_ci,
+          g.name as grade_name,
+          sec.seccion as section_name,
+          p.name as teacher_name,
+          p."lastName" as teacher_lastName
+        FROM "enrollment" e
+        JOIN "student" s ON e."studentID" = s.id
+        JOIN "section" sec ON e."sectionID" = sec.id
+        JOIN "grade" g ON sec."gradeID" = g.id
+        LEFT JOIN "personal" p ON sec."teacherCI" = p.id
+        WHERE sec."gradeID" = $1
+        ORDER BY sec.seccion, s."lastName", s.name
+      `,
+      values: [gradeId],
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in getInscriptionsByGrade:", error)
+    throw error
+  }
+}
+
+// Obtener todas las inscripciones
+const getAllInscriptions = async () => {
+  try {
+    const query = {
+      text: `
+        SELECT 
+          e.*,
+          s.name as student_name,
+          s."lastName" as student_lastName,
+          s.ci as student_ci,
+          g.name as grade_name,
+          sec.seccion as section_name,
+          p.name as teacher_name,
+          p."lastName" as teacher_lastName
+        FROM "enrollment" e
+        JOIN "student" s ON e."studentID" = s.id
+        JOIN "section" sec ON e."sectionID" = sec.id
+        JOIN "grade" g ON sec."gradeID" = g.id
+        LEFT JOIN "personal" p ON sec."teacherCI" = p.id
+        ORDER BY e."registrationDate" DESC
+      `,
+    }
+    const { rows } = await db.query(query)
+    return rows
+  } catch (error) {
+    console.error("Error in getAllInscriptions:", error)
     throw error
   }
 }
 
 export const MatriculaModel = {
-  create,
-  findAll,
-  findById,
-  findByEstudianteId,
-  findByPeriodoEscolar,
-  checkExistingMatricula,
-  update,
-  remove,
-  getGrados,
-  getDocenteGrados,
+  createSchoolInscription,
+  getAvailableGrades,
+  getSectionsByGrade,
+  getAvailableTeachers,
+  assignTeacherToSection,
+  getInscriptionsByGrade,
+  getAllInscriptions,
 }

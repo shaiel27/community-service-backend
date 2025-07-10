@@ -1,25 +1,20 @@
 import { Router } from "express"
 import { MatriculaController } from "../controllers/matricula.controller.js"
+import { verifyToken, verifyAdminOrReadOnly } from "../middlewares/jwt.middleware.js"
 
 const router = Router()
 
-// Aplicar middleware de autenticación (comentado temporalmente para testing)
-// router.use(verifyToken)
-// router.use(verifyAdminOrReadOnly)
+// Aplicar middleware de autenticación
+router.use(verifyToken)
+router.use(verifyAdminOrReadOnly)
 
-// Rutas principales de matrícula
-router.get("/", MatriculaController.getAllMatriculas)
-router.get("/:id", MatriculaController.getMatriculaById)
-router.post("/", MatriculaController.createMatricula)
-router.put("/:id", MatriculaController.updateMatricula)
-router.delete("/:id", MatriculaController.deleteMatricula)
-
-// Rutas específicas
-router.get("/estudiante/:estudiante_id", MatriculaController.getMatriculasByEstudiante)
-router.get("/periodo/:periodo_escolar", MatriculaController.getMatriculasByPeriodo)
-
-// Rutas de utilidades
-router.get("/utils/grados", MatriculaController.getGrados)
-router.get("/utils/docente-grados", MatriculaController.getDocenteGrados)
+// Rutas para el nuevo sistema de inscripción escolar
+router.post("/inscription", MatriculaController.createSchoolInscription)
+router.get("/grades", MatriculaController.getAvailableGrades)
+router.get("/sections/:gradeId", MatriculaController.getSectionsByGrade)
+router.get("/teachers", MatriculaController.getAvailableTeachers)
+router.post("/assign-teacher", MatriculaController.assignTeacherToSection)
+router.get("/inscriptions/:gradeId", MatriculaController.getInscriptionsByGrade)
+router.get("/all", MatriculaController.getAllInscriptions)
 
 export default router

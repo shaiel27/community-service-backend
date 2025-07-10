@@ -1,162 +1,187 @@
-import matriculaService from "../services/matricula.service.js"
+import { MatriculaModel } from "../models/matricula.model.js"
+import { StudentModel } from "../models/student.model.js"
 
-const handleError = (res, error) => {
-  console.error("❌ Error en controlador:", error)
-
-  const status = error.message.includes("no encontrad") ? 404 : 500
-  const message = error.message || "Error interno del servidor"
-
-  res.status(status).json({
-    ok: false,
-    msg: message,
-    error: process.env.NODE_ENV === "development" ? error.stack : undefined,
-  })
-}
-
-const createMatricula = async (req, res) => {
+// Crear inscripción escolar
+const createSchoolInscription = async (req, res) => {
   try {
-    console.log("📥 Datos recibidos para matrícula:", JSON.stringify(req.body, null, 2))
+    console.log("📚 Creando inscripción escolar:", req.body)
 
-    // Verificar si es una matrícula completa (con datos de estudiante)
-    if (req.body.studentData) {
-      console.log("🔄 Procesando matrícula completa...")
-      const result = await matriculaService.crearMatriculaCompleta(req.body)
+    const { studentCi, sectionID, ...enrollmentData } = req.body
 
-      res.status(201).json({
-        ok: true,
-        msg: "Matrícula creada exitosamente",
-        matricula: result.matricula,
-        student: result.student,
-        representative: result.representative,
-      })
-    } else {
-      // Matrícula simple (estudiante ya existe)
-      console.log("🔄 Procesando matrícula simple...")
-      const newMatricula = await matriculaService.crearMatricula(req.body)
-
-      res.status(201).json({
-        ok: true,
-        msg: "Matrícula creada exitosamente",
-        matricula: newMatricula,
+    // Buscar el estudiante por CI para obtener su ID
+    const student = await StudentModel.findStudentForInscription(studentCi)
+    if (!student) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Estudiante no encontrado o no disponible para inscripción",
       })
     }
+
+    // Crear inscripción con el ID del estudiante
+    const inscriptionData = {
+      studentID: student.id,
+      sectionID,
+      ...enrollmentData,
+    }
+
+    const inscription = await MatriculaModel.createSchoolInscription(inscriptionData)
+
+    // Actualizar estado del estudiante a inscrito (status_id = 2)
+    await StudentModel.updateStudentStatus(student.id, 2)
+
+    res.status(201).json({
+      ok: true,
+      msg: "Inscripción escolar creada exitosamente",
+      inscription,
+    })
   } catch (error) {
-    handleError(res, error)
+    console.error("❌ Error en createSchoolInscription:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
   }
 }
 
-const getAllMatriculas = async (req, res) => {
+// Obtener grados disponibles
+const getAvailableGrades = async (req, res) => {
   try {
-    const matriculas = await matriculaService.obtenerTodas()
+    console.log("📋 Obteniendo grados disponibles")
+
+    const grades = await MatriculaModel.getAvailableGrades()
+
     res.json({
       ok: true,
-      matriculas,
-      total: matriculas.length,
+      grades,
     })
   } catch (error) {
-    handleError(res, error)
+    console.error("❌ Error en getAvailableGrades:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
   }
 }
 
-const getMatriculaById = async (req, res) => {
+// Obtener secciones por grado
+const getSectionsByGrade = async (req, res) => {
   try {
-    const matricula = await matriculaService.obtenerPorId(req.params.id)
+    const { gradeId } = req.params
+    console.log("📋 Obteniendo secciones para grado:", gradeId)
+
+    const sections = await MatriculaModel.getSectionsByGrade(gradeId)
+
     res.json({
       ok: true,
-      matricula,
+      sections,
     })
   } catch (error) {
-    handleError(res, error)
+    console.error("❌ Error en getSectionsByGrade:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
   }
 }
 
-const getMatriculasByEstudiante = async (req, res) => {
+// Obtener docentes disponibles
+const getAvailableTeachers = async (req, res) => {
   try {
-    const matriculas = await matriculaService.obtenerPorEstudiante(req.params.estudiante_id)
+    console.log("👨‍🏫 Obteniendo docentes disponibles")
+
+    const teachers = await MatriculaModel.getAvailableTeachers()
+
     res.json({
       ok: true,
-      matriculas,
-      total: matriculas.length,
+      teachers,
     })
   } catch (error) {
-    handleError(res, error)
+    console.error("❌ Error en getAvailableTeachers:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
   }
 }
 
-const getMatriculasByPeriodo = async (req, res) => {
+// Asignar docente a sección
+const assignTeacherToSection = async (req, res) => {
   try {
-    const matriculas = await matriculaService.obtenerPorPeriodo(req.params.periodo_escolar)
+    const { sectionId, teacherId } = req.body
+    console.log("👨‍🏫 Asignando docente a sección:", { sectionId, teacherId })
+
+    const section = await MatriculaModel.assignTeacherToSection(sectionId, teacherId)
+
     res.json({
       ok: true,
-      matriculas,
-      total: matriculas.length,
-      periodo_escolar: req.params.periodo_escolar,
+      msg: "Docente asignado exitosamente",
+      section,
     })
   } catch (error) {
-    handleError(res, error)
+    console.error("❌ Error en assignTeacherToSection:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
   }
 }
 
-const updateMatricula = async (req, res) => {
+// Obtener inscripciones por grado (para vista de matrícula)
+const getInscriptionsByGrade = async (req, res) => {
   try {
-    const updatedMatricula = await matriculaService.actualizarMatricula(req.params.id, req.body)
+    const { gradeId } = req.params
+    console.log("📋 Obteniendo inscripciones para grado:", gradeId)
+
+    const inscriptions = await MatriculaModel.getInscriptionsByGrade(gradeId)
+
     res.json({
       ok: true,
-      msg: "Matrícula actualizada exitosamente",
-      matricula: updatedMatricula,
+      inscriptions,
+      total: inscriptions.length,
     })
   } catch (error) {
-    handleError(res, error)
+    console.error("❌ Error en getInscriptionsByGrade:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
   }
 }
 
-const deleteMatricula = async (req, res) => {
+// Obtener todas las inscripciones
+const getAllInscriptions = async (req, res) => {
   try {
-    const result = await matriculaService.eliminarMatricula(req.params.id)
-    res.json({
-      ok: true,
-      msg: "Matrícula eliminada exitosamente",
-      id: result.id,
-    })
-  } catch (error) {
-    handleError(res, error)
-  }
-}
+    console.log("📋 Obteniendo todas las inscripciones")
 
-const getGrados = async (req, res) => {
-  try {
-    const grados = await matriculaService.obtenerGrados()
-    res.json({
-      ok: true,
-      grados,
-      total: grados.length,
-    })
-  } catch (error) {
-    handleError(res, error)
-  }
-}
+    const inscriptions = await MatriculaModel.getAllInscriptions()
 
-const getDocenteGrados = async (req, res) => {
-  try {
-    const docenteGrados = await matriculaService.obtenerSeccionesDocentes()
     res.json({
       ok: true,
-      docente_grados: docenteGrados,
-      total: docenteGrados.length,
+      inscriptions,
+      total: inscriptions.length,
     })
   } catch (error) {
-    handleError(res, error)
+    console.error("❌ Error en getAllInscriptions:", error)
+    res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    })
   }
 }
 
 export const MatriculaController = {
-  createMatricula,
-  getAllMatriculas,
-  getMatriculaById,
-  getMatriculasByEstudiante,
-  getMatriculasByPeriodo,
-  updateMatricula,
-  deleteMatricula,
-  getGrados,
-  getDocenteGrados,
+  createSchoolInscription,
+  getAvailableGrades,
+  getSectionsByGrade,
+  getAvailableTeachers,
+  assignTeacherToSection,
+  getInscriptionsByGrade,
+  getAllInscriptions,
 }
