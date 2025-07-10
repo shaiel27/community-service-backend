@@ -195,7 +195,7 @@ const getAllStudents = async () => {
         SELECT 
           s.*,
           r.name AS representative_name,
-          r."lastName" AS representative_lastName,
+          r."lastName" AS "representative_lastName",
           r."telephoneNumber" AS representative_phone,
           ss.descripcion AS status_description,
           CASE 

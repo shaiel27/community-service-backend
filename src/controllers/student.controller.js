@@ -154,7 +154,7 @@ const findStudentByCi = async (req, res) => {
   }
 }
 
-// NUEVA FUNCIÓN: Obtener todos los estudiantes
+// Obtener todos los estudiantes
 const getAllStudents = async (req, res) => {
   try {
     console.log("📋 Obteniendo todos los estudiantes")
@@ -174,5 +174,5 @@ export const StudentController = {
   getRegisteredStudents,
   findStudentForInscription,
   findStudentByCi,
-  getAllStudents, // Export the new function
+  getAllStudents,
 }

@@ -21,6 +21,6 @@ router.get("/inscription/:ci", StudentController.findStudentForInscription)
 router.get("/:ci", StudentController.findStudentByCi)
 
 // Obtener todos los estudiantes (sin importar estado de inscripción)
-router.get("/all", StudentController.getAllStudents)
+router.get("/list/all", StudentController.getAllStudents)
 
 export default router
