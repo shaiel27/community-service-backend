@@ -94,11 +94,11 @@ const getAvailableTeachers = async (req, res) => {
 // Asignar docente a sección por periodo
 const assignTeacherToSection = async (req, res) => {
   try {
-    const { sectionId, teacherId, periodId } = req.body
-    if (!sectionId || !teacherId || !periodId) {
+    const { gradeId, teacherId, periodId } = req.body
+    if (!gradeId || !teacherId || !periodId) {
       return res.status(400).json({ ok: false, msg: "Faltan datos para la asignación" })
     }
-    const section = await MatriculaModel.assignTeacherToSection(sectionId, teacherId, periodId)
+    const section = await MatriculaModel.assignTeacherToSection(gradeId, teacherId, periodId)
     res.json({ ok: true, msg: "Docente asignado a la sección exitosamente", section })
   } catch (error) {
     handleError(res, error)
@@ -167,6 +167,44 @@ const deleteMatricula = async (req, res) => {
     handleError(res, error)
   }
 }
+// Obtener periodo académico actual
+const getAcademicPeriodCurrent = async (req, res) => {
+  try {
+    const period = await MatriculaModel.getCurrentAcademicPeriod()
+    if (!period) {
+      return res.status(404).json({ ok: false, msg: "No se encontró ningún periodo académico actual." })
+    }
+    res.json({ ok: true, period })
+  } catch (error) {
+    handleError(res, error) //
+  }
+}
+
+// Obtener todos los periodos académicos
+const getAcademicPeriodsAll = async (req, res) => {
+  try {
+    const periods = await MatriculaModel.getAllAcademicPeriods()
+    res.json({ ok: true, periods, total: periods.length })
+  } catch (error) {
+    handleError(res, error) //
+  }
+}
+
+// Crear nuevo periodo académico
+const createAcademicPeriod = async (req, res) => {
+  try {
+    const result = await MatriculaModel.createNewAcademicPeriod()
+
+    res.status(201).json({
+      ok: true,
+      msg: "Periodo académico creado exitosamente. Estudiantes inscritos actualizados a estado activo.",
+      newPeriod: result.newPeriod,
+      studentsUpdated: result.updatedStudentsCount,
+    })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
 
 export const MatriculaController = {
   createSchoolInscription,
@@ -180,4 +218,7 @@ export const MatriculaController = {
   getInscriptionById,
   updateMatricula,
   deleteMatricula,
+  getAcademicPeriodCurrent,
+  getAcademicPeriodsAll,
+  createAcademicPeriod,
 }

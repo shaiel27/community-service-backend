@@ -183,15 +183,15 @@ const getAvailableTeachers = async () => {
 }
 
 // Asignar docente a sección (por periodo)
-const assignTeacherToSection = async (sectionId, teacherId, periodId) => {
+const assignTeacherToSection = async (gradeId, teacherId, periodId) => {
   // Verificar si el docente ya está asignado a otra sección en el mismo periodo
   const checkQuery = {
     text: `
       SELECT id FROM "section"
-      WHERE "teacherCI" = $1 AND "academicPeriodID" = $2 AND id <> $3
+      WHERE "teacherCI" = $1 AND "academicPeriodID" = $2
       LIMIT 1
     `,
-    values: [teacherId, periodId, sectionId],
+    values: [teacherId, periodId],
   };
   const { rows: assignedRows } = await db.query(checkQuery);
   if (assignedRows.length > 0) {
@@ -201,12 +201,11 @@ const assignTeacherToSection = async (sectionId, teacherId, periodId) => {
   // Si no está asignado, procede con la actualización
   const updateQuery = {
     text: `
-      UPDATE "section" 
-      SET "teacherCI" = $1, "academicPeriodID" = $2, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $3 
+      INSERT INTO "section" ("teacherID", "gradeID", "academicPeriodID", "created_at", "updated_at") 
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP )
       RETURNING *
     `,
-    values: [teacherId, periodId, sectionId],
+    values: [teacherId, gradeId, periodId],
   };
   const { rows } = await db.query(updateQuery);
   return rows[0];
@@ -366,7 +365,118 @@ const remove = async (id) => {
     throw error
   }
 }
+// Obtener el periodo actual en curso
+const getCurrentAcademicPeriod = async () => {
+  try {
+    const query = {
+      text: `SELECT * FROM "academic_period" WHERE "is_current" = TRUE LIMIT 1`,
+    }
+    const { rows } = await db.query(query) //
+    return rows[0]
+  } catch (error) {
+    console.error("Error in getCurrentAcademicPeriod:", error)
+    throw error
+  }
+}
 
+// Obtener todos los periodos académicos
+const getAllAcademicPeriods = async () => {
+  try {
+    const query = {
+      text: `SELECT * FROM "academic_period" ORDER BY "start_date" DESC`,
+    }
+    const { rows } = await db.query(query) //
+    return rows
+  } catch (error) {
+    console.error("Error in getAllAcademicPeriods:", error)
+    throw error
+  }
+}
+
+// Crear un nuevo periodo académico con lógica de fechas consecutivas y manejar la lógica de 'is_current' y estados de estudiantes
+const createNewAcademicPeriod = async () => {
+  const client = await db.connect() // Obtener una conexión del pool
+  try {
+    await client.query('BEGIN') // Iniciar transacción
+
+    // 1. Obtener el periodo actual (el que pasará a ser el "anterior")
+    const currentPeriodQuery = {
+      text: `SELECT id, end_date FROM "academic_period" WHERE "is_current" = TRUE LIMIT 1`,
+    }
+    const { rows: currentPeriodRows } = await client.query(currentPeriodQuery)
+    const currentPeriod = currentPeriodRows[0]
+
+    let newPeriodStartDate
+    let newPeriodEndDate
+    let newPeriodName
+
+    if (currentPeriod) {
+      // Si existe un periodo actual, el nuevo periodo empieza al día siguiente del fin del anterior
+      const previousEndDate = new Date(currentPeriod.end_date)
+      newPeriodStartDate = new Date(previousEndDate)
+      newPeriodStartDate.setDate(previousEndDate.getDate() + 1) // Sumar un día al end_date del anterior
+      // El end_date del nuevo periodo es un año después de su start_date
+      newPeriodEndDate = new Date(newPeriodStartDate)
+      newPeriodEndDate.setFullYear(newPeriodStartDate.getFullYear() + 1)
+      newPeriodEndDate.setDate(newPeriodEndDate.getDate() - 1); // Restar un día para que sea el día anterior al siguiente año de inicio (ej. 2024-07-27)
+
+      // El nombre es "start_year-end_year"
+      newPeriodName = `${newPeriodStartDate.getFullYear()}-${newPeriodEndDate.getFullYear()}`
+
+      // Actualizar el 'is_current' del periodo anterior a FALSE
+      const updateCurrentPeriodQuery = {
+        text: `
+          UPDATE "academic_period"
+          SET "is_current" = FALSE, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+          RETURNING *
+        `,
+        values: [currentPeriod.id],
+      }
+      await client.query(updateCurrentPeriodQuery)
+    } else {
+      newPeriodStartDate = new Date()
+      newPeriodEndDate = new Date(newPeriodStartDate)
+      newPeriodEndDate.setFullYear(newPeriodStartDate.getFullYear() + 1)
+      newPeriodEndDate.setDate(newPeriodEndDate.getDate() - 1); // Restar un día para que sea el día anterior al siguiente año de inicio
+
+      newPeriodName = `${newPeriodStartDate.getFullYear()}-${newPeriodEndDate.getFullYear()}`
+    }
+
+    // 2. Crear el nuevo periodo con 'is_current' en TRUE
+    const insertNewPeriodQuery = {
+      text: `
+        INSERT INTO "academic_period" (name, start_date, end_date, "is_current", created_at, updated_at)
+        VALUES ($1, $2, $3, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING *
+      `,
+      values: [newPeriodName, newPeriodStartDate, newPeriodEndDate],
+    }
+    const { rows: newPeriodRows } = await client.query(insertNewPeriodQuery)
+    const newPeriod = newPeriodRows[0]
+
+    // 3. Actualizar el status_id de los estudiantes de 'Inscrito' (2) a 'Activo' (1)
+    const updateStudentsStatusQuery = {
+      text: `
+        UPDATE "student"
+        SET status_id = 1, updated_at = CURRENT_TIMESTAMP
+        WHERE status_id = 2
+        RETURNING id
+      `,
+    }
+    const { rowCount: updatedStudentsCount } = await client.query(updateStudentsStatusQuery)
+
+    await client.query('COMMIT') // Confirmar transacción
+
+    return { newPeriod, updatedStudentsCount }
+  } catch (error) {
+    await client.query('ROLLBACK') // Revertir transacción en caso de error
+    console.error("Error in createNewAcademicPeriod:", error)
+    throw error
+  } finally {
+    client.release()
+  }
+}
 export const MatriculaModel = {
   createSchoolInscription,
   getLastAcademicRecord,
@@ -378,4 +488,7 @@ export const MatriculaModel = {
   getAllInscriptions,
   update,
   remove,
+  getCurrentAcademicPeriod,
+  getAllAcademicPeriods,
+  createNewAcademicPeriod,
 }

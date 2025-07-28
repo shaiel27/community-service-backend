@@ -15,7 +15,7 @@ router.use(verifyAdminOrReadOnly);
 router.post("/registry", StudentController.createStudent);
 
 // Registrar historial académico
-router.post("/registry/academicHistory", addAcademicHistory);
+router.post("/registry/academicHistory", StudentController.addAcademicHistory);
 
 // Obtener estudiantes registrados (disponibles para inscripción)
 router.get("/registered/notEnrolled", StudentController.getRegisteredNotEnrolledStudents);
@@ -27,7 +27,7 @@ router.get("/inscription/:ci", StudentController.findStudentForInscription);
 router.get("/:ci", StudentController.findStudentByCi);
 
 // Consultar historial académico de un estudiante
-router.get("/:studentID", getHistoryByStudent);
+router.get("/:studentID", StudentController.getHistoryByStudent);
 
 // Obtener todos los estudiantes (sin importar estado de inscripción)
 router.get("/list/all", StudentController.getAllStudents);

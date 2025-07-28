@@ -41,4 +41,9 @@ router.put("/:id", MatriculaController.updateMatricula)
 // Eliminar matrícula
 router.delete("/:id", MatriculaController.deleteMatricula)
 
+router.get("/academic-periods/current", MatriculaController.getAcademicPeriodCurrent)
+
+router.get("/academic-periods", MatriculaController.getAcademicPeriodsAll)
+
+router.post("/academic-periods", MatriculaController.createAcademicPeriod)
 export default router

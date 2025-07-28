@@ -163,7 +163,7 @@ const deleteStudent = async (req, res) => {
 const addAcademicHistory = async (req, res) => {
   try {
     const historyData = req.body;
-    const newHistory = await createAcademicHistory(historyData);
+    const newHistory = await StudentModel.createAcademicHistory(historyData);
     res.status(201).json({ ok: true, history: newHistory });
   } catch (error) {
     handleError(res, error);
@@ -174,7 +174,7 @@ const addAcademicHistory = async (req, res) => {
 const getHistoryByStudent = async (req, res) => {
   try {
     const { studentID } = req.params;
-    const history = await getAcademicHistoryByStudent(studentID);
+    const history = await StudentModel.getAcademicHistoryByStudent(studentID);
     res.json({ ok: true, history });
   } catch (error) {
     handleError(res, error);
