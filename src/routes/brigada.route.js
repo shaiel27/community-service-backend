@@ -21,7 +21,7 @@ router.param("id", (req, res, next, id) => {
 router.get("/available-students", BrigadaController.getAvailableStudents)
 router.get("/available-teachers", BrigadaController.getAvailableTeachers)
 router.get("/search", BrigadaController.searchBrigades)
-
+  
 // Rutas principales de brigadas
 router.get("/", BrigadaController.getAllBrigades)
 router.post("/", BrigadaValidator.validateBrigadeData, BrigadaController.createBrigade)

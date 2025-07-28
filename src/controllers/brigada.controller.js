@@ -3,9 +3,11 @@ import BrigadaService from "../services/brigada.service.js"
 
 const getAllBrigades = async (req, res) => {
   try {
+    const { academicPeriodId } = req.query // Get academicPeriodId from query parameters
+
     console.log("🔄 Obteniendo todas las brigadas...")
 
-    const brigades = await BrigadaModel.findAll()
+    const brigades = await BrigadaModel.findAll(academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     console.log(`✅ ${brigades.length} brigadas obtenidas exitosamente`)
 
@@ -30,6 +32,7 @@ const getAllBrigades = async (req, res) => {
 const getBrigadeById = async (req, res) => {
   try {
     const { id } = req.params
+    const { academicPeriodId } = req.query // Get academicPeriodId from query parameters
 
     if (!id || isNaN(Number.parseInt(id))) {
       return res.status(400).json({
@@ -40,7 +43,7 @@ const getBrigadeById = async (req, res) => {
 
     console.log(`🔍 Buscando brigada con ID: ${id}`)
 
-    const brigade = await BrigadaModel.findById(Number.parseInt(id))
+    const brigade = await BrigadaModel.findById(Number.parseInt(id), academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     if (!brigade) {
       return res.status(404).json({
@@ -116,7 +119,7 @@ const updateBrigade = async (req, res) => {
     console.log(`✏️ Actualizando brigada ID: ${id}`)
 
     // Verificar que la brigada existe
-    const existingBrigade = await BrigadaModel.findById(Number.parseInt(id))
+    const existingBrigade = await BrigadaModel.findById(Number.parseInt(id)) // No need for academicPeriodId here, just check existence
     if (!existingBrigade) {
       return res.status(404).json({
         ok: false,
@@ -165,7 +168,7 @@ const deleteBrigade = async (req, res) => {
     console.log(`🗑️ Eliminando brigada ID: ${id}`)
 
     // Verificar que la brigada existe
-    const existingBrigade = await BrigadaModel.findById(Number.parseInt(id))
+    const existingBrigade = await BrigadaModel.findById(Number.parseInt(id)) // No need for academicPeriodId here, just check existence
     if (!existingBrigade) {
       return res.status(404).json({
         ok: false,
@@ -193,7 +196,7 @@ const deleteBrigade = async (req, res) => {
 
 const searchBrigades = async (req, res) => {
   try {
-    const { name } = req.query
+    const { name, academicPeriodId } = req.query // Get academicPeriodId from query parameters
 
     if (!name || typeof name !== "string") {
       return res.status(400).json({
@@ -204,7 +207,7 @@ const searchBrigades = async (req, res) => {
 
     console.log(`🔍 Buscando brigadas con nombre: ${name}`)
 
-    const brigades = await BrigadaModel.searchByName(name.trim())
+    const brigades = await BrigadaModel.searchByName(name.trim(), academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     console.log(`✅ ${brigades.length} brigadas encontradas`)
 
@@ -227,6 +230,7 @@ const searchBrigades = async (req, res) => {
 const getBrigadeStudents = async (req, res) => {
   try {
     const { id } = req.params
+    const { academicPeriodId } = req.query // Get academicPeriodId from query parameters
 
     if (!id || isNaN(Number.parseInt(id))) {
       return res.status(400).json({
@@ -238,7 +242,7 @@ const getBrigadeStudents = async (req, res) => {
     console.log(`👥 Obteniendo estudiantes de brigada ID: ${id}`)
 
     // Verificar que la brigada existe
-    const brigade = await BrigadaModel.findById(Number.parseInt(id))
+    const brigade = await BrigadaModel.findById(Number.parseInt(id), academicPeriodId ? Number.parseInt(academicPeriodId) : null)
     if (!brigade) {
       return res.status(404).json({
         ok: false,
@@ -246,7 +250,7 @@ const getBrigadeStudents = async (req, res) => {
       })
     }
 
-    const students = await BrigadaModel.getStudentsByBrigade(Number.parseInt(id))
+    const students = await BrigadaModel.getStudentsByBrigade(Number.parseInt(id), academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     console.log(`✅ ${students.length} estudiantes obtenidos`)
 
@@ -269,7 +273,7 @@ const getBrigadeStudents = async (req, res) => {
 const assignTeacher = async (req, res) => {
   try {
     const { id } = req.params
-    const { personalId, startDate } = req.body
+    const { personalId, startDate, academicPeriodId } = req.body // academicPeriodId can be passed in body
 
     if (!id || isNaN(Number.parseInt(id))) {
       return res.status(400).json({
@@ -288,7 +292,7 @@ const assignTeacher = async (req, res) => {
     console.log(`👨‍🏫 Asignando docente ${personalId} a brigada ${id}`)
 
     // Verificar que la brigada existe
-    const brigade = await BrigadaModel.findById(Number.parseInt(id))
+    const brigade = await BrigadaModel.findById(Number.parseInt(id)) // Check general brigade existence
     if (!brigade) {
       return res.status(404).json({
         ok: false,
@@ -300,6 +304,7 @@ const assignTeacher = async (req, res) => {
       Number.parseInt(id),
       Number.parseInt(personalId),
       startDate || new Date().toISOString().split("T")[0],
+      academicPeriodId ? Number.parseInt(academicPeriodId) : null,
     )
 
     console.log("✅ Docente asignado exitosamente")
@@ -322,6 +327,7 @@ const assignTeacher = async (req, res) => {
 const removeTeacher = async (req, res) => {
   try {
     const { id } = req.params
+    const { academicPeriodId } = req.body // academicPeriodId can be passed in body for explicit removal
 
     if (!id || isNaN(Number.parseInt(id))) {
       return res.status(400).json({
@@ -333,7 +339,7 @@ const removeTeacher = async (req, res) => {
     console.log(`👨‍🏫 Removiendo docente de brigada ${id}`)
 
     // Verificar que la brigada existe
-    const brigade = await BrigadaModel.findById(Number.parseInt(id))
+    const brigade = await BrigadaModel.findById(Number.parseInt(id)) // Check general brigade existence
     if (!brigade) {
       return res.status(404).json({
         ok: false,
@@ -341,12 +347,12 @@ const removeTeacher = async (req, res) => {
       })
     }
 
-    const result = await BrigadaModel.removeTeacher(Number.parseInt(id))
+    const result = await BrigadaModel.removeTeacher(Number.parseInt(id), academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     if (!result.removed) {
       return res.status(404).json({
         ok: false,
-        msg: "No hay docente asignado a esta brigada",
+        msg: "No hay docente asignado a esta brigada para el período especificado o actual",
       })
     }
 
@@ -370,7 +376,7 @@ const removeTeacher = async (req, res) => {
 const enrollStudents = async (req, res) => {
   try {
     const { id } = req.params
-    const { studentIds } = req.body
+    const { studentIds, academicPeriodId } = req.body // academicPeriodId can be passed in body
 
     if (!id || isNaN(Number.parseInt(id))) {
       return res.status(400).json({
@@ -387,7 +393,7 @@ const enrollStudents = async (req, res) => {
     }
 
     // Validar que todos los IDs sean números
-    const validIds = studentIds.every((id) => !isNaN(Number.parseInt(id)))
+    const validIds = studentIds.every((studentId) => !isNaN(Number.parseInt(studentId)))
     if (!validIds) {
       return res.status(400).json({
         ok: false,
@@ -398,7 +404,7 @@ const enrollStudents = async (req, res) => {
     console.log(`👥 Inscribiendo ${studentIds.length} estudiantes en brigada ${id}`)
 
     // Verificar que la brigada existe
-    const brigade = await BrigadaModel.findById(Number.parseInt(id))
+    const brigade = await BrigadaModel.findById(Number.parseInt(id)) // Check general brigade existence
     if (!brigade) {
       return res.status(404).json({
         ok: false,
@@ -408,7 +414,8 @@ const enrollStudents = async (req, res) => {
 
     const result = await BrigadaModel.enrollStudents(
       Number.parseInt(id),
-      studentIds.map((id) => Number.parseInt(id)),
+      studentIds.map((studentId) => Number.parseInt(studentId)),
+      academicPeriodId ? Number.parseInt(academicPeriodId) : null,
     )
 
     console.log(`✅ ${result.studentsEnrolled} estudiantes inscritos exitosamente`)
@@ -431,6 +438,7 @@ const enrollStudents = async (req, res) => {
 const clearBrigade = async (req, res) => {
   try {
     const { id } = req.params
+    const { academicPeriodId } = req.body // academicPeriodId can be passed in body for explicit clearing
 
     if (!id || isNaN(Number.parseInt(id))) {
       return res.status(400).json({
@@ -442,7 +450,7 @@ const clearBrigade = async (req, res) => {
     console.log(`🧹 Limpiando brigada ID: ${id}`)
 
     // Verificar que la brigada existe
-    const brigade = await BrigadaModel.findById(Number.parseInt(id))
+    const brigade = await BrigadaModel.findById(Number.parseInt(id)) // Check general brigade existence
     if (!brigade) {
       return res.status(404).json({
         ok: false,
@@ -450,7 +458,7 @@ const clearBrigade = async (req, res) => {
       })
     }
 
-    const result = await BrigadaModel.clearBrigade(Number.parseInt(id))
+    const result = await BrigadaModel.clearBrigade(Number.parseInt(id), academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     console.log(`✅ Brigada limpiada: ${result.studentsRemoved} estudiantes removidos`)
 
@@ -471,9 +479,11 @@ const clearBrigade = async (req, res) => {
 
 const getAvailableStudents = async (req, res) => {
   try {
+    const { academicPeriodId } = req.query // Get academicPeriodId from query parameters
+
     console.log("👥 Obteniendo estudiantes disponibles...")
 
-    const students = await BrigadaModel.getAvailableStudents()
+    const students = await BrigadaModel.getAvailableStudents(academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     console.log(`✅ ${students.length} estudiantes disponibles obtenidos`)
 
@@ -495,9 +505,11 @@ const getAvailableStudents = async (req, res) => {
 
 const getAvailableTeachers = async (req, res) => {
   try {
+    const { academicPeriodId } = req.query // Get academicPeriodId from query parameters
+
     console.log("👨‍🏫 Obteniendo docentes disponibles...")
 
-    const teachers = await BrigadaModel.getAvailableTeachers()
+    const teachers = await BrigadaModel.getAvailableTeachers(academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     console.log(`✅ ${teachers.length} docentes disponibles obtenidos`)
 
@@ -520,6 +532,7 @@ const getAvailableTeachers = async (req, res) => {
 const removeStudentFromBrigade = async (req, res) => {
   try {
     const { id, studentId } = req.params
+    const { academicPeriodId } = req.body // academicPeriodId can be passed in body
 
     if (!id || isNaN(Number.parseInt(id))) {
       return res.status(400).json({
@@ -537,12 +550,12 @@ const removeStudentFromBrigade = async (req, res) => {
 
     console.log(`👤 Removiendo estudiante ${studentId} de brigada ${id}`)
 
-    const result = await BrigadaModel.removeStudentFromBrigade(Number.parseInt(id), Number.parseInt(studentId))
+    const result = await BrigadaModel.removeStudentFromBrigade(Number.parseInt(id), Number.parseInt(studentId), academicPeriodId ? Number.parseInt(academicPeriodId) : null)
 
     if (!result.removed) {
       return res.status(404).json({
         ok: false,
-        msg: "Estudiante no encontrado en la brigada",
+        msg: "Estudiante no encontrado en la brigada para el período especificado o actual",
       })
     }
 

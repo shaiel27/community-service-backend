@@ -428,7 +428,7 @@ const getAllAcademicPeriods = async () => {
 
 // Crear un nuevo periodo académico con lógica de fechas consecutivas y manejar la lógica de 'is_current' y estados de estudiantes
 const createNewAcademicPeriod = async () => {
-  const client = await db.connect() // Obtener una conexión del pool
+  const client = db// Obtener una conexión del pool
   try {
     await client.query('BEGIN') // Iniciar transacción
 
@@ -506,8 +506,6 @@ const createNewAcademicPeriod = async () => {
     await client.query('ROLLBACK') // Revertir transacción en caso de error
     console.error("Error in createNewAcademicPeriod:", error)
     throw error
-  } finally {
-    client.release()
   }
 }
 export const MatriculaModel = {

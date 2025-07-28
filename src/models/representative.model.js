@@ -70,7 +70,7 @@ const getRepresentativeByCi = async (ci) => {
     }
     const { rows } = await db.query(query)
     return rows[0]
-  } catch (error) {
+  } catch (error) { 
     console.error("Error in getRepresentativeByCi:", error)
     throw error
   }

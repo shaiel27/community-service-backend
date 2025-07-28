@@ -51,14 +51,12 @@ const getRepresentativeByCi = async (req, res) => {
     console.log("🔍 Buscando representante por CI:", ci)
 
     const representative = await RepresentativeModel.getRepresentativeByCi(ci)
-
     if (!representative) {
       return res.status(404).json({
         ok: false,
         msg: "Representante no encontrado",
       })
     }
-
     res.json({
       ok: true,
       representative,
