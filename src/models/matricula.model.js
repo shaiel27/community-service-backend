@@ -300,6 +300,39 @@ const getAllInscriptions = async (periodId = null) => {
   }
 }
 
+// Obtener una inscripción por su ID
+const getInscriptionById = async (id) => {
+  try {
+    const query = {
+      text: `
+        SELECT
+          e.*,
+          s.name as student_name,
+          s."lastName" as student_lastName,
+          s.sex as student_sex,
+          s.birthday as student_birthday,
+          s.ci as student_ci,
+          g.name as grade_name,
+          sec.seccion as section_name,
+          p.name as teacher_name,
+          p."lastName" as teacher_lastName
+        FROM "enrollment" e
+        JOIN "student" s ON e."studentID" = s.id
+        JOIN "section" sec ON e."sectionID" = sec.id
+        JOIN "grade" g ON sec."gradeID" = g.id
+        LEFT JOIN "personal" p ON sec."teacherCI" = p.id
+        WHERE e.id = $1
+      `,
+      values: [id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in getInscriptionById:", error)
+    throw error
+  }
+}
+
 // Actualizar un registro de matrícula por su ID**
 const update = async (id, updateData) => {
   try {
@@ -486,6 +519,7 @@ export const MatriculaModel = {
   assignTeacherToSection,
   getInscriptionsByGradeAndPeriod,
   getAllInscriptions,
+  getInscriptionById,
   update,
   remove,
   getCurrentAcademicPeriod,
