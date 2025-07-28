@@ -11,17 +11,23 @@ const router = Router();
 router.use(verifyToken);
 router.use(verifyAdminOrReadOnly);
 
-// NUEVA RUTA: Registro estudiantil (estudiante + representante)
-router.post("/registry", StudentController.createStudentRegistry);
+//  Registro estudiantil
+router.post("/registry", StudentController.createStudent);
 
-// NUEVA RUTA: Obtener estudiantes registrados (disponibles para inscripción)
-router.get("/registered", StudentController.getRegisteredStudents);
+// Registrar historial académico
+router.post("/registry/academicHistory", addAcademicHistory);
 
-// NUEVA RUTA: Buscar estudiante para inscripción
+// Obtener estudiantes registrados (disponibles para inscripción)
+router.get("/registered/notEnrolled", StudentController.getRegisteredNotEnrolledStudents);
+
+// Buscar estudiante para inscripción
 router.get("/inscription/:ci", StudentController.findStudentForInscription);
 
 // Buscar estudiante por CI (general)
 router.get("/:ci", StudentController.findStudentByCi);
+
+// Consultar historial académico de un estudiante
+router.get("/:studentID", getHistoryByStudent);
 
 // Obtener todos los estudiantes (sin importar estado de inscripción)
 router.get("/list/all", StudentController.getAllStudents);

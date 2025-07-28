@@ -82,7 +82,7 @@ const createStudentRegistry = async (studentData) => {
 };
 
 // Obtener estudiantes registrados (sin inscribir) - status_id = 1 (Activo pero sin inscripción)
-const getRegisteredStudents = async () => {
+const getRegisteredNotEnrolledStudents = async () => {
   try {
     const query = {
       text: `
@@ -109,9 +109,8 @@ const getRegisteredStudents = async () => {
     throw error;
   }
 };
-
-// Buscar estudiante por CI para inscripción
-const findStudentForInscription = async (ci) => {
+// Buscar estudiante por CI (general)
+const findStudentByCi = async (ci) => {
   try {
     const query = {
       text: `
@@ -128,32 +127,6 @@ const findStudentForInscription = async (ci) => {
         FROM "student" s
         LEFT JOIN "representative" r ON s."representativeID" = r.ci
         LEFT JOIN "status_student" ss ON s.status_id = ss.id
-        WHERE s.ci = $1 AND s.status_id = 1
-      `,
-      values: [ci],
-    };
-    const { rows } = await db.query(query);
-    return rows[0];
-  } catch (error) {
-    console.error("Error in findStudentForInscription:", error);
-    throw error;
-  }
-};
-
-// Buscar estudiante por CI (general)
-const findStudentByCi = async (ci) => {
-  try {
-    const query = {
-      text: `
-        SELECT 
-          s.*,
-          r.name as representative_name,
-          r."lastName" as representative_lastName,
-          r."telephoneNumber" as representative_phone,
-          ss.descripcion as status_description
-        FROM "student" s
-        LEFT JOIN "representative" r ON s."representativeID" = r.ci
-        LEFT JOIN "status_student" ss ON s.status_id = ss.id
         WHERE s.ci = $1
       `,
       values: [ci],
@@ -165,7 +138,6 @@ const findStudentByCi = async (ci) => {
     throw error;
   }
 };
-
 // Actualizar estado del estudiante
 const updateStudentStatus = async (studentId, statusId) => {
   try {
@@ -312,7 +284,7 @@ const updateStudent = async (studentId, studentData) => {
   }
 };
 
-// **NUEVO: Eliminar un estudiante por su ID**
+// Eliminar un estudiante por su ID**
 const deleteStudent = async (studentId) => {
   try {
     // Puedes optar por una eliminación física (DELETE) o una eliminación lógica (actualizar status_id)
@@ -342,14 +314,55 @@ const deleteStudent = async (studentId) => {
     throw error;
   }
 };
+// Crear historial académico
+const createAcademicHistory = async (historyData) => {
+  const {
+    studentID,
+    academicPeriodID,
+    gradeID,
+    institutionName,
+    gradeAchieved,
+    isApproved,
+  } = historyData;
 
+  const query = {
+    text: `
+      INSERT INTO "student_academic_history" (
+        "studentID", "academicPeriodID", "gradeID", "institutionName",
+        "gradeAchieved", "isApproved", "created_at", "updated_at"
+      ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING *
+    `,
+    values: [studentID, academicPeriodID, gradeID, institutionName, gradeAchieved, isApproved],
+  };
+  const { rows } = await db.query(query);
+  return rows[0];
+};
+
+// Obtener historial académico por estudiante
+const getAcademicHistoryByStudent = async (studentID) => {
+  const query = {
+    text: `
+      SELECT sah.*, ap.name AS academic_period, g.name AS grade
+      FROM "student_academic_history" sah
+      LEFT JOIN "academic_period" ap ON sah."academicPeriodID" = ap.id
+      LEFT JOIN "grade" g ON sah."gradeID" = g.id
+      WHERE sah."studentID" = $1
+      ORDER BY sah."created_at" DESC
+    `,
+    values: [studentID],
+  };
+  const { rows } = await db.query(query);
+  return rows;
+};
 export const StudentModel = {
   createStudentRegistry,
-  getRegisteredStudents,
-  findStudentForInscription,
+  getRegisteredNotEnrolledStudents,
   findStudentByCi,
   updateStudentStatus,
   getAllStudents,
   updateStudent,
   deleteStudent,
+  createAcademicHistory,
+  getAcademicHistoryByStudent
 };

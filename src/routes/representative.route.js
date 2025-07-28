@@ -10,8 +10,11 @@ router.use(verifyAdminOrReadOnly)
 
 // Rutas para representantes
 router.post("/", RepresentativeController.createRepresentative)
+// Ruta para obtener todos los representantes
 router.get("/", RepresentativeController.getAllRepresentatives)
+//Ruta para obtener un representante por CI
 router.get("/:ci", RepresentativeController.getRepresentativeByCi)
+//Ruta para actualizar un representante por CI
 router.put("/:ci", RepresentativeController.updateRepresentative)
 
 export default router

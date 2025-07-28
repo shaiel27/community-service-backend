@@ -66,6 +66,56 @@ const createSchoolInscription = async (inscriptionData) => {
   }
 }
 
+// Obtener el último registro académico del estudiante (considerando periodos)
+const getLastAcademicRecord = async (studentID) => {
+  // Consulta el historial externo
+  const historyQuery = {
+    text: `
+      SELECT sah."academicPeriodID", sah."gradeID", sah."gradeAchieved", sah."isApproved",
+             sah."created_at", ap.name AS academic_period, g.name AS grade, 'history' AS source
+      FROM "student_academic_history" sah
+      LEFT JOIN "academic_period" ap ON sah."academicPeriodID" = ap.id
+      LEFT JOIN "grade" g ON sah."gradeID" = g.id
+      WHERE sah."studentID" = $1
+      ORDER BY sah."academicPeriodID" DESC, sah."created_at" DESC
+      LIMIT 1
+    `,
+    values: [studentID],
+  };
+  const { rows: historyRows } = await db.query(historyQuery);
+  const history = historyRows[0];
+
+  // Consulta la inscripción interna (periodo desde section)
+  const enrollmentQuery = {
+    text: `
+      SELECT e."id" AS enrollmentID, sec."academicPeriodID", sec."gradeID", e."final_grade" AS gradeAchieved,
+             e."created_at", ap.name AS academic_period, g.name AS grade, 'enrollment' AS source
+      FROM "enrollment" e
+      JOIN "section" sec ON e."sectionID" = sec.id
+      LEFT JOIN "academic_period" ap ON sec."academicPeriodID" = ap.id
+      LEFT JOIN "grade" g ON sec."gradeID" = g.id
+      WHERE e."studentID" = $1
+      ORDER BY sec."academicPeriodID" DESC, e."created_at" DESC
+      LIMIT 1
+    `,
+    values: [studentID],
+  };
+  const { rows: enrollmentRows } = await db.query(enrollmentQuery);
+  const enrollment = enrollmentRows[0];
+
+  // Comparar ambos y devolver el más reciente
+  if (!history && !enrollment) return null;
+  if (!history) return enrollment;
+  if (!enrollment) return history;
+
+  // Compara por academicPeriodID (mayor = más reciente)
+  if (enrollment.academicPeriodID > history.academicPeriodID) return enrollment;
+  if (history.academicPeriodID > enrollment.academicPeriodID) return history;
+
+  // Si el periodo es igual, compara por fecha de creación
+  return (enrollment.created_at > history.created_at) ? enrollment : history;
+};
+
 // Obtener grados disponibles para inscripción
 const getAvailableGrades = async () => {
   try {
@@ -80,8 +130,8 @@ const getAvailableGrades = async () => {
   }
 }
 
-// Obtener secciones por grado con información del docente
-const getSectionsByGrade = async (gradeId) => {
+// Obtener secciones por grado y periodo con información del docente
+const getSectionsByGradeAndPeriod = async (gradeId, periodId) => {
   try {
     const query = {
       text: `
@@ -93,21 +143,21 @@ const getSectionsByGrade = async (gradeId) => {
         FROM "section" s
         LEFT JOIN "personal" p ON s."teacherCI" = p.id
         LEFT JOIN "enrollment" e ON s.id = e."sectionID"
-        WHERE s."gradeID" = $1
-        GROUP BY s.id, s."teacherCI", s."gradeID", s.seccion, s.period, s.created_at, s.updated_at, p.name, p."lastName"
+        WHERE s."gradeID" = $1 AND s."academicPeriodID" = $2
+        GROUP BY s.id, p.name, p."lastName"
         ORDER BY s.seccion
       `,
-      values: [gradeId],
+      values: [gradeId, periodId],
     }
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in getSectionsByGrade:", error)
+    console.error("Error in getSectionsByGradeAndPeriod:", error)
     throw error
   }
 }
 
-// Obtener docentes disponibles
+// Obtener docentes disponibles (por periodo si lo necesitas)
 const getAvailableTeachers = async () => {
   try {
     const query = {
@@ -132,28 +182,38 @@ const getAvailableTeachers = async () => {
   }
 }
 
-// Asignar docente a sección
-const assignTeacherToSection = async (sectionId, teacherId) => {
-  try {
-    const query = {
-      text: `
-        UPDATE "section" 
-        SET "teacherCI" = $1, updated_at = CURRENT_TIMESTAMP 
-        WHERE id = $2 
-        RETURNING *
-      `,
-      values: [teacherId, sectionId],
-    }
-    const { rows } = await db.query(query)
-    return rows[0]
-  } catch (error) {
-    console.error("Error in assignTeacherToSection:", error)
-    throw error
+// Asignar docente a sección (por periodo)
+const assignTeacherToSection = async (sectionId, teacherId, periodId) => {
+  // Verificar si el docente ya está asignado a otra sección en el mismo periodo
+  const checkQuery = {
+    text: `
+      SELECT id FROM "section"
+      WHERE "teacherCI" = $1 AND "academicPeriodID" = $2 AND id <> $3
+      LIMIT 1
+    `,
+    values: [teacherId, periodId, sectionId],
+  };
+  const { rows: assignedRows } = await db.query(checkQuery);
+  if (assignedRows.length > 0) {
+    throw new Error("El docente ya está asignado a otra sección en este periodo académico.");
   }
-}
 
-// Obtener inscripciones por grado para vista de matrícula
-const getInscriptionsByGrade = async (gradeId) => {
+  // Si no está asignado, procede con la actualización
+  const updateQuery = {
+    text: `
+      UPDATE "section" 
+      SET "teacherCI" = $1, "academicPeriodID" = $2, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $3 
+      RETURNING *
+    `,
+    values: [teacherId, periodId, sectionId],
+  };
+  const { rows } = await db.query(updateQuery);
+  return rows[0];
+};
+
+// Obtener inscripciones por grado y periodo para vista de matrícula
+const getInscriptionsByGradeAndPeriod = async (gradeId, periodId) => {
   try {
     const query = {
       text: `
@@ -173,40 +233,65 @@ const getInscriptionsByGrade = async (gradeId) => {
         JOIN "section" sec ON e."sectionID" = sec.id
         JOIN "grade" g ON sec."gradeID" = g.id
         LEFT JOIN "personal" p ON sec."teacherCI" = p.id
-        WHERE sec."gradeID" = $1
+        WHERE sec."gradeID" = $1 AND sec."academicPeriodID" = $2
         ORDER BY sec.seccion, s."lastName", s.name
       `,
-      values: [gradeId],
+      values: [gradeId, periodId],
     }
     const { rows } = await db.query(query)
     return rows
   } catch (error) {
-    console.error("Error in getInscriptionsByGrade:", error)
+    console.error("Error in getInscriptionsByGradeAndPeriod:", error)
     throw error
   }
 }
 
-// Obtener todas las inscripciones
-const getAllInscriptions = async () => {
+// Obtener todas las inscripciones (puedes filtrar por periodo si lo necesitas)
+const getAllInscriptions = async (periodId = null) => {
   try {
-    const query = {
-      text: `
-        SELECT 
-          e.*,
-          s.name as student_name,
-          s."lastName" as "student_lastName",
-          s.ci as student_ci,
-          g.name as grade_name,
-          sec.seccion as section_name,
-          p.name as teacher_name,
-          p."lastName" as "teacher_lastName"
-        FROM "enrollment" e
-        JOIN "student" s ON e."studentID" = s.id
-        JOIN "section" sec ON e."sectionID" = sec.id
-        JOIN "grade" g ON sec."gradeID" = g.id
-        LEFT JOIN "personal" p ON sec."teacherCI" = p.id
-        ORDER BY e."registrationDate" DESC
-      `,
+    let query;
+    if (periodId) {
+      query = {
+        text: `
+          SELECT 
+            e.*,
+            s.name as student_name,
+            s."lastName" as "student_lastName",
+            s.ci as student_ci,
+            g.name as grade_name,
+            sec.seccion as section_name,
+            p.name as teacher_name,
+            p."lastName" as "teacher_lastName"
+          FROM "enrollment" e
+          JOIN "student" s ON e."studentID" = s.id
+          JOIN "section" sec ON e."sectionID" = sec.id
+          JOIN "grade" g ON sec."gradeID" = g.id
+          LEFT JOIN "personal" p ON sec."teacherCI" = p.id
+          WHERE sec."academicPeriodID" = $1
+          ORDER BY e."registrationDate" DESC
+        `,
+        values: [periodId],
+      }
+    } else {
+      query = {
+        text: `
+          SELECT 
+            e.*,
+            s.name as student_name,
+            s."lastName" as "student_lastName",
+            s.ci as student_ci,
+            g.name as grade_name,
+            sec.seccion as section_name,
+            p.name as teacher_name,
+            p."lastName" as "teacher_lastName"
+          FROM "enrollment" e
+          JOIN "student" s ON e."studentID" = s.id
+          JOIN "section" sec ON e."sectionID" = sec.id
+          JOIN "grade" g ON sec."gradeID" = g.id
+          LEFT JOIN "personal" p ON sec."teacherCI" = p.id
+          ORDER BY e."registrationDate" DESC
+        `,
+      }
     }
     const { rows } = await db.query(query)
     return rows
@@ -215,6 +300,7 @@ const getAllInscriptions = async () => {
     throw error
   }
 }
+
 // Actualizar un registro de matrícula por su ID**
 const update = async (id, updateData) => {
   try {
@@ -247,12 +333,10 @@ const update = async (id, updateData) => {
       values: [...values, id],
     }
 
-    console.log("🔍 Query de actualización de matrícula a ejecutar:", query)
     const { rows } = await db.query(query)
     if (rows.length === 0) {
       throw new Error(`Matrícula con ID ${id} no encontrada.`)
     }
-    console.log("✅ Matrícula actualizada:", rows[0])
     return rows[0]
   } catch (error) {
     console.error("❌ Error in updateMatricula:", error)
@@ -272,12 +356,10 @@ const remove = async (id) => {
       values: [id],
     }
 
-    console.log("🔍 Query de eliminación de matrícula a ejecutar:", query)
     const { rows } = await db.query(query)
     if (rows.length === 0) {
       throw new Error(`Matrícula con ID ${id} no encontrada para eliminar.`)
     }
-    console.log("🗑️ Matrícula eliminada:", rows[0])
     return rows[0] // Retorna la matrícula eliminada
   } catch (error) {
     console.error("❌ Error in deleteMatricula:", error)
@@ -287,11 +369,12 @@ const remove = async (id) => {
 
 export const MatriculaModel = {
   createSchoolInscription,
+  getLastAcademicRecord,
   getAvailableGrades,
-  getSectionsByGrade,
+  getSectionsByGradeAndPeriod,
   getAvailableTeachers,
   assignTeacherToSection,
-  getInscriptionsByGrade,
+  getInscriptionsByGradeAndPeriod,
   getAllInscriptions,
   update,
   remove,

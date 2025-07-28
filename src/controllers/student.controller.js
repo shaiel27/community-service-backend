@@ -17,34 +17,16 @@ const handleError = (res, error) => {
   })
 }
 
-// Crear registro estudiantil (estudiante + representante)
-const createStudentRegistry = async (req, res) => {
+// Crear estudiante (requiere un representante existente)
+const createStudent = async (req, res) => {
   try {
-    console.log("📝 Creando registro estudiantil:", req.body)
+    const { student } = req.body
 
-    const { student, representative } = req.body
-
-    // Validar que se envíen ambos objetos
-    if (!student || !representative) {
+    // Validar campos requeridos
+    if (!student || !student.ci || !student.name || !student.lastName || !student.sex || !student.birthday || !student.representativeID) {
       return res.status(400).json({
         ok: false,
-        msg: "Se requiere información del estudiante y del representante",
-      })
-    }
-
-    // Validar campos requeridos del estudiante
-    if (!student.ci || !student.name || !student.lastName || !student.sex || !student.birthday) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Faltan campos requeridos del estudiante: CI, nombre, apellido, sexo, fecha de nacimiento",
-      })
-    }
-
-    // Validar campos requeridos del representante
-    if (!representative.ci || !representative.name || !representative.lastName || !representative.telephoneNumber) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Faltan campos requeridos del representante: CI, nombre, apellido, teléfono",
+        msg: "Faltan campos requeridos del estudiante o el ID del representante",
       })
     }
 
@@ -57,73 +39,35 @@ const createStudentRegistry = async (req, res) => {
       })
     }
 
-    // Verificar que el representante no exista
-    const existingRepresentative = await RepresentativeModel.getRepresentativeByCi(representative.ci)
-    if (existingRepresentative) {
-      return res.status(400).json({
+    // Verificar que el representante exista
+    const existingRepresentative = await RepresentativeModel.getRepresentativeByCi(student.representativeID)
+    if (!existingRepresentative) {
+      return res.status(404).json({
         ok: false,
-        msg: "Ya existe un representante registrado con esta cédula",
+        msg: "El representante no existe",
       })
     }
 
-    // Crear representante primero
-    const newRepresentative = await RepresentativeModel.createRepresentative(representative)
-    console.log("✅ Representante creado:", newRepresentative)
-
-    // Crear estudiante con referencia al representante
-    const studentData = {
-      ...student,
-      representativeID: representative.ci,
-    }
-    const newStudent = await StudentModel.createStudentRegistry(studentData)
-    console.log("✅ Estudiante creado:", newStudent)
-
+    // Crear estudiante
+    const newStudent = await StudentModel.createStudentRegistry(student)
     res.status(201).json({
       ok: true,
-      msg: "Registro estudiantil creado exitosamente",
-      data: {
-        student: newStudent,
-        representative: newRepresentative,
-      },
+      msg: "Estudiante creado exitosamente",
+      student: newStudent,
     })
   } catch (error) {
     handleError(res, error)
   }
 }
-
 // Obtener estudiantes registrados (disponibles para inscripción)
-const getRegisteredStudents = async (req, res) => {
+const getRegisteredNotEnrolledStudents = async (req, res) => {
   try {
     console.log("📋 Obteniendo estudiantes registrados")
-    const students = await StudentModel.getRegisteredStudents()
+    const students = await StudentModel.getRegisteredNotEnrolledStudents ()
     res.json({
       ok: true,
       students,
       total: students.length,
-    })
-  } catch (error) {
-    handleError(res, error)
-  }
-}
-
-// Buscar estudiante para inscripción
-const findStudentForInscription = async (req, res) => {
-  try {
-    const { ci } = req.params
-    console.log("🔍 Buscando estudiante para inscripción:", ci)
-
-    const student = await StudentModel.findStudentForInscription(ci)
-
-    if (!student) {
-      return res.status(404).json({
-        ok: false,
-        msg: "Estudiante no encontrado o ya inscrito",
-      })
-    }
-
-    res.json({
-      ok: true,
-      student,
     })
   } catch (error) {
     handleError(res, error)
@@ -145,6 +89,26 @@ const findStudentByCi = async (req, res) => {
       })
     }
 
+    res.json({
+      ok: true,
+      student,
+    })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
+// Buscar estudiante para inscripción
+const findStudentForInscription = async (req, res) => {
+  try {
+    const { ci } = req.params
+    const student = findStudentByCi(req, res);
+    if (student.status_id !== 1) {
+      return res.status(401).json({
+        ok: false,
+        msg: 'Estudiante no disponible para inscripción',
+        message: student.status_description,
+      })
+    }
     res.json({
       ok: true,
       student,
@@ -195,12 +159,36 @@ const deleteStudent = async (req, res) => {
   }
 }
 
+// Crear historial académico
+const addAcademicHistory = async (req, res) => {
+  try {
+    const historyData = req.body;
+    const newHistory = await createAcademicHistory(historyData);
+    res.status(201).json({ ok: true, history: newHistory });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+// Obtener historial académico de un estudiante
+const getHistoryByStudent = async (req, res) => {
+  try {
+    const { studentID } = req.params;
+    const history = await getAcademicHistoryByStudent(studentID);
+    res.json({ ok: true, history });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 export const StudentController = {
-  createStudentRegistry,
-  getRegisteredStudents,
+  createStudent,
+  getRegisteredNotEnrolledStudents,
   findStudentForInscription,
   findStudentByCi,
   getAllStudents,
   updateStudent,
-  deleteStudent
+  deleteStudent,
+  addAcademicHistory,
+  getHistoryByStudent,
 }
