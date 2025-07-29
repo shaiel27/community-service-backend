@@ -6,7 +6,7 @@ const handleError = (res, error) => {
   
   const status = error.message.includes('no encontrad') ? 404 : 
                 error.message.includes('Ya existe') ? 400 : 500;
-                
+                 
   const message = status === 500 ? error.message : 'Error interno del servidor';
   
   res.status(status).json({

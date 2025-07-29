@@ -3,12 +3,12 @@ import { StudentModel } from "../models/student.model.js"
 
 // Centralized error handler
 const handleError = (res, error) => {
-  console.error(error)
+  console.error("❌ Error:", error)
   const status = error.message.includes("no encontrad")
     ? 404
     : error.message.includes("Ya existe") || error.message.includes("asignado")
-    ? 400
-    : 500
+      ? 400
+      : 500
   const message = status === 500 ? "Error interno del servidor" : error.message
 
   res.status(status).json({
@@ -17,26 +17,89 @@ const handleError = (res, error) => {
   })
 }
 
+// Crear sección
+const createSection = async (req, res) => {
+  try {
+    const sectionData = req.body
+    console.log("📝 Creando sección:", sectionData)
+
+    const section = await MatriculaModel.createSection(sectionData)
+    res.status(201).json({
+      ok: true,
+      msg: "Sección creada exitosamente",
+      section,
+    })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
+
+// Actualizar sección
+const updateSection = async (req, res) => {
+  try {
+    const { id } = req.params
+    const sectionData = req.body
+    console.log("✏️ Actualizando sección:", id, sectionData)
+
+    const section = await MatriculaModel.updateSection(id, sectionData)
+    res.json({
+      ok: true,
+      msg: "Sección actualizada exitosamente",
+      section,
+    })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
+
+// Obtener estudiantes de una sección
+const getSectionStudents = async (req, res) => {
+  try {
+    const { id } = req.params
+    console.log("👥 Obteniendo estudiantes de sección:", id)
+
+    const students = await MatriculaModel.getSectionStudents(id)
+    res.json({
+      ok: true,
+      students,
+      total: students.length,
+    })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
+
 // Crear inscripción escolar
 const createSchoolInscription = async (req, res) => {
   try {
     const { studentCi, sectionID, ...enrollmentData } = req.body
+    console.log("📝 Creando inscripción para estudiante CI:", studentCi)
+
     const student = await StudentModel.findStudentByCi(studentCi)
     if (!student) {
       return res.status(400).json({ ok: false, msg: "Estudiante no encontrado" })
     }
-    if (student.status_id == 1) {
-      const inscriptionData = { studentID: student.id, sectionID, ...enrollmentData }
-      const inscription = await MatriculaModel.createSchoolInscription(inscriptionData)
-      await StudentModel.updateStudentStatus(student.id, 2)
-      res.status(201).json({ ok: true, msg: "Inscripción escolar creada exitosamente", inscription })
-    } else {
+
+    // Verificar que el estudiante esté en estado activo (1) para inscripción
+    if (student.status_id !== 1) {
       return res.status(400).json({
         ok: false,
         msg: "El estudiante no está en estado activo para inscribirse",
         status: student.status_description,
       })
     }
+
+    const inscriptionData = { studentID: student.id, sectionID, ...enrollmentData }
+    const inscription = await MatriculaModel.createSchoolInscription(inscriptionData)
+
+    // Actualizar estado del estudiante a "Inscrito" (2)
+    await StudentModel.updateStudentStatus(student.id, 2)
+
+    res.status(201).json({
+      ok: true,
+      msg: "Inscripción escolar creada exitosamente",
+      inscription,
+    })
   } catch (error) {
     handleError(res, error)
   }
@@ -46,10 +109,17 @@ const createSchoolInscription = async (req, res) => {
 const getLastAcademicRecord = async (req, res) => {
   try {
     const { studentID } = req.params
+    console.log("📚 Obteniendo último registro académico para estudiante:", studentID)
+
     const record = await MatriculaModel.getLastAcademicRecord(studentID)
     if (!record) {
-      return res.status(404).json({ ok: false, msg: "No hay registro académico para este estudiante" })
+      return res.status(404).json({
+        ok: false,
+        msg: "No hay registro académico para este estudiante",
+      })
     }
+
+    console.log("✅ Registro académico encontrado:", record)
     res.json({ ok: true, record })
   } catch (error) {
     handleError(res, error)
@@ -70,7 +140,7 @@ const getAvailableGrades = async (req, res) => {
 const getSectionsByGrade = async (req, res) => {
   try {
     const { gradeId } = req.params
-    const { periodId } = req.query // El periodo se pasa como query param
+    const { periodId } = req.query
     if (!periodId) {
       return res.status(400).json({ ok: false, msg: "Debe indicar el periodo académico" })
     }
@@ -91,20 +161,6 @@ const getAvailableTeachers = async (req, res) => {
   }
 }
 
-// Asignar docente a sección por periodo
-const assignTeacherToSection = async (req, res) => {
-  try {
-    const { gradeId, teacherId, periodId } = req.body
-    if (!gradeId || !teacherId || !periodId) {
-      return res.status(400).json({ ok: false, msg: "Faltan datos para la asignación" })
-    }
-    const section = await MatriculaModel.assignTeacherToSection(gradeId, teacherId, periodId)
-    res.json({ ok: true, msg: "Docente asignado a la sección exitosamente", section })
-  } catch (error) {
-    handleError(res, error)
-  }
-}
-
 // Obtener inscripciones por grado y periodo
 const getInscriptionsByGrade = async (req, res) => {
   try {
@@ -120,7 +176,7 @@ const getInscriptionsByGrade = async (req, res) => {
   }
 }
 
-// Obtener todas las inscripciones (opcionalmente por periodo)
+// Obtener todas las inscripciones
 const getAllInscriptions = async (req, res) => {
   try {
     const { periodId } = req.query
@@ -151,7 +207,11 @@ const updateMatricula = async (req, res) => {
     const { id } = req.params
     const updateData = req.body
     const updatedInscription = await MatriculaModel.update(id, updateData)
-    res.status(200).json({ ok: true, msg: "Matrícula actualizada exitosamente", inscription: updatedInscription })
+    res.status(200).json({
+      ok: true,
+      msg: "Matrícula actualizada exitosamente",
+      inscription: updatedInscription,
+    })
   } catch (error) {
     handleError(res, error)
   }
@@ -162,21 +222,29 @@ const deleteMatricula = async (req, res) => {
   try {
     const { id } = req.params
     const deletedInscription = await MatriculaModel.remove(id)
-    res.status(200).json({ ok: true, msg: "Matrícula eliminada exitosamente", inscription: deletedInscription })
+    res.status(200).json({
+      ok: true,
+      msg: "Matrícula eliminada exitosamente",
+      inscription: deletedInscription,
+    })
   } catch (error) {
     handleError(res, error)
   }
 }
+
 // Obtener periodo académico actual
 const getAcademicPeriodCurrent = async (req, res) => {
   try {
     const period = await MatriculaModel.getCurrentAcademicPeriod()
     if (!period) {
-      return res.status(404).json({ ok: false, msg: "No se encontró ningún periodo académico actual." })
+      return res.status(404).json({
+        ok: false,
+        msg: "No se encontró ningún periodo académico actual.",
+      })
     }
     res.json({ ok: true, period })
   } catch (error) {
-    handleError(res, error) //
+    handleError(res, error)
   }
 }
 
@@ -186,7 +254,7 @@ const getAcademicPeriodsAll = async (req, res) => {
     const periods = await MatriculaModel.getAllAcademicPeriods()
     res.json({ ok: true, periods, total: periods.length })
   } catch (error) {
-    handleError(res, error) //
+    handleError(res, error)
   }
 }
 
@@ -206,13 +274,41 @@ const createAcademicPeriod = async (req, res) => {
   }
 }
 
+// Obtener todas las secciones (con filtros)
+const getAllSections = async (req, res) => {
+  try {
+    const { academicPeriodId, gradeId } = req.query
+    console.log("🔍 Obteniendo secciones con filtros:", { academicPeriodId, gradeId })
+
+    const sections = await MatriculaModel.getAllSections(academicPeriodId, gradeId)
+    res.json({ ok: true, total: sections.length, sections })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
+
+// Eliminar una sección
+const deleteSection = async (req, res) => {
+  try {
+    const { id } = req.params
+    console.log("🗑️ Eliminando sección:", id)
+
+    const deletedSection = await MatriculaModel.removeSection(id)
+    res.json({ ok: true, msg: "Sección eliminada exitosamente.", section: deletedSection })
+  } catch (error) {
+    handleError(res, error)
+  }
+}
+
 export const MatriculaController = {
+  createSection,
+  updateSection,
+  getSectionStudents,
   createSchoolInscription,
   getLastAcademicRecord,
   getAvailableGrades,
   getSectionsByGrade,
   getAvailableTeachers,
-  assignTeacherToSection,
   getInscriptionsByGrade,
   getAllInscriptions,
   getInscriptionById,
@@ -221,4 +317,6 @@ export const MatriculaController = {
   getAcademicPeriodCurrent,
   getAcademicPeriodsAll,
   createAcademicPeriod,
+  getAllSections,
+  deleteSection,
 }

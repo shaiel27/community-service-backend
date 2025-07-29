@@ -24,44 +24,15 @@ router.param('id', (req, res, next, id) => {
 });
 
 // Utility endpoints
-router.get(
-  "/utils/roles",
-  verifyToken,
-  verifyAdminOrReadOnly,
-  PersonalController.getRoles
-);
+router.get("/utils/roles", verifyToken, verifyAdminOrReadOnly, PersonalController.getRoles);
 
-router.get(
-  "/utils/parroquias",
-  verifyToken,
-  verifyAdminOrReadOnly,
-  PersonalController.getParroquias
-);
-
+router.get("/utils/parroquias", verifyToken, verifyAdminOrReadOnly, PersonalController.getParroquias);
 // Search endpoints
-router.get(
-  "/search/name",
-  verifyToken,
-  verifyAdminOrReadOnly,
-  validate(searchByNameSchema, { source: 'query' }),
-  PersonalController.searchPersonalByName
-);
+router.get("/search/name", verifyToken, verifyAdminOrReadOnly, validate(searchByNameSchema, { source: 'query' }), PersonalController.searchPersonalByName);
 
-router.get(
-  "/search/ci",
-  verifyToken,
-  verifyAdminOrReadOnly,
-  validate(searchByCiSchema, { source: 'query' }),
-  PersonalController.searchPersonalByCedula
-);
-
+router.get("/search/ci", verifyToken, verifyAdminOrReadOnly, validate(searchByCiSchema, { source: 'query' }), PersonalController.searchPersonalByCedula);
 // Role-specific endpoints
-router.get(
-  "/teachers/all",
-  verifyToken,
-  verifyAdminOrReadOnly,
-  PersonalController.getTeachers
-);
+router.get("/teachers/all", verifyToken, verifyAdminOrReadOnly, PersonalController.getTeachers);
 
 router.get(
   "/administrators/all",
@@ -93,35 +64,14 @@ router.get(
 );
 
 // Personal CRUD operations
-router.post(
-  "/", 
-  verifyToken, 
-  verifyAdmin, 
-  validate(createPersonalSchema),
-  PersonalController.createPersonal
-);
+router.post("/", verifyToken, verifyAdmin, validate(createPersonalSchema), PersonalController.createPersonal);
 
-router.get(
-  "/", 
-  verifyToken, 
-  verifyAdmin, 
-  PersonalController.getAllPersonal
-);
+router.get("/", verifyToken, verifyAdmin, PersonalController.getAllPersonal);
 
 // Routes with parameters
-router.get(
-  "/role/:idrole",
-  verifyToken,
-  verifyAdminOrReadOnly,
-  PersonalController.getPersonalByRole
-);
+router.get("/role/:idrole", verifyToken, verifyAdminOrReadOnly, PersonalController.getPersonalByRole );
 
-router.get(
-  "/:id",
-  verifyToken,
-  verifyAdminOrReadOnly,
-  PersonalController.getPersonalById
-);
+router.get("/:id", verifyToken, verifyAdminOrReadOnly, PersonalController.getPersonalById);
 
 router.put(
   "/:id", 
